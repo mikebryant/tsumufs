@@ -1,0 +1,15 @@
+Please keep in mind that while hacking on TsumuFS, one should attempt to
+observe the following rules:
+
+  1. All classes must have unit tests.
+  2. Changes must have been peer reviewed.
+  3. Commits must pass pychecker and unit test requirements.
+
+Please use the following coding style guide:
+
+  - Attempt to follow 100 column line length guides. Note that this is
+    a soft guideline -- if a line is more readable past 100 lines,
+    feel free to do so, but keep this as sparingly as possible.
+  - Tabs and indents are two (2) spaces, no tabs whatsoever.
+
+With that said, happy hacking!
