@@ -2,27 +2,32 @@
 
 * v1.0 - FUSE+Python prototype
 ** SyncLog
-*** Define when and how the log is flushed to disk.
+   - [ ] Define when and how the log is flushed to disk.
+
 ** SyncQueue
-*** CREATE!
+   - [ ] CREATE!
+
 ** CacheManager
-*** Reads and stats
+   - [ ] Reads and stats
+
 ** Unit Tests for all objects (if possible)
 ** Split thread objects into separate files.
 ** NFS availability/mount thread
-*** How do we do an NFS ping?
-*** How do we check for NFS sanity?
-*** Functioning as a passthrough thread for now (ie: read() goes straight to the NFS mount)
+   - [ ] How do we do an NFS ping?
+   - [ ] How do we check for NFS sanity?
+   - [ ] Functioning as a passthrough thread for now (ie: read() goes straight to the NFS mount)
+
 ** Standardize how read requests are passed between the main, sync, and mount threads.
 ** NFS mock thread object
-*** Manually control NFS is up/down states.
+   - [ ] Manually control NFS is up/down states.
 
 ** Configuration object needs writing.
 ** Write up a blurb for the README.
 ** Write some decent INSTALL instructions.
 ** Write a proper Makefile for the source.
-*** dist scripts?
-*** PREFIX and INSTALLDIR paths should be updated
+   - [ ] dist scripts?
+   - [ ] PREFIX and INSTALLDIR paths should be updated
+
 * v2.0 - FUSE+Python feature complete
 
 * v3.0 - Linux filesystem prototype
