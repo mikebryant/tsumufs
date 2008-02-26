@@ -1,4 +1,5 @@
 #!/usr/bin/python2.4
+# -*- python -*-
 #
 # Copyright (C) 2007  Google, Inc. All Rights Reserved.
 #
@@ -25,8 +26,11 @@ import os
 import sys
 import time
 
+sys.path.append('/usr/local/google/home/jtgans/tsumufs/trunk/lib')
+
 import tsumufs
 
 if __name__ == '__main__':
     server = tsumufs.FuseThread()
+    server.multithreaded = 1
     server.main()

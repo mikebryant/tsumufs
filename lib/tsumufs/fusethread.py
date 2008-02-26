@@ -29,6 +29,8 @@ from threading import Thread, Semaphore, Event
 
 from pprint import pprint
 
+import tsumufs
+
 from triumvirate import *
 from nfsmount import *
 from synclog import *
@@ -41,19 +43,6 @@ class FuseThread(Triumvirate, Fuse):
   that this class is not a thread, yet it is considered as one in the
   design docs."""
 
-  progName      = None
-  mountOptions  = {}
-  mountSource   = None
-  mountPoint    = None
-  nfsBaseDir    = "/var/lib/tsumufs/nfs"
-  nfsMountPoint = None
-  cacheBaseDir  = "/var/cache/tsumufs"
-  cacheSpecDir  = "/var/lib/tsumufs/cachespec"
-  cachePoint    = None
-
-  tsumuMountedEvent = Event()
-  nfsConnectedEvent = Event()
-  
   syncThread    = None
   mountThread   = None
 
@@ -72,27 +61,31 @@ class FuseThread(Triumvirate, Fuse):
 
     If there's a better way of doing this, I'm all ears. -- jtg"""
 
+    self.setName("Fuse")
+    
     # Parse our arguments
     self.debug("Parsing command line arguments.")
     self.parseArgs()
     
     # Command line argument munging and Fuse init
     self.debug("Initalizing fuse")
-    sys.argv = [self.progName, self.mountPoint]
+    sys.argv = [tsumufs.progName, tsumufs.mountPoint]
     Fuse.__init__(self, *args, **kw)
+
+    tsumufs.mountedEvent.set()
+    tsumufs.nfsConnectedEvent.clear()
 
     # Setup the NFSMount object for both sync and mount threads to
     # handle.
-    # TODO(jtgans): Is this needed anymore?
-    #self.nfsMount = NFSMount(mountPoint, mountOptions)
-
+    tsumufs.nfsMount = NFSMount()
+    
     # Initialize our threads
-    self.syncThread = SyncThread(self.tsumuMountedEvent,
-                                 #self.nfsConnectedEvent,
-                                 self.nfsMount)
-    self.mountThread = MountThread(self.tsumuMountedEvent,
-                                   #self.nfsConnectedEvent,
-                                   self.nfsMount)
+    #self.syncThread = SyncThread(self.tsumuMountedEvent,
+    #                             #self.nfsConnectedEvent,
+    #                             self.nfsMount)
+    #self.syncThread.setName("Sync")
+    self.mountThread = MountThread()
+    self.mountThread.setName("Mount")
 
   def main(self):
     """Overrides Fuse.main(). Provides the case when the main event loop
@@ -102,13 +95,24 @@ class FuseThread(Triumvirate, Fuse):
     Calls Fuse.main() first, and then does the unmount and cache
     closing operations after it returns."""
 
+    self.debug("Starting mount thread")
+    self.mountThread.start()
+
     self.debug("Entering fuse main event loop")
     Fuse.main(self)
 
     # Catch the case when the main event loop has exited. At this
     # point we want to unmount the NFS mount, and close the cache.
-    self.debug("Unmounting NFS from %s" % self.nfsMountPoint)
-    self._undoNFSMount()
+    self.debug("Clearing mountedEvent.")
+    tsumufs.mountedEvent.clear()
+
+    self.debug("Marking NFS connection as disconnected.")
+    tsumufs.nfsConnectedEvent.clear()
+
+    self.debug("Waiting for the mount thread to finish.")
+    self.mountThread.join()
+
+    self.debug("Shutdown complete.")
 
   def parseArgs(self):
     """Parse the command line arguments into a usable set of
@@ -132,7 +136,9 @@ class FuseThread(Triumvirate, Fuse):
     arguments, this method will immediately exit the program with a
     code of 1."""
 
-    self.progName = sys.argv[0]
+    self.debug("Arguments passed are: %s" % sys.argv)
+
+    tsumufs.progName = sys.argv[0]
     args = sys.argv[1:]
     opts_pos = 0
 
@@ -143,8 +149,8 @@ class FuseThread(Triumvirate, Fuse):
     # Make sure that we have enough arguments to parse out the mount
     # options
     if len(args) == opts_pos:
-      sys.stderr.write("%s: -o requires an option list.",
-                       self.progName)
+      sys.stderr.write("%s: -o requires an option list.\n" %
+                       tsumufs.progName)
       sys.exit(1)
     else:
       # Burst the mount arguments separated by commas into a hash.
@@ -160,7 +166,7 @@ class FuseThread(Triumvirate, Fuse):
         else:
           val = True
 
-        self.mountOptions[key] = val
+        tsumufs.mountOptions[key] = val
 
     # Now that we have burst the mount options, rip them out
     # of the argument list to prevent confusion with
@@ -172,46 +178,44 @@ class FuseThread(Triumvirate, Fuse):
     if len(sys.argv) < 2:
       sys.stderr.write("%s: invalid number of arguments provided: " +
                        "expecting source and destination." %
-                       self.progName)
+                       tsumufs.progName)
       sys.exit(1)
     else:
-      self.mountSource = args[0]
-      self.mountPoint  = args[1]
+      tsumufs.mountSource = args[0]
+      tsumufs.mountPoint  = args[1]
 
     # Make sure the mountPoint is a fully qualified pathname.
-      if self.mountPoint[0] != "/":
-        self.mountPoint = os.getcwd() + "/" + self.mountPoint
+    if tsumufs.mountPoint[0] != "/":
+      tsumufs.mountPoint = os.getcwd() + "/" + tsumufs.mountPoint
 
     # Finally, calculate the runtime paths.
-    self.nfsMountPoint = (self.nfsBaseDir + "/" +
-                          self.mountPoint.replace("/", "-"))
-    self.cachePoint = (self.cacheBaseDir + "/" +
-                       self.mountPoint.replace("/", "-"))
+    tsumufs.nfsMountPoint = (tsumufs.nfsBaseDir + "/" +
+                             tsumufs.mountPoint.replace("/", "-"))
+    tsumufs.cachePoint = (tsumufs.cacheBaseDir + "/" +
+                          tsumufs.mountPoint.replace("/", "-"))
 
-  def debug(self, args):
-    if debugMode:
-      print("Main: " + args)
 
   ######################################################################
   # Filesystem operations and system calls below here
 
   def chown(self, path, uid, gid):
-    self.debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" % ("chown", path, uid, gid))
-    return os.chown(self.nfsMountPoint + path, uid, gid)
+    self.debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" %
+               ("chown", path, uid, gid))
+    return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
 
   def getattr(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("getattr", path))
-    return os.stat(self.nfsMountPoint + path)
+    return os.stat(tsumufs.nfsMountPoint + path)
 
   def readlink(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("readlink", path))
-    return os.readlink(self.nfsMountPoint + path)
+    return os.readlink(tsumufs.nfsMountPoint + path)
 
   def getdir(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("getdir", path))
 
     dentries = []
-    files = os.listdir(self.nfsMountPoint + path)
+    files = os.listdir(tsumufs.nfsMountPoint + path)
 
     for f in files:
       dentries.append((f, 0))
@@ -220,11 +224,11 @@ class FuseThread(Triumvirate, Fuse):
 
   def unlink(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("unlink", path))
-    return os.unlink(self.nfsMountPoint + path)
+    return os.unlink(tsumufs.nfsMountPoint + path)
 
   def rmdir(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("rmdir", path))
-    return os.rmdir(self.nfsMountPoint + path)
+    return os.rmdir(tsumufs.nfsMountPoint + path)
 
   def symlink(self, src, dest):
     self.debug("opcode: %s\n\tsrc: %s\n\tdest:: %s\n" % ("symlink", src, dest))
@@ -243,16 +247,18 @@ class FuseThread(Triumvirate, Fuse):
     return -ENOSYS
 
   def truncate(self, path, size):
-    self.debug("opcode: %s\n\tpath: %s\n\tsize: %d\n" % ("truncate", path, size))
+    self.debug("opcode: %s\n\tpath: %s\n\tsize: %d\n" %
+               ("truncate", path, size))
     return -ENOSYS
 
   def mknod(self, path, mode, dev):
-    self.debug("opcode: %s\n\tpath: %s\n\tmode: %d\n\tdev: %s\n" % ("mknod", path, mode, dev))
+    self.debug("opcode: %s\n\tpath: %s\n\tmode: %d\n\tdev: %s\n" %
+               ("mknod", path, mode, dev))
     return -ENOSYS
 
   def mkdir(self, path, mode):
     self.debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("mkdir", path, mode))
-    return os.mkdir(self.nfsMountPoint + path)
+    return os.mkdir(tsumufs.nfsMountPoint + path)
 
   def utime(self, path, times):
     self.debug("opcode: %s\n\tpath: %s\n" % ("utime", path))
@@ -263,11 +269,13 @@ class FuseThread(Triumvirate, Fuse):
     return -ENOSYS
 
   def read(self, path, length, offset):
-    self.debug("opcode: %s\n\tpath: %s\n\tlen: %d\n\toffset: %d\n" % ("read", path, length, offset))
+    self.debug("opcode: %s\n\tpath: %s\n\tlen: %d\n\toffset: %d\n" %
+               ("read", path, length, offset))
     return -ENOSYS
 
   def write(self, path, buf, offset):
-    self.debug("opcode: %s\n\tpath: %s\n\tbuf: '%s'\n\toffset: %d\n" % ("write", path, buf, offset))
+    self.debug("opcode: %s\n\tpath: %s\n\tbuf: '%s'\n\toffset: %d\n" %
+               ("write", path, buf, offset))
     return -ENOSYS
 
   def release(self, path, flags):
@@ -275,8 +283,28 @@ class FuseThread(Triumvirate, Fuse):
     return -ENOSYS
 
   def statfs(self):
+    """
+    Should return a tuple with the following 6 elements:
+      - blocksize - size of file blocks, in bytes
+      - totalblocks - total number of blocks in the filesystem
+      - freeblocks - number of free blocks
+      - totalfiles - total number of file inodes
+      - freefiles - nunber of free file inodes
+      - namelen - the maximum length of filenames
+    Feel free to set any of the above values to 0, which tells
+    the kernel that the info is not available.
+    """
+
     self.debug("opcode: %s\n" % "statfs")
-    return -ENOSYS
+
+    blocks_size = 1024
+    blocks = 0
+    blocks_free = 0
+    files = 0
+    files_free = 0
+    namelen = 80
+
+    return (blocks_size, blocks, blocks_free, files, files_free, namelen)
 
   def fsync(self, path, isfsyncfile):
     self.debug("opcode: %s\n\tpath: %s\n" % ("fsync", path))

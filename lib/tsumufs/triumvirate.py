@@ -18,12 +18,22 @@
 
 """TsumuFS, a NFS-based caching filesystem."""
 
+import tsumufs
+
 class Triumvirate:
   """Defines some basic behavior and utility functions that all three
   main threads require for functioning.
 
   Any shared code between the three should be placed here instead of
   copying."""
+
+  name = None
+
+  def setName(self, name):
+    self.name = name
+
+  def getName(self):
+    return self.name
   
   def debug(self, args):
     """Quick method to output some debugging information which states the
@@ -35,5 +45,5 @@ class Triumvirate:
         print() takes.
     """
     
-    if debugMode:
+    if tsumufs.debugMode:
       print(self.getName() + ": "+ args)

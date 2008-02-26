@@ -29,6 +29,8 @@ from threading import Thread, Semaphore, Event
 
 from pprint import pprint
 
+import tsumufs
+
 from triumvirate import *
 from nfsmount import *
 from synclog import *
@@ -38,23 +40,29 @@ class MountThread(Triumvirate, Thread):
   backend server is available and healthy and stays that way until one
   of the other threads flag it as being down again."""
 
-  tsumuMountedEvent = None
-  nfsMount = None
-
-  def __init__(self, tsumuMountedEvent, nfsMount):
-    self.tsumuMountedEvent = tsumuMountedEvent
-    self.nfsMount = nfsMount
+  def __init__(self):
     Thread.__init__(self, name="MountThread")
 
   def run(self):
-    while self.tsumuMountedEvent.isSet():
-      while not self.nfsMount.connectedEvent.isSet():
-        if self.nfsMount.pingServerOK():
-          if self.nfsMount.nfsCheckOK():
-            self.nfsMount.mount()
-            time.sleep(5)
-
-      while self.nfsMount.connectedEvent.isSet():
+    self.debug("Entered run loop")
+    
+    while tsumufs.mountedEvent.isSet():
+      while not tsumufs.nfsConnectedEvent.isSet():
         time.sleep(5)
-      
-    self.nfsMount.unmount()
+        self.debug("Checking for NFS server availability")
+        if tsumufs.nfsMount.pingServerOK():
+          self.debug("NFS ping looks good")
+          if tsumufs.nfsMount.nfsCheckOK():
+            self.debug("NFS sanity check okay. Attempting mount.")
+            tsumufs.nfsMount.mount()
+
+      self.debug("NFS mount complete.")
+            
+      while tsumufs.nfsConnectedEvent.isSet():
+        self.debug("NFS connection alive.")
+        time.sleep(5)
+
+      self.debug("NFS connection lost")
+
+    self.debug("Unmount requested -- unmounting NFS")
+    tsumufs.nfsMount.unmount()

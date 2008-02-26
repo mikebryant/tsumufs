@@ -27,4 +27,22 @@ from mountthread import *
 from syncthread import *
 from fusethread import *
 
-debugMode = False
+debugMode = True
+
+progName = None
+
+mountSource  = False
+mountPoint   = False
+mountOptions = {}
+
+nfsBaseDir    = "/var/lib/tsumufs/nfs"
+nfsMountPoint = None
+
+cacheBaseDir  = "/var/cache/tsumufs"
+cacheSpecDir  = "/var/lib/tsumufs/cachespec"
+cachePoint    = None
+
+mountedEvent         = Event()
+nfsConnectedEvent    = Event()
+
+nfsMount = None

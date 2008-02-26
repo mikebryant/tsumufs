@@ -29,6 +29,8 @@ from stat import *
 
 from threading import Event
 
+import tsumufs
+
 class NFSMount(object):
   """Represents the NFS mount iself.
 
@@ -36,16 +38,8 @@ class NFSMount(object):
   mount. It is also responsible for setting the connectedEvent to
   False in case of an NFS access error."""
 
-  mountSource = None
-  mountPoint = None
-  mountOptions = None
-
-  connectedEvent = Event()
-
-  def __init__(self, mountSource, mountPoint, mountOptions):
-    self.mountPoint = mountPoint
-    self.mountSource = mountSource
-    self.mountOptions = mountOptions
+  def __init__(self):
+    pass
 
   def lockFile(self, filename):
     """Method to lock a file. Blocks if the file is already locked.
@@ -72,13 +66,13 @@ class NFSMount(object):
   def pingServerOK(self):
     """Method to verify that the NFS server is available.
     """
-    pass
+    return True
 
   def nfsCheckOK(self):
     """Method to verify that the NFS server is available and returning
     valid responses.
     """
-    pass
+    return True
 
   def readFileRegion(self, filename, start, end):
     """Method to read a region of a file from the NFS
@@ -125,31 +119,26 @@ class NFSMount(object):
     """
 
     # Setup any additional mount options we need
-    mount_opts = "soft"
-
-    # Make sure the NFS mount point exists. If not, attempt to
-    # create it. If the base portion of the mount location is
-    # missing as well, signal an error and return.
-    os.stat(self.nfsBaseDir)
+    mount_opts = ""
 
     try:
-      os.stat(self.nfsMountPoint)
+      os.stat(tsumufs.nfsMountPoint)
     except OSError, e:
       if e.errno == 2:
         self.debug("Mount point %s was not found -- creating"
-                   % self.nfsMountPoint)
-        os.mkdir(self.nfsMountPoint)
-    else:
-      raise e
+                   % tsumufs.nfsMountPoint)
+        os.mkdir(tsumufs.nfsMountPoint)
 
-    rc = os.system("/bin/mount -t nfs -o %s %s %s" %
-                   (mount_opts, self.mountSource,
-                    self.nfsMountPoint))
+    self.debug("/bin/mount %s" % (tsumufs.nfsMountPoint))
+    rc = os.system("/bin/mount %s" %
+                   (tsumufs.nfsMountPoint))
     
     if rc != 0:
       self.debug("Mount of NFS failed.")
+      tsumufs.nfsConnectedEvent.clear()
     else:
       self.debug("Mount of NFS succeeded.")
+      tsumufs.nfsConnectedEvent.set()
 
   def unmount(self):
     """Quick and dirty method to actually UNmount the real NFS connection
@@ -157,10 +146,25 @@ class NFSMount(object):
     """
 
     self.debug("Unmounting NFS mount from %s" %
-               self.nfsMountPoint)
-    rc = os.system("/bin/umount %s" % self.nfsMountPoint)
+               tsumufs.nfsMountPoint)
+    rc = os.system("/bin/umount %s" % tsumufs.nfsMountPoint)
 
     if rc != 0:
       self.debug("Unmount of NFS failed.")
     else:
       self.debug("Unmount of NFS succeeded.")
+
+    tsumufs.nfsConnectedEvent.clear()
+    
+  def debug(self, args):
+    """Quick method to output some debugging information which states the
+    thread name a colon, and whatever arguments have been passed to
+    it.
+
+    Args:
+      args: a list of additional arguments to pass, much like what
+        print() takes.
+    """
+    
+    if tsumufs.debugMode:
+      print("nfsmount: "+ args)
