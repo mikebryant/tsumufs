@@ -87,6 +87,9 @@ class FuseThread(Triumvirate, Fuse):
     self.mountThread = MountThread()
     self.mountThread.setName("Mount")
 
+    # Start the threads
+    self.mountThread.start()
+
   def main(self):
     """Overrides Fuse.main(). Provides the case when the main event loop
     has exited, and we need to unmount the NFS mount and close the
