@@ -1,6 +1,6 @@
 #!/usr/bin/python2.4
 #
-# Copyright (C) 2007  Google, Inc. All Rights Reserved.
+# Copyright (C) 2008  Google, Inc. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,10 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem.
-
-Blah blah.
-"""
+"""TsumuFS, a NFS-based caching filesystem."""
 
 __author__ = 'jtgans@google.com (June Tate-Gans)'
 
