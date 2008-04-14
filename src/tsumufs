@@ -23,7 +23,7 @@ import os
 import sys
 import time
 
-sys.path.append('/usr/local/google/home/jtgans/tsumufs/trunk/lib')
+sys.path.append('../lib')
 
 import tsumufs
 
