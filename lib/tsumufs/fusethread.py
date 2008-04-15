@@ -19,6 +19,7 @@
 """TsumuFS, a NFS-based caching filesystem."""
 
 import os
+import statvfs
 import sys
 import time
 
@@ -78,7 +79,7 @@ class FuseThread(Triumvirate, Fuse):
     # Setup the NFSMount object for both sync and mount threads to
     # handle.
     tsumufs.nfsMount = NFSMount()
-    
+
     # Initialize our threads
     #self.syncThread = SyncThread(self.tsumuMountedEvent,
     #                             #self.nfsConnectedEvent,
@@ -88,21 +89,16 @@ class FuseThread(Triumvirate, Fuse):
     self.mountThread.setName("Mount")
 
     # Start the threads
+    self.debug("Starting mount thread")
     self.mountThread.start()
 
-  def main(self):
+  def shutdown(self):
     """Overrides Fuse.main(). Provides the case when the main event loop
     has exited, and we need to unmount the NFS mount and close the
     cache.
 
     Calls Fuse.main() first, and then does the unmount and cache
     closing operations after it returns."""
-
-    self.debug("Starting mount thread")
-    self.mountThread.start()
-
-    self.debug("Entering fuse main event loop")
-    Fuse.main(self)
 
     # Catch the case when the main event loop has exited. At this
     # point we want to unmount the NFS mount, and close the cache.
@@ -216,14 +212,7 @@ class FuseThread(Triumvirate, Fuse):
 
   def getdir(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("getdir", path))
-
-    dentries = []
-    files = os.listdir(tsumufs.nfsMountPoint + path)
-
-    for f in files:
-      dentries.append((f, 0))
-
-      return dentries
+    return map(lambda x: (x, 0), os.listdir(tsumufs.nfsMountPoint + path))
 
   def unlink(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("unlink", path))
@@ -300,14 +289,14 @@ class FuseThread(Triumvirate, Fuse):
 
     self.debug("opcode: %s\n" % "statfs")
 
-    blocks_size = 1024
-    blocks = 0
-    blocks_free = 0
-    files = 0
-    files_free = 0
-    namelen = 80
+    result = os.statvfs(tsumufs.nfsMountPoint)
 
-    return (blocks_size, blocks, blocks_free, files, files_free, namelen)
+    return (result[statvfs.F_FRSIZE],   # Block size
+            result[statvfs.F_BLOCKS],   # Total blocks
+            result[statvfs.F_BFREE],    # blocks_free
+            result[statvfs.F_FILES],    # files
+            result[statvfs.F_FFREE],    # files_free
+            result[statvfs.F_NAMEMAX])  # Max filename length
 
   def fsync(self, path, isfsyncfile):
     self.debug("opcode: %s\n\tpath: %s\n" % ("fsync", path))

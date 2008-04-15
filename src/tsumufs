@@ -22,12 +22,23 @@
 import os
 import sys
 import time
+import inspect
 
-sys.path.append('../lib')
+mode = "development"
+
+if mode == "development":
+  # Setup our include path for development
+  path = os.readlink(__file__).split("/")    # Make an array
+  path = path[0:-2]                          # Remove the last two
+  path = "/".join(path) + "/lib"             # rejoin and add /lib
+  sys.path.append(path)
 
 import tsumufs
 
 if __name__ == '__main__':
-    server = tsumufs.FuseThread()
-    server.multithreaded = 1
-    server.main()
+  server = tsumufs.FuseThread()
+  server.multithreaded = 1
+  server.main()
+  server.join()
+  server.shutdown()
+
