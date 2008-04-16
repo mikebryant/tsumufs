@@ -17,28 +17,48 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+"""
+TsumuFS, a NFS-based caching filesystem.
+
+This file contains the startup code that launches into the FuseThread
+class. See that module for more details.
+"""
 
 import os
 import sys
-import time
-import inspect
 
 mode = "development"
 
 if mode == "development":
-  # Setup our include path for development
-  path = os.readlink(__file__).split("/")    # Make an array
-  path = path[0:-2]                          # Remove the last two
-  path = "/".join(path) + "/lib"             # rejoin and add /lib
+  # Try to find our file
+  try:
+    path = os.readlink(__file__)
+  except OSError:
+    path = __file__
+    
+  path = path.split("/")          # Split the path up into an array
+  path = path[0:-2]               # Remove the last two elements
+  path = "/".join(path) + "/lib"  # rejoin and add /lib
   sys.path.append(path)
 
 import tsumufs
 
 if __name__ == '__main__':
+  # Fork so we don't have to wait on the client side.
+  #
+  # NB: fuselib should do this for us already, but for some reason in
+  #     python it doesn't happen.
+  
+  try:
+    pid = os.fork()
+  except OSError:
+    sys.stderr.write("Unable to fork.\n")
+    sys.exit(1)
+    
+  if pid != 0:
+    sys.exit(0)
+    
   server = tsumufs.FuseThread()
   server.multithreaded = 1
   server.main()
-  server.join()
   server.shutdown()
-
