@@ -159,7 +159,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       sys.exit(1)
 
     tsumufs.mountSource = self.cmdline[1][0]
-    self.fuse_args.mountpoint = self.cmdline[1][1]
+    tsumufs.mountPoint  = self.cmdline[1][1]
+    self.fuse_args.mountpoint = tsumufs.mountPoint
 
     # Make sure the mountPoint is a fully qualified pathname.
     if tsumufs.mountPoint[0] != "/":
