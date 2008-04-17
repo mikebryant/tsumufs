@@ -27,10 +27,15 @@ class. See that module for more details.
 import os
 import sys
 
-mode = "development"
+import fuse
 
-if mode == "development":
-  # Try to find our file
+development_mode = True
+
+if development_mode:
+  # If we're in development mode, we have to find our libs and load
+  # them directly by appending to the sys.path. So to do so, we try to
+  # find this file in the VFS and use ../lib as our appended sys.path.
+  
   try:
     path = os.readlink(__file__)
   except OSError:
@@ -44,21 +49,15 @@ if mode == "development":
 import tsumufs
 
 if __name__ == '__main__':
-  # Fork so we don't have to wait on the client side.
-  #
-  # NB: fuselib should do this for us already, but for some reason in
-  #     python it doesn't happen.
-  
-  try:
-    pid = os.fork()
-  except OSError:
-    sys.stderr.write("Unable to fork.\n")
-    sys.exit(1)
-    
-  if pid != 0:
-    sys.exit(0)
-    
+  # Verify that we're using a fuse-python version new enough to know
+  # about __version__. Bail if otherwise.
+  if not hasattr(fuse, '__version__'):
+    raise RuntimeError, ('Your fuse-python version is too old. Please '
+                         'upgrade to v0.2 at the minimum.')
+
+  # Force the API to 0.2
+  fuse.fuse_python_api = (0, 2)
+
   server = tsumufs.FuseThread()
-  server.multithreaded = 1
+  server.parseCommandLine()
   server.main()
-  server.shutdown()
