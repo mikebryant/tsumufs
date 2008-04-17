@@ -18,14 +18,14 @@
 
 """TsumuFS, a NFS-based caching filesystem."""
 
-from dataregion import *
-from inode import *
+import threading
+
+from triumvirate import *
 from nfsmount import *
 from synclog import *
-from triumvirate import *
-from mountthread import *
-from syncthread import *
 from fusethread import *
+from syncthread import *
+from mountthread import *
 
 __version__ = (0, 0, 1)
 
@@ -44,7 +44,7 @@ cacheBaseDir  = "/var/cache/tsumufs"
 cacheSpecDir  = "/var/lib/tsumufs/cachespec"
 cachePoint    = None
 
-mountedEvent         = Event()
-nfsConnectedEvent    = Event()
+mountedEvent      = threading.Event()
+nfsConnectedEvent = threading.Event()
 
 nfsMount = None

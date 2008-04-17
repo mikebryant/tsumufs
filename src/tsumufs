@@ -24,40 +24,33 @@ This file contains the startup code that launches into the FuseThread
 class. See that module for more details.
 """
 
-import os
 import sys
 
 import fuse
 
 development_mode = True
-
-if development_mode:
-  # If we're in development mode, we have to find our libs and load
-  # them directly by appending to the sys.path. So to do so, we try to
-  # find this file in the VFS and use ../lib as our appended sys.path.
-  
-  try:
-    path = os.readlink(__file__)
-  except OSError:
-    path = __file__
-    
-  path = path.split("/")          # Split the path up into an array
-  path = path[0:-2]               # Remove the last two elements
-  path = "/".join(path) + "/lib"  # rejoin and add /lib
-  sys.path.append(path)
+if development_mode == True:
+  sys.path.append('../lib')
 
 import tsumufs
 
-if __name__ == '__main__':
+
+def main():
   # Verify that we're using a fuse-python version new enough to know
   # about __version__. Bail if otherwise.
   if not hasattr(fuse, '__version__'):
     raise RuntimeError, ('Your fuse-python version is too old. Please '
                          'upgrade to v0.2 at the minimum.')
 
-  # Force the API to 0.2
-  fuse.fuse_python_api = (0, 2)
+  # Force the API to use the current version.
+  fuse.fuse_python_api = fuse.FUSE_PYTHON_API_VERSION
 
   server = tsumufs.FuseThread()
+
+  # Throw parsed values into the tsumufs module's namespace, where
+  # they belong.
   server.parseCommandLine()
   server.main()
+
+if __name__ == '__main__':
+  main()

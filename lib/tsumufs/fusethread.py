@@ -19,26 +19,19 @@
 """TsumuFS, a NFS-based caching filesystem."""
 
 import os
-import statvfs
 import sys
+import errno
+import stat
+import statvfs
 import time
+import threading
 
+import fuse
 from fuse import Fuse
-from errno import *
-from stat import *
-from threading import Thread, Semaphore, Event
-
-from pprint import pprint
 
 import tsumufs
 
-from triumvirate import *
-from nfsmount import *
-from synclog import *
-from syncthread import *
-from mountthread import *
-
-class FuseThread(Triumvirate, Fuse):
+class FuseThread(tsumufs.Triumvirate, Fuse):
   """Class that implements the prototype design of the TsumuFS
   filesystem. This class provides the main interface to Fuse. Note
   that this class is not a thread, yet it is considered as one in the
@@ -48,72 +41,55 @@ class FuseThread(Triumvirate, Fuse):
   mountThread   = None
 
   def __init__(self, *args, **kw):
-    """Initializer. Prepares the object for initial use. Parses command
-    line arguments, and prepares a faked sys.argv for Fuse.__init__.
+    """Initializer. Prepares the object for initial use."""
 
-    Sadly, Fuse.__init__ requires the following format for it's
-    command line arguments:
-
-    ["<scriptname>", "<mountpoint>"]
-
-    If we include the source in the argument list, it will erronously
-    treat the source as the actual mount point. So we have to munge
-    the list for it by directly modifying sys.argv.
-
-    If there's a better way of doing this, I'm all ears. -- jtg"""
-
+    Fuse.__init__(self, *args, **kw)
     self.setName("Fuse")
     
-    # Parse our arguments
-    self.debug("Parsing command line arguments.")
-    self.parseArgs()
-    
-    # Command line argument munging and Fuse init
-    self.debug("Initalizing fuse")
-    sys.argv = [tsumufs.progName, tsumufs.mountPoint]
-    Fuse.__init__(self, *args, **kw)
-
+  def fsinit(self):
+    # Set the initial states for the events.
     tsumufs.mountedEvent.set()
     tsumufs.nfsConnectedEvent.clear()
 
     # Setup the NFSMount object for both sync and mount threads to
-    # handle.
+    # access raw NFS with.
     tsumufs.nfsMount = NFSMount()
 
     # Initialize our threads
     #self.syncThread = SyncThread(self.tsumuMountedEvent,
-    #                             #self.nfsConnectedEvent,
-    #                             self.nfsMount)
+    #                            #self.nfsConnectedEvent,
+    #                            self.nfsMount)
     #self.syncThread.setName("Sync")
+    
     self.mountThread = MountThread()
     self.mountThread.setName("Mount")
 
     # Start the threads
-    self.debug("Starting mount thread")
-    self.mountThread.start()
+    #self.debug("Starting mount thread")
+    #self.mountThread.start()
+    
+#   def shutdown(self):
+#     """Overrides Fuse.main(). Provides the case when the main event loop
+#     has exited, and we need to unmount the NFS mount and close the
+#     cache.
 
-  def shutdown(self):
-    """Overrides Fuse.main(). Provides the case when the main event loop
-    has exited, and we need to unmount the NFS mount and close the
-    cache.
+#     Calls Fuse.main() first, and then does the unmount and cache
+#     closing operations after it returns."""
 
-    Calls Fuse.main() first, and then does the unmount and cache
-    closing operations after it returns."""
+#     # Catch the case when the main event loop has exited. At this
+#     # point we want to unmount the NFS mount, and close the cache.
+#     self.debug("Clearing mountedEvent.")
+#     tsumufs.mountedEvent.clear()
 
-    # Catch the case when the main event loop has exited. At this
-    # point we want to unmount the NFS mount, and close the cache.
-    self.debug("Clearing mountedEvent.")
-    tsumufs.mountedEvent.clear()
+#     self.debug("Marking NFS connection as disconnected.")
+#     tsumufs.nfsConnectedEvent.clear()
 
-    self.debug("Marking NFS connection as disconnected.")
-    tsumufs.nfsConnectedEvent.clear()
+#     self.debug("Waiting for the mount thread to finish.")
+#     self.mountThread.join()
 
-    self.debug("Waiting for the mount thread to finish.")
-    self.mountThread.join()
+#     self.debug("Shutdown complete.")
 
-    self.debug("Shutdown complete.")
-
-  def parseArgs(self):
+  def parseCommandLine(self):
     """Parse the command line arguments into a usable set of
     variables. This sets the following instance variables:
 
@@ -135,53 +111,55 @@ class FuseThread(Triumvirate, Fuse):
     arguments, this method will immediately exit the program with a
     code of 1."""
 
-    self.debug("Arguments passed are: %s" % sys.argv)
-
+    # Grab our program name first off.
     tsumufs.progName = sys.argv[0]
-    args = sys.argv[1:]
-    opts_pos = 0
 
-    # Find the mount options argument first
-    for opts_pos in range(1, len(args)):
-      if args[opts_pos] == "-o": break
+    # Setup our option parser to not be retarded.
+    self.parser = fuse.FuseOptParse(standard_mods=False,
+                                    fetch_mp=False,
+                                    dash_s_do='undef')
 
-    # Make sure that we have enough arguments to parse out the mount
-    # options
-    if len(args) == opts_pos:
-      sys.stderr.write("%s: -o requires an option list.\n" %
+    # Add in the named options we care about.
+    self.parser.add_option(mountopt='nfsbasedir',
+                           default='/var/lib/tsumufs/nfs',
+                           help=('Set the NFS mount base directory [default: ' 
+                                 '%default]'))
+    self.parser.add_option(mountopt='nfsmountpoint',
+                           default=None,
+                           help=('Set the directory name of the nfs mount '
+                                 'point [default: calculated based upon the '
+                                 'source]'))
+    self.parser.add_option(mountopt='cachebasedir',
+                           default='/var/cache/tsumufs',
+                           help=('Set the base directory for cache storage '
+                                 '[default: %default]'))
+    self.parser.add_option(mountopt='cachespecdir',
+                           default='/var/lib/tsumufs/cachespec',
+                           help=('Set the base directory for cachespec '
+                                 'storage [default: %default]'))
+    self.parser.add_option(mountopt='cachepoint',
+                           default=None,
+                           help=('Set the directory name for cache storage '
+                                 '[default: calculated]'))
+    
+    self.parser.add_option('-d', '--debug',
+                           dest='debugMode',
+                           action='store_true',
+                           default=False,
+                           help='Enable debug messages. [default: %default]')
+
+    # GO!
+    self.parse(values=tsumufs, errex=1)
+
+    # Verify we have a source and destination to mount.
+    if len(self.cmdline[1]) != 2:
+      sys.stderr.write(("%s: invalid number of arguments provided: "
+                       "expecting source and destination.\n") %
                        tsumufs.progName)
       sys.exit(1)
-    else:
-      # Burst the mount arguments separated by commas into a hash.
-      opts = args[opts_pos+1].split(",")
 
-      for opt in opts:
-        key = opt.split("=")[0]
-
-        # If the argument contains an equals, assume it's a string,
-        # otherwise assume it's a boolean true value.
-        if len(opt.split("=")) > 1:
-          val = opt.split("=")[1]
-        else:
-          val = True
-
-        tsumufs.mountOptions[key] = val
-
-    # Now that we have burst the mount options, rip them out
-    # of the argument list to prevent confusion with
-    # positional arguments.
-    args = args[0:opts_pos] + args[opts_pos+2:]
-
-    # From here, assume the source and dest mount points are in
-    # the positional arguments, and slice them out.
-    if len(sys.argv) < 2:
-      sys.stderr.write("%s: invalid number of arguments provided: " +
-                       "expecting source and destination." %
-                       tsumufs.progName)
-      sys.exit(1)
-    else:
-      tsumufs.mountSource = args[0]
-      tsumufs.mountPoint  = args[1]
+    tsumufs.mountSource = self.cmdline[1][0]
+    self.fuse_args.mountpoint = self.cmdline[1][1]
 
     # Make sure the mountPoint is a fully qualified pathname.
     if tsumufs.mountPoint[0] != "/":
@@ -197,20 +175,14 @@ class FuseThread(Triumvirate, Fuse):
   ######################################################################
   # Filesystem operations and system calls below here
 
-  def chown(self, path, uid, gid):
-    self.debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" %
-               ("chown", path, uid, gid))
-    return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
-
   def getattr(self, path):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("getattr", path))
-    return os.stat(tsumufs.nfsMountPoint + path)
+    return os.lstat(tsumufs.nfsMountPoint + path)
 
   def readlink(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("readlink", path))
     return os.readlink(tsumufs.nfsMountPoint + path)
 
-  def getdir(self, path):
+  def readdir(self, path):
     self.debug("opcode: %s\n\tpath: %s\n" % ("getdir", path))
     return map(lambda x: (x, 0), os.listdir(tsumufs.nfsMountPoint + path))
 
@@ -238,6 +210,11 @@ class FuseThread(Triumvirate, Fuse):
     self.debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("chmod", path, mode))
     return -ENOSYS
 
+  def chown(self, path, uid, gid):
+    self.debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" %
+               ("chown", path, uid, gid))
+    return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
+
   def truncate(self, path, size):
     self.debug("opcode: %s\n\tpath: %s\n\tsize: %d\n" %
                ("truncate", path, size))
@@ -256,6 +233,58 @@ class FuseThread(Triumvirate, Fuse):
     self.debug("opcode: %s\n\tpath: %s\n" % ("utime", path))
     return -ENOSYS
 
+#    The following utimens method would do the same as the above utime method.
+#    We can't make it better though as the Python stdlib doesn't know of
+#    subsecond preciseness in acces/modify times.
+#  
+#    def utimens(self, path, ts_acc, ts_mod):
+#      os.utime("." + path, (ts_acc.tv_sec, ts_mod.tv_sec))
+
+  def access(self, path, mode):
+    if not os.access("." + path, mode):
+      return -EACCES
+
+#    This is how we could add stub extended attribute handlers...
+#    (We can't have ones which aptly delegate requests to the underlying fs
+#    because Python lacks a standard xattr interface.)
+#
+#    def getxattr(self, path, name, size):
+#        val = name.swapcase() + '@' + path
+#        if size == 0:
+#            # We are asked for size of the value.
+#            return len(val)
+#        return val
+#
+#    def listxattr(self, path, size):
+#        # We use the "user" namespace to please XFS utils
+#        aa = ["user." + a for a in ("foo", "bar")]
+#        if size == 0:
+#            # We are asked for size of the attr list, ie. joint size of attrs
+#            # plus null separators.
+#            return len("".join(aa)) + len(aa)
+#        return aa
+
+  def statfs(self):
+    """
+    Should return an object with statvfs attributes (f_bsize, f_frsize...).
+    Eg., the return value of os.statvfs() is such a thing (since py 2.2).
+    If you are not reusing an existing statvfs object, start with
+    fuse.StatVFS(), and define the attributes.
+    
+    To provide usable information (ie., you want sensible df(1)
+    output, you are suggested to specify the following attributes:
+    
+    - f_bsize - preferred size of file blocks, in bytes
+    - f_frsize - fundamental size of file blcoks, in bytes
+    [if you have no idea, use the same as blocksize]
+    - f_blocks - total number of blocks in the filesystem
+    - f_bfree - number of free blocks
+    - f_files - total number of file inodes
+    - f_ffree - nunber of free file inodes
+    """
+    
+    return os.statvfs(".")
+  
   def open(self, path, flags):
     self.debug("opcode: %s\n\tpath: %s\n" % ("open", path))
     return -ENOSYS
@@ -302,25 +331,25 @@ class FuseThread(Triumvirate, Fuse):
     self.debug("opcode: %s\n\tpath: %s\n" % ("fsync", path))
     return -ENOSYS
 
-# static struct fuse_operations xmp_oper = {
-#     .getattr	= xmp_getattr,
-#     .readlink	= xmp_readlink,
-#     .getdir	= xmp_getdir,
-#     .mknod	= xmp_mknod,
-#     .mkdir	= xmp_mkdir,
-#     .symlink	= xmp_symlink,
-#     .unlink	= xmp_unlink,
-#     .rmdir	= xmp_rmdir,
-#     .rename	= xmp_rename,
-#     .link	= xmp_link,
-#     .chmod	= xmp_chmod,
-#     .chown	= xmp_chown,
-#     .truncate	= xmp_truncate,
-#     .utime	= xmp_utime,
-#     .open	= xmp_open,
-#     .read	= xmp_read,
-#     .write	= xmp_write,
-#     .statfs	= xmp_statfs,
-#     .release	= xmp_release,
-#     .fsync	= xmp_fsync
-# };
+# # static struct fuse_operations xmp_oper = {
+# #     .getattr	= xmp_getattr,
+# #     .readlink	= xmp_readlink,
+# #     .getdir	= xmp_getdir,
+# #     .mknod	= xmp_mknod,
+# #     .mkdir	= xmp_mkdir,
+# #     .symlink	= xmp_symlink,
+# #     .unlink	= xmp_unlink,
+# #     .rmdir	= xmp_rmdir,
+# #     .rename	= xmp_rename,
+# #     .link	= xmp_link,
+# #     .chmod	= xmp_chmod,
+# #     .chown	= xmp_chown,
+# #     .truncate	= xmp_truncate,
+# #     .utime	= xmp_utime,
+# #     .open	= xmp_open,
+# #     .read	= xmp_read,
+# #     .write	= xmp_write,
+# #     .statfs	= xmp_statfs,
+# #     .release	= xmp_release,
+# #     .fsync	= xmp_fsync
+# # };
