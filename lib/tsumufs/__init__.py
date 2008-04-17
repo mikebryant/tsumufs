@@ -27,7 +27,9 @@ from mountthread import *
 from syncthread import *
 from fusethread import *
 
-debugMode = True
+__version__ = (0, 0, 1)
+
+debugMode = False
 
 progName = None
 
