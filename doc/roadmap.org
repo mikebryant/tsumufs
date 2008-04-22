@@ -1,0 +1,9 @@
+-*- org -*-
+
+* v1.0 - Prototype FUSE+Python version
+
+* v2.0 - Feature complete FUSE+Python version
+
+* v3.0 - Prototype Linux filesystem module
+
+* v4.0 - Feature complete Linux filesystem module

@@ -13,6 +13,8 @@
 ** Unit Tests for all objects (if possible)
 ** Split thread objects into separate files.
 ** NFS availability/mount thread
+   - [ ] Make NFS options controllable via command line arguments.
+   - [ ] Get NFS mounting.
    - [ ] How do we do an NFS ping?
    - [ ] How do we check for NFS sanity?
    - [ ] Functioning as a passthrough thread for now (ie: read() goes straight to the NFS mount)
@@ -27,6 +29,40 @@
 ** Write a proper Makefile for the source.
    - [ ] dist scripts?
    - [ ] PREFIX and INSTALLDIR paths should be updated
+
+** Functionality
+   - [ ] mount
+   - [ ] unmount
+   - [ ] creating files
+   - [ ] creating dirs
+   - [ ] opening files
+   - [ ] writing files
+   - [ ] reading files
+   - [ ] deleting files
+   - [ ] renaming files
+   - [ ] reading metadata
+   - [ ] writing metadata
+   - [ ] opening dirs
+   - [ ] reading dirs
+
+** Tests
+   - [ ] mount
+   - [ ] unmount
+   - [ ] creating files
+   - [ ] creating dirs
+   - [ ] opening files
+   - [ ] writing files
+   - [ ] reading files
+   - [ ] deleting files
+   - [ ] renaming files
+   - [ ] reading metadata
+   - [ ] writing metadata
+   - [ ] opening dirs
+   - [ ] reading dirs
+
+** Documentation
+   - [ ] Write up a blurb for the ReADME.
+   - [ ] Write some decent INSTALL instructions.
 
 * v2.0 - FUSE+Python feature complete
 
