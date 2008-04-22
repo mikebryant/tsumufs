@@ -50,7 +50,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   def fsinit(self):
     # Set the initial states for the events.
     self._debug("Setting initial states for events.")
-    tsumufs.mountedEvent.set()
+    tsumufs.unmountedEvent.clear()
     tsumufs.nfsConnectedEvent.clear()
 
     # Setup the NFSMount object for both sync and mount threads to
@@ -74,10 +74,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug("Fuse main event loop exited.")
 
     self._debug("Clearing mountedEvent.")
-    tsumufs.mountedEvent.clear()
-
-    self._debug("Marking NFS connection as disconnected.")
-    tsumufs.nfsConnectedEvent.clear()
+    tsumufs.unmountedEvent.set()
+    tsumufs.unmountedEvent.notify()
 
     self._debug("Waiting for the mount thread to finish.")
     self._mountThread.join()

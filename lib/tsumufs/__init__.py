@@ -44,7 +44,7 @@ cacheBaseDir  = "/var/cache/tsumufs"
 cacheSpecDir  = "/var/lib/tsumufs/cachespec"
 cachePoint    = None
 
-mountedEvent      = threading.Event()
+unmountedEvent    = threading.Event()
 nfsConnectedEvent = threading.Event()
 
 nfsMount = None

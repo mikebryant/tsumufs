@@ -47,14 +47,8 @@ class MountThread(Triumvirate, Thread):
   def run(self):
     self._debug("Entered run loop")
     
-    while tsumufs.mountedEvent.isSet():
-      while not tsumufs.nfsConnectedEvent.isSet():
-        if not tsumufs.mountedEvent.isSet():
-          break
-        time.sleep(5)
-        if not tsumufs.mountedEvent.isSet():
-          break
-
+    while not tsumufs.unmountedEvent.wait(5.0):
+      while not tsumufs.nfsDisconnectedEvent.wait(5.0):
         self._debug("Checking for NFS server availability")
         if tsumufs.nfsMount.pingServerOK():
           self._debug("NFS ping looks good")
