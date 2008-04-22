@@ -18,6 +18,7 @@
 
 """TsumuFS, a NFS-based caching filesystem."""
 
+import syslog
 import tsumufs
 
 class Triumvirate:
@@ -27,15 +28,16 @@ class Triumvirate:
   Any shared code between the three should be placed here instead of
   copying."""
 
-  name = None
+  _name = None
+  _syslogOpen = False
 
-  def setName(self, name):
-    self.name = name
+  def _setName(self, name):
+    self._name = name
 
-  def getName(self):
-    return self.name
+  def _getName(self):
+    return self._name
   
-  def debug(self, args):
+  def _debug(self, args):
     """Quick method to output some debugging information which states the
     thread name a colon, and whatever arguments have been passed to
     it.
@@ -46,4 +48,6 @@ class Triumvirate:
     """
     
     if tsumufs.debugMode:
-      print(self.getName() + ": "+ args)
+      if not self._syslogOpen:
+        syslog.openlog(tsumufs.progName)
+      syslog.syslog(self._getName() + ": "+ args)

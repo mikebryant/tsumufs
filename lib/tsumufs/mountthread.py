@@ -42,27 +42,33 @@ class MountThread(Triumvirate, Thread):
 
   def __init__(self):
     Thread.__init__(self, name="MountThread")
+    self._setName("mount")
 
   def run(self):
-    self.debug("Entered run loop")
+    self._debug("Entered run loop")
     
     while tsumufs.mountedEvent.isSet():
       while not tsumufs.nfsConnectedEvent.isSet():
+        if not tsumufs.mountedEvent.isSet():
+          break
         time.sleep(5)
-        self.debug("Checking for NFS server availability")
+        if not tsumufs.mountedEvent.isSet():
+          break
+
+        self._debug("Checking for NFS server availability")
         if tsumufs.nfsMount.pingServerOK():
-          self.debug("NFS ping looks good")
+          self._debug("NFS ping looks good")
           if tsumufs.nfsMount.nfsCheckOK():
-            self.debug("NFS sanity check okay. Attempting mount.")
+            self._debug("NFS sanity check okay. Attempting mount.")
             tsumufs.nfsMount.mount()
 
-      self.debug("NFS mount complete.")
+      self._debug("NFS mount complete.")
             
       while tsumufs.nfsConnectedEvent.isSet():
-        self.debug("NFS connection alive.")
+        self._debug("NFS connection alive.")
         time.sleep(5)
 
-      self.debug("NFS connection lost")
+      self._debug("NFS connection lost")
 
-    self.debug("Unmount requested -- unmounting NFS")
+    self._debug("Unmount requested -- unmounting NFS")
     tsumufs.nfsMount.unmount()

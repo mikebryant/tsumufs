@@ -21,8 +21,8 @@
 __author__ = 'jtgans@google.com (June Tate-Gans)'
 
 import os
-from errno import *
-from stat import *
+import errno
+import stat
 
 from threading import Event
 
@@ -121,21 +121,39 @@ class NFSMount(object):
     try:
       os.stat(tsumufs.nfsMountPoint)
     except OSError, e:
-      if e.errno == 2:
+      if e.errno == errno.ENOENT:
         self.debug("Mount point %s was not found -- creating"
                    % tsumufs.nfsMountPoint)
-        os.mkdir(tsumufs.nfsMountPoint)
+        try:
+          os.mkdir(tsumufs.nfsMountPoint)
+        except OSError, e:
+          self.debug("Unable to create mount point: %s"
+                     % os.strerror(e.errno))
+          return
+      elif e.errno == errno.EACCES:
+        self.debug("Mount point %s unavailable: %s"
+                   % (tsumufs.nfsMountPoint,
+                      os.strerror(e.errno)))
+        return
 
-    self.debug("/bin/mount %s" % (tsumufs.nfsMountPoint))
-    rc = os.system("/bin/mount %s" %
-                   (tsumufs.nfsMountPoint))
-    
-    if rc != 0:
-      self.debug("Mount of NFS failed.")
+    try:
+      cmd = "/bin/mount -t nfs"
+      if tsumufs.mountOptions != None:
+        cmd += tsumufs.mountOptions
+      cmd += " " + tsumufs.mountSource + " " + tsumufs.nfsMountPoint
+
+      self.debug(cmd)
+      rc = os.system(cmd)
+    except OSError, e:
+      self.debug("Mount of NFS failed: %s." % os.strerror(e.errno))
       tsumufs.nfsConnectedEvent.clear()
     else:
-      self.debug("Mount of NFS succeeded.")
-      tsumufs.nfsConnectedEvent.set()
+      if rc != 0:
+        self.debug("Mount of NFS failed -- mount returned nonzero.")
+        tsumufs.nfsConnectedEvent.clear()
+      else:
+        self.debug("Mount of NFS succeeded.")
+        tsumufs.nfsConnectedEvent.set()
 
   def unmount(self):
     """Quick and dirty method to actually UNmount the real NFS connection

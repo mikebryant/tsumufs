@@ -44,50 +44,45 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     """Initializer. Prepares the object for initial use."""
 
     Fuse.__init__(self, *args, **kw)
-    self.setName("Fuse")
+    self._setName("fuse")
+    self.multithreaded = 1
     
   def fsinit(self):
     # Set the initial states for the events.
+    self._debug("Setting initial states for events.")
     tsumufs.mountedEvent.set()
     tsumufs.nfsConnectedEvent.clear()
 
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
-    tsumufs.nfsMount = NFSMount()
+    self._debug("Initializing nfsMount proxy.")
+    tsumufs.nfsMount = tsumufs.NFSMount()
 
     # Initialize our threads
-    #self.syncThread = SyncThread(self.tsumuMountedEvent,
-    #                            #self.nfsConnectedEvent,
-    #                            self.nfsMount)
-    #self.syncThread.setName("Sync")
-    
-    self.mountThread = MountThread()
-    self.mountThread.setName("Mount")
+    self._debug("Initializing threads.")
+    #self._syncThread = SyncThread()
+    self._mountThread = tsumufs.MountThread()
 
     # Start the threads
-    #self.debug("Starting mount thread")
-    #self.mountThread.start()
+    self._debug("Starting threads.")
+    self._mountThread.start()
+
+    self._debug('fsinit complete.')
     
-#   def shutdown(self):
-#     """Overrides Fuse.main(). Provides the case when the main event loop
-#     has exited, and we need to unmount the NFS mount and close the
-#     cache.
+  def main(self, *args, **kw):
+    Fuse.main(self, *args, **kw)
+    self._debug("Fuse main event loop exited.")
 
-#     Calls Fuse.main() first, and then does the unmount and cache
-#     closing operations after it returns."""
+    self._debug("Clearing mountedEvent.")
+    tsumufs.mountedEvent.clear()
 
-#     # Catch the case when the main event loop has exited. At this
-#     # point we want to unmount the NFS mount, and close the cache.
-#     self.debug("Clearing mountedEvent.")
-#     tsumufs.mountedEvent.clear()
+    self._debug("Marking NFS connection as disconnected.")
+    tsumufs.nfsConnectedEvent.clear()
 
-#     self.debug("Marking NFS connection as disconnected.")
-#     tsumufs.nfsConnectedEvent.clear()
+    self._debug("Waiting for the mount thread to finish.")
+    self._mountThread.join()
 
-#     self.debug("Waiting for the mount thread to finish.")
-#     self.mountThread.join()
-
-#     self.debug("Shutdown complete.")
+    self._debug("Shutdown complete.")
 
   def parseCommandLine(self):
     """Parse the command line arguments into a usable set of
@@ -111,9 +106,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     arguments, this method will immediately exit the program with a
     code of 1."""
 
-    # Grab our program name first off.
-    tsumufs.progName = sys.argv[0]
-
     # Setup our option parser to not be retarded.
     self.parser = fuse.FuseOptParse(standard_mods=False,
                                     fetch_mp=False,
@@ -123,6 +115,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self.parser.add_option(mountopt='nfsbasedir',
                            default='/var/lib/tsumufs/nfs',
                            help=('Set the NFS mount base directory [default: ' 
+                                 '%default]'))
+    self.parser.add_option(mountopt='nfsmountopts',
+                           default=None,
+                           help=('A comma-separated list of key-value '
+                                 'pairs that adjust how the NFS mount '
+                                 'point is mounted. [default: '
                                  '%default]'))
     self.parser.add_option(mountopt='nfsmountpoint',
                            default=None,
@@ -142,6 +140,20 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                            help=('Set the directory name for cache storage '
                                  '[default: calculated]'))
     
+    self.parser.add_option('-f',
+                           action='callback',
+                           callback=lambda *a:
+                             self.fuse_args.setmod('foreground'),
+                           help=('Prevents TsumuFS from forking into '
+                                 'the background.'))
+    self.parser.add_option('-D', '--fuse-debug',
+                           action='callback',
+                           callback=lambda *a:
+                             self.fuse_args.add('debug'),
+                           help=('Turns on fuse-python debugging. '
+                                 'Only useful if you also specify '
+                                 '-f. Typically only useful to '
+                                 'developers.'))
     self.parser.add_option('-d', '--debug',
                            dest='debugMode',
                            action='store_true',
@@ -158,19 +170,26 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                        tsumufs.progName)
       sys.exit(1)
 
+    # Pull out the source and point
     tsumufs.mountSource = self.cmdline[1][0]
     tsumufs.mountPoint  = self.cmdline[1][1]
-    self.fuse_args.mountpoint = tsumufs.mountPoint
 
     # Make sure the mountPoint is a fully qualified pathname.
     if tsumufs.mountPoint[0] != "/":
       tsumufs.mountPoint = os.getcwd() + "/" + tsumufs.mountPoint
+
+    # Shove the proper mountPoint into FUSE's mouth.
+    self.fuse_args.mountpoint = tsumufs.mountPoint
 
     # Finally, calculate the runtime paths.
     tsumufs.nfsMountPoint = (tsumufs.nfsBaseDir + "/" +
                              tsumufs.mountPoint.replace("/", "-"))
     tsumufs.cachePoint = (tsumufs.cacheBaseDir + "/" +
                           tsumufs.mountPoint.replace("/", "-"))
+
+    self._debug("mountPoint is %s" % tsumufs.mountPoint)
+    self._debug("nfsMountPoint is %s" % tsumufs.nfsMountPoint)
+    self._debug("cachePoint is %s" % tsumufs.cachePoint)
 
 
   ######################################################################
@@ -183,7 +202,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self.debug("opcode: %s\n\tpath: %s\n" % ("readlink", path))
     return os.readlink(tsumufs.nfsMountPoint + path)
 
-  def readdir(self, path):
+  def readdir(self, path, offset):
     self.debug("opcode: %s\n\tpath: %s\n" % ("getdir", path))
     return map(lambda x: (x, 0), os.listdir(tsumufs.nfsMountPoint + path))
 

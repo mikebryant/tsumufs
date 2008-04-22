@@ -36,19 +36,25 @@ import tsumufs
 
 
 def main():
+  # Grab the name of this program from the zeroth argument and make
+  # sure it's just the last part of the name if there's a path.
+  tsumufs.progName = sys.argv[0].split('/')[-1]
+
   # Verify that we're using a fuse-python version new enough to know
   # about __version__. Bail if otherwise.
   if not hasattr(fuse, '__version__'):
     raise RuntimeError, ('Your fuse-python version is too old. Please '
                          'upgrade to v0.2 at the minimum.')
 
+  # Assert we have initialization and stateful file support in fuse
+  # itself.
+  fuse.feature_assert('stateful_files', 'has_init')
+
   # Force the API to use the current version.
   fuse.fuse_python_api = fuse.FUSE_PYTHON_API_VERSION
 
+  # Go!
   server = tsumufs.FuseThread()
-
-  # Throw parsed values into the tsumufs module's namespace, where
-  # they belong.
   server.parseCommandLine()
   server.main()
 

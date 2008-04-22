@@ -33,9 +33,9 @@ debugMode = False
 
 progName = None
 
-mountSource  = False
-mountPoint   = False
-mountOptions = {}
+mountSource  = None
+mountPoint   = None
+mountOptions = None
 
 nfsBaseDir    = "/var/lib/tsumufs/nfs"
 nfsMountPoint = None
