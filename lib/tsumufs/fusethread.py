@@ -194,61 +194,73 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   # Filesystem operations and system calls below here
 
   def getattr(self, path):
+    self._debug("getattr: %s" % tsumufs.nfsMountPoint + path)
     return os.lstat(tsumufs.nfsMountPoint + path)
 
   def readlink(self, path):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("readlink", path))
+    self._debug("opcode: %s\n\tpath: %s\n" % ("readlink", path))
     return os.readlink(tsumufs.nfsMountPoint + path)
 
   def readdir(self, path, offset):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("getdir", path))
-    return map(lambda x: (x, 0), os.listdir(tsumufs.nfsMountPoint + path))
+    self._debug("readdir: %s (%d)" % (path, offset))
+
+    for file in os.listdir(tsumufs.nfsMountPoint + path):
+      dirent        = fuse.Direntry(file)
+      dirent.type   = stat.S_IFMT(os.stat(file))
+      dirent.offset = offset
+
+      yield dirent
+
+  def readlink(self, path):
+    self._debug("readlink: %s" % path)
+    return os.readlink(tsumufs.nfsMountPoint + path)
+
 
   def unlink(self, path):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("unlink", path))
+    self._debug("opcode: %s\n\tpath: %s\n" % ("unlink", path))
     return os.unlink(tsumufs.nfsMountPoint + path)
 
   def rmdir(self, path):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("rmdir", path))
+    self._debug("opcode: %s\n\tpath: %s\n" % ("rmdir", path))
     return os.rmdir(tsumufs.nfsMountPoint + path)
 
   def symlink(self, src, dest):
-    self.debug("opcode: %s\n\tsrc: %s\n\tdest:: %s\n" % ("symlink", src, dest))
+    self._debug("opcode: %s\n\tsrc: %s\n\tdest:: %s\n" % ("symlink", src, dest))
     return -ENOSYS
 
   def rename(self, old, new):
-    self.debug("opcode: %s\n\told: %s\n\tnew: %s\n" % ("rename", old, new))
+    self._debug("opcode: %s\n\told: %s\n\tnew: %s\n" % ("rename", old, new))
     return -ENOSYS
 
   def link(self, src, dest):
-    self.debug("opcode: %s\n\tsrc: %s\n\tdest: %s\n" % ("link", src, dest))
+    self._debug("opcode: %s\n\tsrc: %s\n\tdest: %s\n" % ("link", src, dest))
     return -ENOSYS
 
   def chmod(self, path, mode):
-    self.debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("chmod", path, mode))
+    self._debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("chmod", path, mode))
     return -ENOSYS
 
   def chown(self, path, uid, gid):
-    self.debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" %
+    self._debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" %
                ("chown", path, uid, gid))
     return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
 
   def truncate(self, path, size):
-    self.debug("opcode: %s\n\tpath: %s\n\tsize: %d\n" %
+    self._debug("opcode: %s\n\tpath: %s\n\tsize: %d\n" %
                ("truncate", path, size))
     return -ENOSYS
 
   def mknod(self, path, mode, dev):
-    self.debug("opcode: %s\n\tpath: %s\n\tmode: %d\n\tdev: %s\n" %
+    self._debug("opcode: %s\n\tpath: %s\n\tmode: %d\n\tdev: %s\n" %
                ("mknod", path, mode, dev))
     return -ENOSYS
 
   def mkdir(self, path, mode):
-    self.debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("mkdir", path, mode))
+    self._debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("mkdir", path, mode))
     return os.mkdir(tsumufs.nfsMountPoint + path)
 
   def utime(self, path, times):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("utime", path))
+    self._debug("opcode: %s\n\tpath: %s\n" % ("utime", path))
     return -ENOSYS
 
 #    The following utimens method would do the same as the above utime method.
@@ -301,24 +313,24 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     - f_ffree - nunber of free file inodes
     """
     
-    return os.statvfs(".")
+    return os.statvfs(tsumufs.nfsMountPoint)
   
   def open(self, path, flags):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("open", path))
+    self._debug("opcode: %s\n\tpath: %s\n" % ("open", path))
     return -ENOSYS
 
   def read(self, path, length, offset):
-    self.debug("opcode: %s\n\tpath: %s\n\tlen: %d\n\toffset: %d\n" %
+    self._debug("opcode: %s\n\tpath: %s\n\tlen: %d\n\toffset: %d\n" %
                ("read", path, length, offset))
     return -ENOSYS
 
   def write(self, path, buf, offset):
-    self.debug("opcode: %s\n\tpath: %s\n\tbuf: '%s'\n\toffset: %d\n" %
+    self._debug("opcode: %s\n\tpath: %s\n\tbuf: '%s'\n\toffset: %d\n" %
                ("write", path, buf, offset))
     return -ENOSYS
 
   def release(self, path, flags):
-    self.debug("opcode: %s\n\tpath: %s\n\tflags: %s" % ("release", path, flags))
+    self._debug("opcode: %s\n\tpath: %s\n\tflags: %s" % ("release", path, flags))
     return -ENOSYS
 
   def statfs(self):
@@ -334,7 +346,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     the kernel that the info is not available.
     """
 
-    self.debug("opcode: %s\n" % "statfs")
+    self._debug("opcode: %s\n" % "statfs")
 
     result = os.statvfs(tsumufs.nfsMountPoint)
 
@@ -346,7 +358,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
             result[statvfs.F_NAMEMAX])  # Max filename length
 
   def fsync(self, path, isfsyncfile):
-    self.debug("opcode: %s\n\tpath: %s\n" % ("fsync", path))
+    self._debug("opcode: %s\n\tpath: %s\n" % ("fsync", path))
     return -ENOSYS
 
 # # static struct fuse_operations xmp_oper = {
