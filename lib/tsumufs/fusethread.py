@@ -224,11 +224,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                    traceback.format_exc()))
       yield -ENOSYS
 
-  def readlink(self, path):
-    self._debug("opcode: readlink | path: %s" % path)
-    return os.readlink(tsumufs.nfsMountPoint + path)
-
-
   def unlink(self, path):
     self._debug("opcode: unlink | path: %s" % path)
     return os.unlink(tsumufs.nfsMountPoint + path)
