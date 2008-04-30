@@ -325,7 +325,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     """
     self._debug("opcode: statfs")
     
-    return os.statvfs(tsumufs.nfsMountPoint)
+    if tsumufs.nfsAvailable.isSet():
+      return os.statvfs(tsumufs.nfsMountPoint)
+    else:
+      return os.statvfs(tsumufs.cacheBaseDir)
   
   def open(self, path, flags):
     self._debug("opcode: open | path: %s" % path)
