@@ -23,9 +23,9 @@ import threading
 from triumvirate import *
 from nfsmount import *
 from synclog import *
+from syncqueue import *
 from fusethread import *
 from syncthread import *
-from mountthread import *
 
 __version__ = (0, 0, 1)
 
@@ -40,11 +40,11 @@ mountOptions = None
 nfsBaseDir    = "/var/lib/tsumufs/nfs"
 nfsMountPoint = None
 
-cacheBaseDir  = "/var/cache/tsumufs"
-cacheSpecDir  = "/var/lib/tsumufs/cachespec"
-cachePoint    = None
+cacheBaseDir = "/var/cache/tsumufs"
+cacheSpecDir = "/var/lib/tsumufs/cachespec"
+cachePoint   = None
 
-unmountedEvent    = threading.Event()
-nfsConnectedEvent = threading.Event()
+unmounted    = threading.Event()
+nfsAvailable = threading.Event()
 
 nfsMount = None
