@@ -18,11 +18,10 @@
 
 """TsumuFS, a NFS-based caching filesystem."""
 
-__author__ = 'jtgans@google.com (June Tate-Gans)'
-
 import os
 import errno
 import stat
+import syslog
 
 from threading import Event
 
@@ -39,7 +38,8 @@ class NFSMount(object):
     pass
 
   def lockFile(self, filename):
-    """Method to lock a file. Blocks if the file is already locked.
+    """
+    Method to lock a file. Blocks if the file is already locked.
 
     Args:
       filename: The complete pathname to the file to lock.
@@ -50,7 +50,8 @@ class NFSMount(object):
     pass
 
   def unlockFile(self, filename):
-    """Method to unlock a file.
+    """
+    Method to unlock a file.
 
     Args:
       filename: The complete pathname to the file to unlock.
@@ -61,20 +62,22 @@ class NFSMount(object):
     pass
 
   def pingServerOK(self):
-    """Method to verify that the NFS server is available.
+    """
+    Method to verify that the NFS server is available.
     """
     return True
 
   def nfsCheckOK(self):
-    """Method to verify that the NFS server is available and returning
+    """
+    Method to verify that the NFS server is available and returning
     valid responses.
     """
     return True
 
   def readFileRegion(self, filename, start, end):
-    """Method to read a region of a file from the NFS
-    mount. Additionally adds the inode to filename mapping to the
-    InodeMap singleton.
+    """
+    Method to read a region of a file from the NFS mount. Additionally
+    adds the inode to filename mapping to the InodeMap singleton.
 
     Args:
       filename: the complete pathname to the file to read from.
@@ -92,9 +95,10 @@ class NFSMount(object):
     pass
 
   def writeFileRegion(self, filename, start, end, data):
-    """Method to write a region to a file on the NFS
-    mount. Additionally adds the resulting inode to filename mapping
-    to the InodeMap singleton.
+    """
+    Method to write a region to a file on the NFS mount. Additionally
+    adds the resulting inode to filename mapping to the InodeMap
+    singleton.
 
     Args:
       filename: the complete pathname to the file to write to.
@@ -110,7 +114,8 @@ class NFSMount(object):
     pass
 
   def mount(self):
-    """Quick and dirty method to actually mount the real NFS connection
+    """
+    Quick and dirty method to actually mount the real NFS connection
     somewhere else on the filesystem. For now, this just shells out to
     the mount(8) command to do its dirty work.
     """
@@ -122,58 +127,62 @@ class NFSMount(object):
       os.stat(tsumufs.nfsMountPoint)
     except OSError, e:
       if e.errno == errno.ENOENT:
-        self.debug("Mount point %s was not found -- creating"
+        self._debug("Mount point %s was not found -- creating"
                    % tsumufs.nfsMountPoint)
         try:
           os.mkdir(tsumufs.nfsMountPoint)
         except OSError, e:
-          self.debug("Unable to create mount point: %s"
+          self._debug("Unable to create mount point: %s"
                      % os.strerror(e.errno))
-          return
+          return False
       elif e.errno == errno.EACCES:
-        self.debug("Mount point %s unavailable: %s"
+        self._debug("Mount point %s unavailable: %s"
                    % (tsumufs.nfsMountPoint,
                       os.strerror(e.errno)))
-        return
+        return False
 
     try:
-      cmd = "/bin/mount -t nfs"
+      cmd = "/usr/bin/sudo -u root /bin/mount -t nfs"
       if tsumufs.mountOptions != None:
-        cmd += tsumufs.mountOptions
+        cmd += " -o " + tsumufs.mountOptions
       cmd += " " + tsumufs.mountSource + " " + tsumufs.nfsMountPoint
 
-      self.debug(cmd)
+      self._debug(cmd)
       rc = os.system(cmd)
     except OSError, e:
-      self.debug("Mount of NFS failed: %s." % os.strerror(e.errno))
-      tsumufs.nfsConnectedEvent.clear()
+      self._debug("Mount of NFS failed: %s." % os.strerror(e.errno))
+      return False
+    
     else:
       if rc != 0:
-        self.debug("Mount of NFS failed -- mount returned nonzero.")
-        tsumufs.nfsConnectedEvent.clear()
+        self._debug("Mount of NFS failed -- mount returned nonzero.")
+        return False
+      
       else:
-        self.debug("Mount of NFS succeeded.")
-        tsumufs.nfsConnectedEvent.set()
+        self._debug("Mount of NFS succeeded.")
+        return True
 
   def unmount(self):
-    """Quick and dirty method to actually UNmount the real NFS connection
+    """
+    Quick and dirty method to actually UNmount the real NFS connection
     somewhere else on the filesystem.
     """
 
-    self.debug("Unmounting NFS mount from %s" %
+    self._debug("Unmounting NFS mount from %s" %
                tsumufs.nfsMountPoint)
-    rc = os.system("/bin/umount %s" % tsumufs.nfsMountPoint)
+    rc = os.system("/usr/bin/sudo /bin/umount %s" % tsumufs.nfsMountPoint)
 
     if rc != 0:
-      self.debug("Unmount of NFS failed.")
+      self._debug("Unmount of NFS failed.")
+      return False
     else:
-      self.debug("Unmount of NFS succeeded.")
-
-    tsumufs.nfsConnectedEvent.clear()
+      self._debug("Unmount of NFS succeeded.")
+      return True
     
-  def debug(self, args):
-    """Quick method to output some debugging information which states the
-    thread name a colon, and whatever arguments have been passed to
+  def _debug(self, args):
+    """
+    Quick method to output some debugging information which states the
+    thread name, a colon, and whatever arguments have been passed to
     it.
 
     Args:
@@ -182,4 +191,4 @@ class NFSMount(object):
     """
     
     if tsumufs.debugMode:
-      print("nfsmount: "+ args)
+      syslog.syslog("nfsmount: "+ args)

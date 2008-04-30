@@ -25,6 +25,7 @@ import stat
 import statvfs
 import time
 import threading
+import traceback
 
 import fuse
 from fuse import Fuse
@@ -38,7 +39,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   design docs."""
 
   syncThread    = None
-  mountThread   = None
 
   def __init__(self, *args, **kw):
     """Initializer. Prepares the object for initial use."""
@@ -48,24 +48,23 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self.multithreaded = 1
     
   def fsinit(self):
-    # Set the initial states for the events.
-    self._debug("Setting initial states for events.")
-    tsumufs.unmountedEvent.clear()
-    tsumufs.nfsConnectedEvent.clear()
-
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
     self._debug("Initializing nfsMount proxy.")
     tsumufs.nfsMount = tsumufs.NFSMount()
 
     # Initialize our threads
-    self._debug("Initializing threads.")
-    #self._syncThread = SyncThread()
-    self._mountThread = tsumufs.MountThread()
+    self._debug("Initializing sync thread.")
+
+    try:
+      self._syncThread = tsumufs.SyncThread()
+    except:
+      self._debug("Exception: %s" % traceback.format_exc())
+      return False
 
     # Start the threads
-    self._debug("Starting threads.")
-    self._mountThread.start()
+    self._debug("Starting sync thread.")
+    self._syncThread.start()
 
     self._debug('fsinit complete.')
     
@@ -73,12 +72,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     Fuse.main(self, *args, **kw)
     self._debug("Fuse main event loop exited.")
 
-    self._debug("Clearing mountedEvent.")
-    tsumufs.unmountedEvent.set()
-    tsumufs.unmountedEvent.notify()
+    self._debug("Setting event and condition states.")
+    tsumufs.unmounted.set()
+    tsumufs.nfsAvailable.clear()
 
-    self._debug("Waiting for the mount thread to finish.")
-    self._mountThread.join()
+    self._debug("Waiting for the sync thread to finish.")
+    self._syncThread.join()
 
     self._debug("Shutdown complete.")
 
@@ -114,12 +113,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                            default='/var/lib/tsumufs/nfs',
                            help=('Set the NFS mount base directory [default: ' 
                                  '%default]'))
-    self.parser.add_option(mountopt='nfsmountopts',
-                           default=None,
-                           help=('A comma-separated list of key-value '
-                                 'pairs that adjust how the NFS mount '
-                                 'point is mounted. [default: '
-                                 '%default]'))
     self.parser.add_option(mountopt='nfsmountpoint',
                            default=None,
                            help=('Set the directory name of the nfs mount '
@@ -138,6 +131,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                            help=('Set the directory name for cache storage '
                                  '[default: calculated]'))
     
+    self.parser.add_option('-O',
+                           dest='mountOptions',
+                           default=None,
+                           help=('A comma-separated list of key-value '
+                                 'pairs that adjust how the NFS mount '
+                                 'point is mounted. [default: '
+                                 '%default]'))
+
     self.parser.add_option('-f',
                            action='callback',
                            callback=lambda *a:
@@ -188,79 +189,91 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug("mountPoint is %s" % tsumufs.mountPoint)
     self._debug("nfsMountPoint is %s" % tsumufs.nfsMountPoint)
     self._debug("cachePoint is %s" % tsumufs.cachePoint)
+    self._debug("mountOptions is %s" % tsumufs.mountOptions)
 
 
   ######################################################################
   # Filesystem operations and system calls below here
 
   def getattr(self, path):
-    self._debug("getattr: %s" % tsumufs.nfsMountPoint + path)
+    self._debug("opcode: getattr | path: %s" % path)
     return os.lstat(tsumufs.nfsMountPoint + path)
 
   def readlink(self, path):
-    self._debug("opcode: %s\n\tpath: %s\n" % ("readlink", path))
+    self._debug("opcode: readlink | path: %s" % path)
     return os.readlink(tsumufs.nfsMountPoint + path)
 
   def readdir(self, path, offset):
-    self._debug("readdir: %s (%d)" % (path, offset))
+    self._debug("opcode: readdir | path: %s | offset: %d" % (path, offset))
 
-    for file in os.listdir(tsumufs.nfsMountPoint + path):
-      dirent        = fuse.Direntry(file)
-      dirent.type   = stat.S_IFMT(os.stat(file))
-      dirent.offset = offset
+    try:
+      for file in os.listdir(tsumufs.nfsMountPoint + path):
+        stat_result   = os.stat("%s/%s/%s"
+                                % (tsumufs.nfsMountPoint,
+                                   path,
+                                   file))
 
-      yield dirent
+        dirent        = fuse.Direntry(file)
+        dirent.type   = stat.S_IFMT(stat_result.st_mode)
+        dirent.offset = offset
+        
+        yield dirent
+    except:
+      self._debug("readdir: Unable to read dir %s: %s" %
+                  (tsumufs.nfsMountPoint + path,
+                   traceback.format_exc()))
+      yield -ENOSYS
 
   def readlink(self, path):
-    self._debug("readlink: %s" % path)
+    self._debug("opcode: readlink | path: %s" % path)
     return os.readlink(tsumufs.nfsMountPoint + path)
 
 
   def unlink(self, path):
-    self._debug("opcode: %s\n\tpath: %s\n" % ("unlink", path))
+    self._debug("opcode: unlink | path: %s" % path)
     return os.unlink(tsumufs.nfsMountPoint + path)
 
   def rmdir(self, path):
-    self._debug("opcode: %s\n\tpath: %s\n" % ("rmdir", path))
+    self._debug("opcode: rmdir | path: %s" % path)
     return os.rmdir(tsumufs.nfsMountPoint + path)
 
   def symlink(self, src, dest):
-    self._debug("opcode: %s\n\tsrc: %s\n\tdest:: %s\n" % ("symlink", src, dest))
+    self._debug("opcode: symlink | src: %s | dest:: %s" % (src, dest))
     return -ENOSYS
 
   def rename(self, old, new):
-    self._debug("opcode: %s\n\told: %s\n\tnew: %s\n" % ("rename", old, new))
+    self._debug("opcode: rename | old: %s | new: %s" % (old, new))
     return -ENOSYS
 
   def link(self, src, dest):
-    self._debug("opcode: %s\n\tsrc: %s\n\tdest: %s\n" % ("link", src, dest))
+    self._debug("opcode: link | src: %s | dest: %s" % (src, dest))
     return -ENOSYS
 
   def chmod(self, path, mode):
-    self._debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("chmod", path, mode))
+    self._debug("opcode: chmod | path: %s | mode: %o" % (path, mode))
     return -ENOSYS
 
   def chown(self, path, uid, gid):
-    self._debug("opcode: %s\n\tpath: %s\n\tuid: %d\n\tgid: %d\n" %
-               ("chown", path, uid, gid))
+    self._debug("opcode: chown | path: %s | uid: %d | gid: %d" %
+               (path, uid, gid))
     return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
 
   def truncate(self, path, size):
-    self._debug("opcode: %s\n\tpath: %s\n\tsize: %d\n" %
-               ("truncate", path, size))
+    self._debug("opcode: truncate | path: %s | size: %d" %
+               (path, size))
     return -ENOSYS
 
   def mknod(self, path, mode, dev):
-    self._debug("opcode: %s\n\tpath: %s\n\tmode: %d\n\tdev: %s\n" %
-               ("mknod", path, mode, dev))
+    self._debug("opcode: mknod | path: %s | mode: %d | dev: %s" %
+               (path, mode, dev))
     return -ENOSYS
 
   def mkdir(self, path, mode):
-    self._debug("opcode: %s\n\tpath: %s\n\tmode: %o\n" % ("mkdir", path, mode))
+    self._debug("opcode: mkdir | path: %s | mode: %o" % (path, mode))
     return os.mkdir(tsumufs.nfsMountPoint + path)
 
   def utime(self, path, times):
-    self._debug("opcode: %s\n\tpath: %s\n" % ("utime", path))
+    self._debug("opcode: utime | path: %s" % path)
     return -ENOSYS
 
 #    The following utimens method would do the same as the above utime method.
@@ -271,7 +284,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 #      os.utime("." + path, (ts_acc.tv_sec, ts_mod.tv_sec))
 
   def access(self, path, mode):
-    if not os.access("." + path, mode):
+    self._debug("opcode: access | path: %s | mode: %o" % (path, mode))
+    if not os.access(tsumufs.nfsMountPoint + path, mode):
       return -EACCES
 
 #    This is how we could add stub extended attribute handlers...
@@ -312,53 +326,30 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     - f_files - total number of file inodes
     - f_ffree - nunber of free file inodes
     """
+    self._debug("opcode: statfs")
     
     return os.statvfs(tsumufs.nfsMountPoint)
   
   def open(self, path, flags):
-    self._debug("opcode: %s\n\tpath: %s\n" % ("open", path))
+    self._debug("opcode: open | path: %s" % path)
     return -ENOSYS
 
   def read(self, path, length, offset):
-    self._debug("opcode: %s\n\tpath: %s\n\tlen: %d\n\toffset: %d\n" %
-               ("read", path, length, offset))
+    self._debug("opcode: open | path: %s | len: %d | offset: %d" %
+               (path, length, offset))
     return -ENOSYS
 
   def write(self, path, buf, offset):
-    self._debug("opcode: %s\n\tpath: %s\n\tbuf: '%s'\n\toffset: %d\n" %
-               ("write", path, buf, offset))
+    self._debug("opcode: write | path: %s | buf: '%s' | offset: %d" %
+               (path, buf, offset))
     return -ENOSYS
 
   def release(self, path, flags):
-    self._debug("opcode: %s\n\tpath: %s\n\tflags: %s" % ("release", path, flags))
+    self._debug("opcode: release | path: %s | flags: %s" % (path, flags))
     return -ENOSYS
 
-  def statfs(self):
-    """
-    Should return a tuple with the following 6 elements:
-      - blocksize - size of file blocks, in bytes
-      - totalblocks - total number of blocks in the filesystem
-      - freeblocks - number of free blocks
-      - totalfiles - total number of file inodes
-      - freefiles - nunber of free file inodes
-      - namelen - the maximum length of filenames
-    Feel free to set any of the above values to 0, which tells
-    the kernel that the info is not available.
-    """
-
-    self._debug("opcode: %s\n" % "statfs")
-
-    result = os.statvfs(tsumufs.nfsMountPoint)
-
-    return (result[statvfs.F_FRSIZE],   # Block size
-            result[statvfs.F_BLOCKS],   # Total blocks
-            result[statvfs.F_BFREE],    # blocks_free
-            result[statvfs.F_FILES],    # files
-            result[statvfs.F_FFREE],    # files_free
-            result[statvfs.F_NAMEMAX])  # Max filename length
-
   def fsync(self, path, isfsyncfile):
-    self._debug("opcode: %s\n\tpath: %s\n" % ("fsync", path))
+    self._debug("opcode: fsync | path: %s" % path)
     return -ENOSYS
 
 # # static struct fuse_operations xmp_oper = {
