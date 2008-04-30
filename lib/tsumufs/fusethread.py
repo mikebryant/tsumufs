@@ -208,10 +208,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       for file in os.listdir(tsumufs.nfsMountPoint + path):
-        stat_result   = os.stat("%s/%s/%s"
-                                % (tsumufs.nfsMountPoint,
-                                   path,
-                                   file))
+        stat_result = os.lstat("%s%s%s"
+                               % (tsumufs.nfsMountPoint,
+                                  path,
+                                  file))
 
         dirent        = fuse.Direntry(file)
         dirent.type   = stat.S_IFMT(stat_result.st_mode)
@@ -234,19 +234,21 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
   def symlink(self, src, dest):
     self._debug("opcode: symlink | src: %s | dest:: %s" % (src, dest))
-    return -ENOSYS
+    return os.symlink(src, tsumufs.nfsMountPoint + dest)
 
   def rename(self, old, new):
     self._debug("opcode: rename | old: %s | new: %s" % (old, new))
-    return -ENOSYS
+    return os.rename(tsumufs.nfsMountPoint + old,
+                     tsumufs.nfsMountPoint + new)
 
   def link(self, src, dest):
     self._debug("opcode: link | src: %s | dest: %s" % (src, dest))
-    return -ENOSYS
+    return os.link(tsumufs.nfsMountPoint + src,
+                   tsumufs.nfsMountPoint + dest)
 
   def chmod(self, path, mode):
     self._debug("opcode: chmod | path: %s | mode: %o" % (path, mode))
-    return -ENOSYS
+    return os.chmod(tsumufs.nfsMountPoint + path, mode)
 
   def chown(self, path, uid, gid):
     self._debug("opcode: chown | path: %s | uid: %d | gid: %d" %
@@ -261,7 +263,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   def mknod(self, path, mode, dev):
     self._debug("opcode: mknod | path: %s | mode: %d | dev: %s" %
                (path, mode, dev))
-    return -ENOSYS
+    return os.mknod(tsumufs.nfsMountPoint + path, mode, dev)
 
   def mkdir(self, path, mode):
     self._debug("opcode: mkdir | path: %s | mode: %o" % (path, mode))
@@ -269,7 +271,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
   def utime(self, path, times):
     self._debug("opcode: utime | path: %s" % path)
-    return -ENOSYS
+    return os.utime(tsumufs.nfsMountPoint + path, times)
 
 #    The following utimens method would do the same as the above utime method.
 #    We can't make it better though as the Python stdlib doesn't know of
@@ -344,7 +346,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     return -ENOSYS
 
   def fsync(self, path, isfsyncfile):
-    self._debug("opcode: fsync | path: %s" % path)
+    self._debug("opcode: fsync | path: %s | isfsyncfile: %d"
+                % (path, isfsyncfile))
     return -ENOSYS
 
 # # static struct fuse_operations xmp_oper = {
