@@ -21,7 +21,73 @@
 import os
 import sys
 import time
+import threading
+import Queue
+
 
 class SyncQueue(object):
-  """Placeholder class at the moment."""
-  pass
+  """
+  """
+
+  _queue = []
+  _lock  = threading.Condition()
+
+  def acquire(self, block=1):
+    return self._lock.acquire(block)
+
+  def release(self):
+    return self._lock.release()
+
+  def flushToDisk(self):
+    self.acquire()
+    self.release()
+
+  def loadFromDisk(self):
+    self.acquire()
+    self.release()
+
+  def validate(self):
+    self.acquire()
+    self.release()
+
+  def peek(self):
+    if len(self._queue) == 0:
+      raise Queue.Empty('Nothing in the queue.')
+
+    self.acquire()
+    item = self._queue[-1]
+    self.release()
+
+    return item
+
+  def remove(self, item):
+    found = False
+
+    self.acquire()
+
+    if len(self._queue) == 0:
+      self.release()
+      raise Queue.Empty('Nothing in the queue.')
+
+    for i in range(len(self._queue), -1, -1):
+      if self._queue[i] == item:
+        found = True
+
+        if i == len(self._queue):
+          self._queue = self._queue[:-1]
+        elif i == 0:
+          self._queue = self._queue[1:]
+        else:
+          self._queue = self._queue[:i] + self._queue[i+1:]
+
+    self.release()
+
+    if not found:
+      raise Empty('Item not found.')
+    else:
+      return True
+      
+  def put(self, item):
+    self.acquire()
+    self._queue.append(item)
+    self.release()

@@ -21,85 +21,157 @@
 import os
 import sys
 import time
-
-from fuse import Fuse
-from errno import *
-from stat import *
-from threading import Thread, Semaphore, Event
-
+import threading
+import errno
+import stat
+import traceback
+import Queue
 from pprint import pprint
 
-from triumvirate import *
-from nfsmount import *
-from synclog import *
+import fuse
 
-class SyncThread(Triumvirate, Thread):
-  """Thread to handle cache management."""
+import tsumufs
 
-  tsumuMountedEvent = None
-  nfsMount = None
-  syncQueue = None
 
-  def __init__(self, tsumuMountedEvent, nfsMount):
-    self.tsumuMountedEvent = tsumuMountedEvent
-    self.nfsMount = nfsMount
-    self.syncQueue = SyncQueue()
-    self.syncQueue.load()
-    self.syncQueue.validate()
+class SyncThread(tsumufs.Triumvirate, threading.Thread):
+  """Thread to handle cache and NFS mount management."""
 
-    Thread.__init__(self, name="SyncThread")
+  _syncQueue = None
+
+  def __init__(self):
+    self._setName("sync")
+    self._debug("Initializing.")
+
+    self._debug("Loading SyncQueue.")
+    self._syncQueue = tsumufs.SyncQueue()
+    self._syncQueue.loadFromDisk()
+    self._syncQueue.validate()
+
+    self._debug("Setting up thread state.")
+    threading.Thread.__init__(self, name="SyncThread")
+
+    self._debug("Initialization complete.")
+
+  def _attemptMount(self):
+    self._debug("Attempting to mount NFS.")
+    self._debug("Checking for NFS server availability")
+
+    if not tsumufs.nfsMount.pingServerOK():
+      self._debug("NFS ping failed.")
+      return
+
+    self._debug("NFS ping successful.")
+    self._debug("Checking NFS sanity.")
+
+    if not tsumufs.nfsMount.nfsCheckOK():
+      self._debug("NFS sanity check failed.")
+      return
+
+    self._debug("NFS sanity check okay.")
+    self._debug("Attempting mount.")
+
+    try:
+      tsumufs.nfsMount.mount()
+    except:
+      self._debug("Exception: %s" + traceback.format_exc())
+      self._debug("NFS mount failed.")
+      return
+
+    self._debug("NFS mount complete.")
+    tsumufs.nfsAvailable.set()
 
   def run(self):
-    while self.tsumuMountedEvent.isSet():
-      while not self.nfsMount.connectedEvent.isSet():
-        # Don't do anything until we have a valid NFS
-        # connection.
-        self.nfsMount.connectedEvent.wait()
+    try:
+      while not tsumufs.unmounted.isSet():
+        self._debug("TsumuFS not unmounted yet.")
 
-      self.syncQueue.acquireLock()
-      item = self.syncQueue.getItem()  # excludes conflicted changes
-      self.syncQueue.releaseLock()
+        while not tsumufs.nfsAvailable.isSet() and not tsumufs.unmounted.isSet():
+          self._debug('NFS unavailable')
+          self._attemptMount()
+          tsumufs.unmounted.wait(5)
+
+        while tsumufs.nfsAvailable.isSet() and not tsumufs.unmounted.isSet():
+          try:
+            # excludes conflicted changes
+            self._debug('Checking for items to sync.')
+            item = self._syncQueue.peek()
+          except Queue.Empty:
+            self._debug('Nothing to sync. Sleeping.')
+            time.sleep(5)
+            continue
+          else:
+            self._debug('Got one.')
+
+          try:
+            # Verify that what the synclog contains is actually what is on
+            # the filer.
+
+            for change in item.preChangeContents():
+              if tsumufs.nfsMount.getFileRegion(item.filename,
+                                                change.start,
+                                                change.end) != change.data:
+                raise SyncConflictError(item)
+              else:
+                tsumufs.nfsMount.putFileRegion(item.filename,
+                                               change.start,
+                                               change.end,
+                                               change.data)
+
+          except IOError, e:
+            # IO errors indicate something is wrong with the backend NFS
+            # mount. Unset the connected event to trigger a remount if
+            # possible.
+
+            tsumufs.nfsAvailable.clear()
+            continue
+
+          except tsumufs.SyncConflictError, e:
+            # Do something here to attempt to merge data anyway for text
+            # files, if possible. Failing that, mark the item as a
+            # conflict in the synclog, and notify the user.
+
+            if e.item.fileType != e.item.TEXT:
+              item.markConflict()
+              # notifyUser()
+              continue
+
+          try:
+            # If we don't have any conflicts, we can proceed here -- the
+            # original hasn't changed since we synced it to the cache
+            # last. Just copy over the whole cache file on top of it.
+
+            tsumufs.nfsMount.lockFile(item.filename)
+            item.copyToNFS()
+            tsumufs.nfsMount.unlockFile(item.filename)
+
+            self._syncQueue.remove(item)
+            self._syncQueue.flushToDisk()
+
+          except IOError, e:
+            tsumufs.nfsAvailable.clear()
+
+      self._debug("Shutdown requested.")
+      self._debug("Unmounting NFS.")
 
       try:
-        # Verify that what the synclog contains is actually what is on
-        # the filer.
+        tsumufs.nfsMount.unmount()
+      except:
+        self._debug("Unable to unmount NFS: %s" %
+                    traceback.format_exc())
+      else:
+        self._debug("NFS unmount complete.")
 
-        for change in item.preChangeContents():
-          if self.nfsMount.getFileRegion(item.filename, change.start, change.end) != change.data:
-            raise SyncConflictError(item)
-          else:
-            self.nfsMount.putFileRegion(item.filename,
-                                        change.start,
-                                        change.end,
-                                        change.data)
+      self._debug("Saving synclog to disk.")
 
-      except IOError, e:
-        # IO errors indicate something is wrong with the backend NFS
-        # mount. Unset the connected event to trigger a remount if
-        # possible.
+      try:
+        self._syncQueue.flushToDisk()
+      except:
+        self._debug("Unable to save synclog: %s" %
+                    traceback.format_exc())
+      else:
+        self._debug("Synclog saved.")
 
-        self.nfsConnectedEvent.unset()
-      except SyncConflictError, e:
-        # Do something here to attempt to merge data anyway for text
-        # files, if possible. Failing that, mark the item as a
-        # conflict in the synclog, and notify the user.
+      self._debug("SyncThread shutdown complete.")
 
-        if e.item.fileType != e.item.TEXT:
-          item.markConflict()
-          # notifyUser()
-
-        try:
-          # If we don't have any conflicts, we can proceed here -- the
-          # original hasn't changed since we synced it to the cache
-          # last. Just copy over the whole cache file on top of it.
-
-          self.nfsMount.lockFile(item.filename)
-          item.copyToNFS()
-          self.nfsMount.unlockFile(item.filename)
-          
-          self.syncQueue.acquireLock()
-          self.syncQueue.removeItem(item)
-          self.syncQueue.flushToDisk()
-          self.syncQueue.releaseLock()
-        except IOError, e:
-          self.nfsConnectedEvent.unset()
+    except:
+      self._debug("Exception: %s" % traceback.format_exc())
