@@ -32,6 +32,7 @@ from fuse import Fuse
 
 import tsumufs
 
+
 class FuseThread(tsumufs.Triumvirate, Fuse):
   """Class that implements the prototype design of the TsumuFS
   filesystem. This class provides the main interface to Fuse. Note
@@ -44,9 +45,11 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     """Initializer. Prepares the object for initial use."""
 
     Fuse.__init__(self, *args, **kw)
+
     self._setName("fuse")
     self.multithreaded = 1
-    
+    self.file_class    = tsumufs.FuseFile
+
   def fsinit(self):
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
@@ -197,18 +200,40 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
   def getattr(self, path):
     self._debug("opcode: getattr | path: %s" % path)
-    return os.lstat(tsumufs.nfsMountPoint + path)
+
+    try:
+      return os.lstat(tsumufs.nfsMountPoint + path)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
+
+  def getxattr(self, path, name, size):
+    self._debug("opcode: getxattr | path: %s | name: %s | size: %d"
+                % (path, name, size))
+    return -errno.ENOSYS
+
+  def listxattr(self, path, size):
+    self._debug("opcode: listxattr | path: %s | size: %d"
+                % (path, size))
+    return -errno.ENOSYS
 
   def readlink(self, path):
     self._debug("opcode: readlink | path: %s" % path)
-    return os.readlink(tsumufs.nfsMountPoint + path)
+
+    try:
+      return os.readlink(tsumufs.nfsMountPoint + path)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def readdir(self, path, offset):
     self._debug("opcode: readdir | path: %s | offset: %d" % (path, offset))
 
     try:
       for file in os.listdir(tsumufs.nfsMountPoint + path):
-        stat_result = os.lstat("%s%s%s"
+        stat_result = os.lstat("%s%s/%s"
                                % (tsumufs.nfsMountPoint,
                                   path,
                                   file))
@@ -218,92 +243,137 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
         dirent.offset = offset
         
         yield dirent
-    except:
-      self._debug("readdir: Unable to read dir %s: %s" %
-                  (tsumufs.nfsMountPoint + path,
-                   traceback.format_exc()))
-      yield -ENOSYS
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      yield e.errno
 
   def unlink(self, path):
     self._debug("opcode: unlink | path: %s" % path)
-    return os.unlink(tsumufs.nfsMountPoint + path)
+
+    try:
+      return os.unlink(tsumufs.nfsMountPoint + path)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def rmdir(self, path):
     self._debug("opcode: rmdir | path: %s" % path)
-    return os.rmdir(tsumufs.nfsMountPoint + path)
+
+    try:
+      return os.rmdir(tsumufs.nfsMountPoint + path)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def symlink(self, src, dest):
     self._debug("opcode: symlink | src: %s | dest:: %s" % (src, dest))
-    return os.symlink(src, tsumufs.nfsMountPoint + dest)
+
+    try:
+      return os.symlink(src, tsumufs.nfsMountPoint + dest)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def rename(self, old, new):
     self._debug("opcode: rename | old: %s | new: %s" % (old, new))
-    return os.rename(tsumufs.nfsMountPoint + old,
-                     tsumufs.nfsMountPoint + new)
+
+    try:
+      return os.rename(tsumufs.nfsMountPoint + old,
+               tsumufs.nfsMountPoint + new)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def link(self, src, dest):
     self._debug("opcode: link | src: %s | dest: %s" % (src, dest))
-    return os.link(tsumufs.nfsMountPoint + src,
-                   tsumufs.nfsMountPoint + dest)
+
+    try:
+      return os.link(tsumufs.nfsMountPoint + src,
+                     tsumufs.nfsMountPoint + dest)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def chmod(self, path, mode):
     self._debug("opcode: chmod | path: %s | mode: %o" % (path, mode))
-    return os.chmod(tsumufs.nfsMountPoint + path, mode)
 
+    try:
+      return os.chmod(tsumufs.nfsMountPoint + path, mode)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
+    
   def chown(self, path, uid, gid):
     self._debug("opcode: chown | path: %s | uid: %d | gid: %d" %
                (path, uid, gid))
-    return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
 
-  def truncate(self, path, size):
+    try:
+      return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
+
+  def truncate(self, path, size=None):
     self._debug("opcode: truncate | path: %s | size: %d" %
                (path, size))
-    return -ENOSYS
+
+    try:
+      fp = open(tsumufs.nfsMountPoint + path, "a")
+      return fp.truncate(size)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def mknod(self, path, mode, dev):
     self._debug("opcode: mknod | path: %s | mode: %d | dev: %s" %
                (path, mode, dev))
-    return os.mknod(tsumufs.nfsMountPoint + path, mode, dev)
+
+    try:
+      return os.mknod(tsumufs.nfsMountPoint + path, mode, dev)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def mkdir(self, path, mode):
     self._debug("opcode: mkdir | path: %s | mode: %o" % (path, mode))
-    return os.mkdir(tsumufs.nfsMountPoint + path)
+
+    try:
+      return os.mkdir(tsumufs.nfsMountPoint + path)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def utime(self, path, times):
     self._debug("opcode: utime | path: %s" % path)
-    return os.utime(tsumufs.nfsMountPoint + path, times)
 
-#    The following utimens method would do the same as the above utime method.
-#    We can't make it better though as the Python stdlib doesn't know of
-#    subsecond preciseness in acces/modify times.
-#  
-#    def utimens(self, path, ts_acc, ts_mod):
-#      os.utime("." + path, (ts_acc.tv_sec, ts_mod.tv_sec))
+    try:
+      return os.utime(tsumufs.nfsMountPoint + path, times)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def access(self, path, mode):
     self._debug("opcode: access | path: %s | mode: %o" % (path, mode))
-    if not os.access(tsumufs.nfsMountPoint + path, mode):
-      return -EACCES
 
-#    This is how we could add stub extended attribute handlers...
-#    (We can't have ones which aptly delegate requests to the underlying fs
-#    because Python lacks a standard xattr interface.)
-#
-#    def getxattr(self, path, name, size):
-#        val = name.swapcase() + '@' + path
-#        if size == 0:
-#            # We are asked for size of the value.
-#            return len(val)
-#        return val
-#
-#    def listxattr(self, path, size):
-#        # We use the "user" namespace to please XFS utils
-#        aa = ["user." + a for a in ("foo", "bar")]
-#        if size == 0:
-#            # We are asked for size of the attr list, ie. joint size of attrs
-#            # plus null separators.
-#            return len("".join(aa)) + len(aa)
-#        return aa
+    try:
+      if not os.access(tsumufs.nfsMountPoint + path, mode):
+        return -errno.EACCES
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def statfs(self):
     """
@@ -325,53 +395,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     """
     self._debug("opcode: statfs")
     
-    if tsumufs.nfsAvailable.isSet():
-      return os.statvfs(tsumufs.nfsMountPoint)
-    else:
-      return os.statvfs(tsumufs.cacheBaseDir)
-  
-  def open(self, path, flags):
-    self._debug("opcode: open | path: %s" % path)
-    return -ENOSYS
-
-  def read(self, path, length, offset):
-    self._debug("opcode: open | path: %s | len: %d | offset: %d" %
-               (path, length, offset))
-    return -ENOSYS
-
-  def write(self, path, buf, offset):
-    self._debug("opcode: write | path: %s | buf: '%s' | offset: %d" %
-               (path, buf, offset))
-    return -ENOSYS
-
-  def release(self, path, flags):
-    self._debug("opcode: release | path: %s | flags: %s" % (path, flags))
-    return -ENOSYS
-
-  def fsync(self, path, isfsyncfile):
-    self._debug("opcode: fsync | path: %s | isfsyncfile: %d"
-                % (path, isfsyncfile))
-    return -ENOSYS
-
-# # static struct fuse_operations xmp_oper = {
-# #     .getattr	= xmp_getattr,
-# #     .readlink	= xmp_readlink,
-# #     .getdir	= xmp_getdir,
-# #     .mknod	= xmp_mknod,
-# #     .mkdir	= xmp_mkdir,
-# #     .symlink	= xmp_symlink,
-# #     .unlink	= xmp_unlink,
-# #     .rmdir	= xmp_rmdir,
-# #     .rename	= xmp_rename,
-# #     .link	= xmp_link,
-# #     .chmod	= xmp_chmod,
-# #     .chown	= xmp_chown,
-# #     .truncate	= xmp_truncate,
-# #     .utime	= xmp_utime,
-# #     .open	= xmp_open,
-# #     .read	= xmp_read,
-# #     .write	= xmp_write,
-# #     .statfs	= xmp_statfs,
-# #     .release	= xmp_release,
-# #     .fsync	= xmp_fsync
-# # };
+    try:
+      if tsumufs.nfsAvailable.isSet():
+        return os.statvfs(tsumufs.nfsMountPoint)
+      else:
+        return os.statvfs(tsumufs.cacheBaseDir)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno

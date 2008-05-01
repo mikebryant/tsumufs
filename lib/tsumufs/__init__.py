@@ -24,6 +24,7 @@ from triumvirate import *
 from nfsmount import *
 from synclog import *
 from syncqueue import *
+from fusefile import *
 from fusethread import *
 from syncthread import *
 
