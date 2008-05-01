@@ -25,6 +25,8 @@ class. See that module for more details.
 """
 
 import sys
+import syslog
+import traceback
 
 import fuse
 
@@ -33,6 +35,22 @@ if development_mode == True:
   sys.path.append('../lib')
 
 import tsumufs
+
+
+def syslogExceptHook(type, value, tb):
+  """
+  Quick exception handler to log exceptions to syslog rather than
+  dumping them to /dev/null after FUSE has forked.
+  """
+
+  syslog.syslog("*** Exception occurred")
+  syslog.syslog("***     Type: %s" % type)
+  syslog.syslog("***    Value: %s" % value)
+  syslog.syslog("*** Traceback:")
+
+  for line in traceback.extract_tb(tb):
+    syslog.syslog("***    %s(%d) in %s: %s"
+                  % line)
 
 
 def main():
@@ -53,9 +71,15 @@ def main():
   # Force the API to use the current version.
   fuse.fuse_python_api = fuse.FUSE_PYTHON_API_VERSION
 
-  # Go!
+  # Setup our first thread, and parse our command line options.
   server = tsumufs.FuseThread()
   server.parseCommandLine()
+
+  # Install our custom exception handler so that any exceptions are
+  # output to the syslog rather than to /dev/null.
+  sys.excepthook = syslogExceptHook
+
+  # Go!
   server.main()
 
 if __name__ == '__main__':
