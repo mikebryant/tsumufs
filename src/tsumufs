@@ -43,7 +43,7 @@ def syslogExceptHook(type, value, tb):
   dumping them to /dev/null after FUSE has forked.
   """
 
-  syslog.syslog("*** Exception occurred")
+  syslog.syslog("*** Unhandled exception occurred")
   syslog.syslog("***     Type: %s" % type)
   syslog.syslog("***    Value: %s" % value)
   syslog.syslog("*** Traceback:")
