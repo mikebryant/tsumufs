@@ -28,7 +28,7 @@ from fusefile import *
 from fusethread import *
 from syncthread import *
 
-__version__ = (0, 0, 1)
+__version__ = (0, 6)
 
 debugMode = False
 
