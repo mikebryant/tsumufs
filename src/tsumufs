@@ -44,8 +44,8 @@ def syslogExceptHook(type, value, tb):
   """
 
   syslog.syslog("*** Unhandled exception occurred")
-  syslog.syslog("***     Type: %s" % type)
-  syslog.syslog("***    Value: %s" % value)
+  syslog.syslog("***     Type: %s" % str(type))
+  syslog.syslog("***    Value: %s" % str(value))
   syslog.syslog("*** Traceback:")
 
   for line in traceback.extract_tb(tb):

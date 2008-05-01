@@ -41,25 +41,25 @@ class FuseFile(object):
   """
 
   _path  = None
-  _flags = None
-  _mode  = None
+  _fdFlags = None
+  _fdMode  = None
 
   def __init__(self, path, flags, mode=None):
     try:
-      self._debug("opcode: open | path: %s | flags: %o"
-                  % (self._path, flags))
-
       self._path  = path
-      self._flags = flags
-      self._mode  = mode
+      self._fdFlags = flags
+      self._fdMode  = mode
 
-      fp = open(tsumufs.nfsMountPoint + path, self._flag2mode(flags))
+      self._debug("opcode: open | flags: %s | mode: %s"
+                  % (flags, mode))
+
+      fp = open(tsumufs.nfsMountPoint + self._path, self._flags2mode(flags))
       fp.close()
     except:
       self._debug("*** Unable to open file %s: %s"
                   % (self._path, traceback.format_exc()))
 
-  def _flag2mode(self, flags):
+  def _flags2mode(self, flags):
     """
     Borrowed directly from fuse-python's xmp.py script. Credits go to
     Jeff Epler and Csaba Henk.
@@ -78,14 +78,20 @@ class FuseFile(object):
 
   def _debug(self, args):
     if tsumufs.debugMode:
-      syslog.syslog("fusefile: " + args)
+      s = "fusefile <%s>: %s" % (self._path, args)
+
+      if len(s) > 252:
+        s = s[:252] + "..."
+
+      syslog.syslog(s)
 
   def read(self, length, offset):
-    self._debug("opcode: read | path: %s | len: %d | offset: %d"
-                % (self._path, length, offset))
+    self._debug("opcode: read | len: %d | offset: %d"
+                % (length, offset))
     
     try:
-      fp = open(tsumufs.nfsMountPoint + self._path, "r")
+      fp = open(tsumufs.nfsMountPoint + self._path,
+                self._flags2mode(self._fdFlags))
       fp.seek(offset)
       result = fp.read(length)
       fp.close()
@@ -97,11 +103,12 @@ class FuseFile(object):
       return -e.errno
 
   def write(self, buf, offset):
-    self._debug("opcode: write | path: %s | buf: '%s' | offset: %d"
-                % (self._path, buf, offset))
+    self._debug("opcode: write | buf: %s | offset: %d"
+                % (repr(buf), offset))
 
     try:
-      fp = open(tsumufs.nfsMountPoint + self._path, "w+", 8192)
+      fp = open(tsumufs.nfsMountPoint + self._path,
+                self._flags2mode(self._fdFlags))
       fp.seek(offset)
       fp.write(buf)
       fp.close()
@@ -113,13 +120,12 @@ class FuseFile(object):
       return -e.errno
 
   def release(self, flags):
-    self._debug("opcode: release | path: %s | flags: %s" % (self._path, flags))
+    self._debug("opcode: release | flags: %s" % flags)
     # Noop since on NFS close doesn't do much
     return 0
 
   def fsync(self, isfsyncfile):
-    self._debug("opcode: fsync | path: %s | isfsyncfile: %d"
-                % (self._path, isfsyncfile))
+    self._debug("opcode: fsync | isfsyncfile: %d" % isfsyncfile)
     return -errno.ENOSYS
 
   def flush(self):
@@ -127,7 +133,7 @@ class FuseFile(object):
     return -errno.ENOSYS
 
   def fgetattr(self):
-    self._debug("opcode: fgetattr | path: %s" % self._path)
+    self._debug("opcode: fgetattr")
 
     try:
       return os.lstat(tsumufs.nfsMountPoint + self._path)
@@ -137,19 +143,21 @@ class FuseFile(object):
       return -e.errno
 
   def ftruncate(self, size):
-    self._debug("opcode: ftruncate | path: %s | size: %d"
-                % (self._path, size))
+    self._debug("opcode: ftruncate | size: %d" % size)
 
     try:
-      fp = os.open(tsumufs.nfsMountPoint + self._path, "r+")
-      fd = os.fdopen(fp)
+      fd = os.open(tsumufs.nfsMountPoint + self._path,
+                   self._fdFlags,
+                   self._fdMode)
       os.ftruncate(fd, size)
+      os.close(fd)
     except OSError, e:
       self._debug("Caught OSError: errno %d: %s"
                   % (e.errno, e.strerror))
       return -e.errno
 
-#   def lock(self, cmd, owner, **kw):
-#     self._debug("opcode: lock | cmd: %o | owner: %d"
-#                 % (cmd, owner))
-#     return -ENOSYS
+  def lock(self, cmd, owner, **kw):
+    self._debug("opcode: lock | cmd: %o | owner: %d"
+                % (cmd, owner))
+
+    return -errno.ENOSYS

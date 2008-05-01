@@ -50,4 +50,9 @@ class Triumvirate:
     if tsumufs.debugMode:
       if not self._syslogOpen:
         syslog.openlog(tsumufs.progName)
-      syslog.syslog(self._getName() + ": "+ args)
+
+      s = "%s: %s" % (self._getName(), args)
+      if len(s) > 252:
+        s = s[:252] + "..."
+
+      syslog.syslog(s)
