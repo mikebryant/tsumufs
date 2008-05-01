@@ -42,14 +42,16 @@ class FuseFile(object):
 
   _path  = None
   _flags = None
+  _mode  = None
 
-  def __init__(self, path, flags, *mode):
+  def __init__(self, path, flags, mode):
     try:
       self._debug("opcode: open | path: %s | flags: %o"
                   % (self._path, flags))
 
-      self._path = path
+      self._path  = path
       self._flags = flags
+      self._mode  = mode
 
       fp = open(tsumufs.nfsMountPoint + path, self._flag2mode(flags))
       fp.close()
@@ -82,23 +84,33 @@ class FuseFile(object):
     self._debug("opcode: read | path: %s | len: %d | offset: %d"
                 % (self._path, length, offset))
     
-    fp = open(tsumufs.nfsMountPoint + self._path, "r")
-    fp.seek(offset)
-    result = fp.read(length)
-    fp.close()
+    try:
+      fp = open(tsumufs.nfsMountPoint + self._path, "r")
+      fp.seek(offset)
+      result = fp.read(length)
+      fp.close()
 
-    return result
+      return result
+    except OSError, e:
+      self._debug("OSError caught: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def write(self, buf, offset):
     self._debug("opcode: write | path: %s | buf: '%s' | offset: %d"
                 % (self._path, buf, offset))
 
-    fp = open(tsumufs.nfsMountPoint + self._path, "w+", 8192)
-    fp.seek(offset)
-    result = fp.write(buf)
-    fp.close()
+    try:
+      fp = open(tsumufs.nfsMountPoint + self._path, "w+", 8192)
+      fp.seek(offset)
+      fp.write(buf)
+      fp.close()
 
-    return len(buf)
+      return len(buf)
+    except OSError, e:
+      self._debug("OSError caught: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
   def release(self, flags):
     self._debug("opcode: release | path: %s | flags: %s" % (self._path, flags))
@@ -116,14 +128,26 @@ class FuseFile(object):
 
   def fgetattr(self):
     self._debug("opcode: fgetattr | path: %s" % self._path)
-    return os.lstat(tsumufs.nfsMountPoint + self._path)
 
-  def ftruncate(self):
+    try:
+      return os.lstat(tsumufs.nfsMountPoint + self._path)
+    except OSError, e:
+      self._debug("OSError caught: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
+
+  def ftruncate(self, size):
     self._debug("opcode: ftruncate | path: %s | size: %d"
                 % (self._path, size))
-    fp = os.open(tsumufs.nfsMountPoint + self._path, "r+")
-    fd = os.fdopen(fp)
-    result = os.ftruncate(fd, size)
+
+    try:
+      fp = os.open(tsumufs.nfsMountPoint + self._path, "r+")
+      fd = os.fdopen(fp)
+      os.ftruncate(fd, size)
+    except OSError, e:
+      self._debug("Caught OSError: errno %d: %s"
+                  % (e.errno, e.strerror))
+      return -e.errno
 
 #   def lock(self, cmd, owner, **kw):
 #     self._debug("opcode: lock | cmd: %o | owner: %d"
