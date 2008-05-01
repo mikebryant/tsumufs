@@ -19,6 +19,11 @@
 
 """Unit tests for the DataRegion class."""
 
+import sys
+
+sys.path.append('../lib')
+sys.path.append('lib')
+
 import unittest
 import tsumufs.dataregion as dataregion
 
