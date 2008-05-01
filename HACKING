@@ -10,5 +10,7 @@ Please use the following coding style guide:
     a soft guideline -- if a line is more readable past 100 lines,
     feel free to do so, but keep this as sparingly as possible.
   - Tabs and indents are two (2) spaces, no tabs whatsoever.
+  - Private methods and vars are prefixed with an underscore.
+  - Methods are written in camelCaseLikeThis.
 
 With that said, happy hacking!
