@@ -152,12 +152,10 @@ class NFSMount(object):
     except OSError, e:
       self._debug("Mount of NFS failed: %s." % os.strerror(e.errno))
       return False
-    
     else:
       if rc != 0:
         self._debug("Mount of NFS failed -- mount returned nonzero.")
         return False
-      
       else:
         self._debug("Mount of NFS succeeded.")
         return True
