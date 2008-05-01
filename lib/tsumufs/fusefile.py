@@ -44,7 +44,7 @@ class FuseFile(object):
   _flags = None
   _mode  = None
 
-  def __init__(self, path, flags, mode):
+  def __init__(self, path, flags, mode=None):
     try:
       self._debug("opcode: open | path: %s | flags: %o"
                   % (self._path, flags))
