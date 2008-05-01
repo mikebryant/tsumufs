@@ -24,16 +24,19 @@ from inode import *
 from dataregion import *
 
 class SyncQueueItem:
-  type = None        # 'new|'link|'unlink|'change|'rename
-  file_type = None   # 'file|'dir|'socket|'fifo|'device
-  dev_type = None    # 'char|'block
-  filename = None    # string
-  old_fname = None   # string
-  new_fname = None   # string
-  inum = None        # inode number
+  _type = None        # 'new|'link|'unlink|'change|'rename
+  _file_type = None   # 'file|'dir|'socket|'fifo|'device
+  _dev_type = None    # 'char|'block
+  _filename = None    # string
+  _old_fname = None   # string
+  _new_fname = None   # string
+  _inum = None        # inode number
+
+  _hargs = None
 
   def __init__(self, type, **hargs):
-    self.type = type
+    self._type = type
+    self._hargs = hargs
 
   def getChanges(self):
     """Calculate the differences in the synclog and the file located in

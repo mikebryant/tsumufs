@@ -81,13 +81,13 @@ class SyncLog:
     try:
       self._lock.acquire()
       filename = "%s/%s" % (self._syncLogDir, self._syncLogFilename)
-      file = open(filename, "rb")
-      data = cPickle.load(file)
+      fp = open(filename, "rb")
+      data = cPickle.load(fp)
       self._inodeChanges = data["inodeChanges"]
       self._syncQueue = data["syncQueue"]
       self._inodeMap = data["inodeMap"]
     finally:
-      file.close()
+      fp.close()
       self._lock.release()
 
   def flushToDisk(self):
@@ -111,13 +111,13 @@ class SyncLog:
 
     try:
       self._lock.acquire()
-      filename = "%s/%s" % (self.syncLogDir, self.syncLogFilename)
-      file = open(filename, "wb")
+      filename = "%s/%s" % (self._syncLogDir, self._syncLogFilename)
+      fp = open(filename, "wb")
       cPickle.dump({ "inodeChanges": self._inodeChanges,
                      "syncQueue": self._syncQueue,
-                     "inodeMap": self._inodeMap}, file)
+                     "inodeMap": self._inodeMap}, fp)
     finally:
-      file.close()
+      fp.close()
       self._lock.release()
         
   def addNew(self, type, **params):
@@ -143,25 +143,29 @@ class SyncLog:
     
   def addLink(self, inum, filename):
     self._lock.acquire()
-    syncitem = SyncQueueItem()
+    syncitem = SyncQueueItem("link", inum=inum, filename=filename)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
     
   def addUnlink(self, filename):
     self._lock.acquire()
-    syncitem = SyncQueueItem()
+    syncitem = SyncQueueItem("unlink", filename=filename)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
   def addChange(self, inum, start, end, data):
     self._lock.acquire()
-    syncitem = SyncQueueItem()
+    syncitem = SyncQueueItem("change",
+                             inum=inum,
+                             start=start,
+                             end=end,
+                             data=data)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
   def addRename(self, old, new):
     self._lock.acquire()
-    syncitem = SyncQueueItem()
+    syncitem = SyncQueueItem("rename", old=old, new=new)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
@@ -169,8 +173,8 @@ class SyncLog:
     self._lock.acquire()
     syncitem = self._syncQueue.shift()
     if syncitem.type == "change":
-      change = self.inodeChanges[syncitem.inum]
-      del self.inodeChanges[syncitem.inum]
+      change = self._inodeChanges[syncitem.inum]
+      del self._inodeChanges[syncitem.inum]
     else:
       change = None
       self._lock.release()

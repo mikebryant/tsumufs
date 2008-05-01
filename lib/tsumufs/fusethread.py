@@ -71,8 +71,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self._debug('fsinit complete.')
     
-  def main(self, *args, **kw):
-    Fuse.main(self, *args, **kw)
+  def main(self, args=None):
+    Fuse.main(self, args)
     self._debug("Fuse main event loop exited.")
 
     self._debug("Setting event and condition states.")
@@ -144,13 +144,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self.parser.add_option('-f',
                            action='callback',
-                           callback=lambda *a:
+                           callback=lambda:
                              self.fuse_args.setmod('foreground'),
                            help=('Prevents TsumuFS from forking into '
                                  'the background.'))
     self.parser.add_option('-D', '--fuse-debug',
                            action='callback',
-                           callback=lambda *a:
+                           callback=lambda:
                              self.fuse_args.add('debug'),
                            help=('Turns on fuse-python debugging. '
                                  'Only useful if you also specify '
@@ -232,13 +232,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug("opcode: readdir | path: %s | offset: %d" % (path, offset))
 
     try:
-      for file in os.listdir(tsumufs.nfsMountPoint + path):
+      for filename in os.listdir(tsumufs.nfsMountPoint + path):
         stat_result = os.lstat("%s%s/%s"
                                % (tsumufs.nfsMountPoint,
                                   path,
-                                  file))
+                                  filename))
 
-        dirent        = fuse.Direntry(file)
+        dirent        = fuse.Direntry(filename)
         dirent.type   = stat.S_IFMT(stat_result.st_mode)
         dirent.offset = offset
         
@@ -327,7 +327,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       fp = open(tsumufs.nfsMountPoint + path, "a")
-      return fp.truncate(size)
+      fp.truncate(size)
+
+      return 0
     except OSError, e:
       self._debug("Caught OSError: errno %d: %s"
                   % (e.errno, e.strerror))

@@ -117,7 +117,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
               if tsumufs.nfsMount.getFileRegion(item.filename,
                                                 change.start,
                                                 change.end) != change.data:
-                raise SyncConflictError(item)
+                raise tsumufs.SyncConflictError(item)
               else:
                 tsumufs.nfsMount.putFileRegion(item.filename,
                                                change.start,

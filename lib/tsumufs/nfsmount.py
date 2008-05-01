@@ -120,9 +120,6 @@ class NFSMount(object):
     the mount(8) command to do its dirty work.
     """
 
-    # Setup any additional mount options we need
-    mount_opts = ""
-
     try:
       os.stat(tsumufs.nfsMountPoint)
     except OSError, e:

@@ -83,7 +83,7 @@ class SyncQueue(object):
     self.release()
 
     if not found:
-      raise Empty('Item not found.')
+      raise Queue.Empty('Item not found.')
     else:
       return True
       

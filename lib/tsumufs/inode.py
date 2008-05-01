@@ -38,29 +38,29 @@ class InodeChange:
     """Pretty printer method to give a bit more transparency into the
     object."""
 
-    repr = "<InodeChange ["
+    rep = "<InodeChange ["
     if len(self.dataRegions) > 0:
       for r in self.dataRegions:
-        repr += "%s" % r
+        rep += "%s" % r
         if r != self.dataRegions[-1]:
-          repr += "\n" + (" " * 14)
-          repr += "]"
+          rep += "\n" + (" " * 14)
+          rep += "]"
           
       if self.ctime:
-        repr += "\n\tctime: %d" % self.ctime
+        rep += "\n\tctime: %d" % self.ctime
       if self.mtime:
-        repr += "\n\tmtime: %d" % self.mtime
+        rep += "\n\tmtime: %d" % self.mtime
       if self.permissions:
-        repr += "\n\tperms: %d" % self.permissions
+        rep += "\n\tperms: %d" % self.permissions
       if self.uid:
-        repr += "\n\tuid: %d" % self.uid
+        rep += "\n\tuid: %d" % self.uid
       if self.gid:
-        repr += "\n\tgid: %d" % self.gid
+        rep += "\n\tgid: %d" % self.gid
       if self.symlinkPath:
-        repr += "\n\tsymlinkPath: %s" % self.symlinkPath
-      repr += ">"
+        rep += "\n\tsymlinkPath: %s" % self.symlinkPath
+      rep += ">"
 
-    return repr
+    return rep
 
   def __init__(self):
     pass
