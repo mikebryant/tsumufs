@@ -2,8 +2,7 @@ Please keep in mind that while hacking on TsumuFS, one should attempt to
 observe the following rules:
 
   1. All classes must have unit tests.
-  2. Changes must have been peer reviewed.
-  3. Commits must pass pychecker and unit test requirements.
+  2. Commits must pass pychecker and unit test requirements.
 
 Please use the following coding style guide:
 
