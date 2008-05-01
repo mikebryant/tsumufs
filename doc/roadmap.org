@@ -1,9 +1,57 @@
 -*- org -*-
+#+CATEGORY: TsumuFS
+#+TYP_TODO: WAIT NEXT PEND DONE
+#+STARTUP: showall
+#+STARTUP: hidestars
 
-* v1.0 - Prototype FUSE+Python version
+* [1/7] v1.0 - Prototype FUSE+Python version
+  - [ ] Feature parity in terms of syscalls to NFS.
+    - [X] Initial NFS passthrough.
+    - [ ] Re-routing of syscalls to the NFSMount object.
 
-* v2.0 - Feature complete FUSE+Python version
+  - [ ] Prototypical NFS sanity checking and disconnect/reconnect
+        notification.
+    - [ ] NFSMount syscall behavior changing based upon the status of
+          the NFS backend connection
+    - [ ] NFSMount syscall failures triggering a remount.
 
-* v3.0 - Prototype Linux filesystem module
+  - [ ] Prototypical caching operation
+    - [ ] Reads cause caching of files to disk. No quota checking.
+    - [ ] No reading or writing of cachespec files yet. Use hardcoded
+          values.
 
-* v4.0 - Feature complete Linux filesystem module
+  - [ ] Prototypical synclog operation
+    - [ ] Writes going to the synclog and cache directly
+    - [ ] Basic re-integration upstream (no merging functionality --
+          conflicts handled entirely by the user)
+
+  - [ ] User space communication
+    - [ ] Basic notifications to userspace, no commands accepted yet.
+    - [ ] Reference implementation of the notification tool written.
+
+* [0/13] v2.0 - Feature complete FUSE+Python version
+  - [ ] Finalized NFS sanity checking and disconnect/reconnect
+        notification.
+        - [ ] Manual disconnected mode triggerable via the userspace
+              socket.
+        - [ ] NFS sanity checking implemented fully.
+        - [ ] NFS flapping case checked for.
+
+  - [ ] Caching operation complete.
+    - [ ] Cache quota checking implemented.
+    - [ ] Persistant caching and nevercaching implemented.
+    - [ ] Reading and writing of cachespec files is complete.
+
+  - [ ] Finalized synclog operation.
+    - [ ] Automatic reintegration done when possible, only binary
+          conflicts are passed to the user.
+
+  - [ ] User space communication finalized.
+    - [ ] All user-facing events are notified via the userspace
+          socket.
+    - [ ] Full implementation of a userspace control program
+          implemented.
+
+* [0/0] v3.0 - Prototype Linux filesystem module
+
+* [0/0] v4.0 - Feature complete Linux filesystem module
