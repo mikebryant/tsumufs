@@ -2,15 +2,17 @@ PY_MODULES := $(wildcard lib/tsumufs/*.py)
 PY_SOURCE  := $(wildcard src/*.py)
 PY_TESTS   := $(wildcard tests/*.py)
 
+PYCHECKER  := /usr/bin/pychecker
+
 all: check test
 
 test:
 	PYTHONPATH="./lib" python $(PY_TESTS)
 
 check:
-	pychecker lib/tsumufs/__init__.py
-	pychecker $(PY_SOURCE)
-	pychecker $(PY_TESTS)
+	cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
+	$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
+	$(PYCHECKER) -F pycheckerrc $(PY_TESTS)
 
 clean:
 	find -iname \*.pyc -exec rm -f '{}' ';'
