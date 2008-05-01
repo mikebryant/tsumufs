@@ -58,27 +58,34 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
     if not tsumufs.nfsMount.pingServerOK():
       self._debug("NFS ping failed.")
-      return
+      return False
 
     self._debug("NFS ping successful.")
     self._debug("Checking NFS sanity.")
 
     if not tsumufs.nfsMount.nfsCheckOK():
       self._debug("NFS sanity check failed.")
-      return
+      return False
 
     self._debug("NFS sanity check okay.")
     self._debug("Attempting mount.")
 
     try:
-      tsumufs.nfsMount.mount()
+      result = tsumufs.nfsMount.mount()
     except:
       self._debug("Exception: %s" + traceback.format_exc())
       self._debug("NFS mount failed.")
-      return
+      tsumufs.nfsAvailable.clear()
+      return False
 
-    self._debug("NFS mount complete.")
-    tsumufs.nfsAvailable.set()
+    if result:
+      self._debug("NFS mount complete.")
+      tsumufs.nfsAvailable.set()
+      return True
+    else:
+      self._debug("Unable to mount NFS.")
+      tsumufs.nfsAvailable.clear()
+      return False
 
   def run(self):
     try:
