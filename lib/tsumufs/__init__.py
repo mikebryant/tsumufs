@@ -20,7 +20,9 @@
 
 import threading
 
+from debuggable import *
 from triumvirate import *
+from cachemanager import *
 from nfsmount import *
 from synclog import *
 from syncqueue import *
@@ -44,6 +46,7 @@ nfsMountPoint = None
 cacheBaseDir = "/var/cache/tsumufs"
 cacheSpecDir = "/var/lib/tsumufs/cachespec"
 cachePoint   = None
+cacheManager = None
 
 socketDir    = "/var/run/tsumufs"
 
