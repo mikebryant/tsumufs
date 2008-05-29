@@ -1,0 +1,55 @@
+#!/bin/bash
+
+if [ "$TSUMUFS" == "" ]; then
+	if [ -x ../src/tsumufs ]; then
+		TSUMUFS=../src/tsumufs
+	elif [ -x ./tsumufs ]; then
+		TSUMUFS=./tsumufs
+	else
+		echo "Could not find tsumufs executable. Please set TSUMUFS manually, or mark ../src/tsumufs executable."
+		exit 1
+	fi
+elif [ ! -x $TSUMUFS ]; then
+	echo "$TSUMUFS is not executable or does not exist. Please set TSUMUFS properly."
+	exit 1
+fi
+
+if [ "$NFSHOME" == "" ]; then
+	echo "Set NFSHOME and NFSOPTS before running this command."
+	exit 1
+fi
+
+if [ "$1" == "" ]; then
+	echo "usage: $0 <mountpoint>"
+	exit 1
+elif [ ! -d "$1" ]; then
+	echo "$1 is not a directory."
+	exit 1
+else
+	MOUNTPOINT=$1
+fi
+
+cmdline="$TSUMUFS -d"
+[ "$NFSOPTS" != "" ] && cmdline="$cmdline -O $NFSOPTS"
+cmdline="$cmdline $NFSHOME $MOUNTPOINT"
+
+eval $cmdline
+
+if [ "$?" == "0" ]; then
+	pushd tmp >/dev/null
+	PS1=$'\e[m\e[31m[TSUMUFS]\e[m \h:\w\$ ' bash -norc
+	popd >/dev/null
+
+	fusermount -u tmp
+fi
+
+PID=$(ps ax |grep tsumufs |grep -v grep |awk '{ print $1 }')
+if [ "$PID" != "" ] && [ "$1" == "kill" ]; then
+	sleep 5
+
+	PID=$(ps ax |grep tsumufs |grep -v grep |awk '{ print $1 }')
+	if [ "$PID" != "" ] && [ "$1" == "kill" ]; then
+		kill -KILL $PID
+	fi
+fi
+
