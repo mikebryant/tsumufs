@@ -19,40 +19,15 @@
 """TsumuFS, a NFS-based caching filesystem."""
 
 import syslog
+
 import tsumufs
 
-class Triumvirate:
+
+class Triumvirate(tsumufs.Debuggable):
   """Defines some basic behavior and utility functions that all three
   main threads require for functioning.
 
   Any shared code between the three should be placed here instead of
   copying."""
 
-  _name = None
-  _syslogOpen = False
-
-  def _setName(self, name):
-    self._name = name
-
-  def _getName(self):
-    return self._name
-  
-  def _debug(self, args):
-    """Quick method to output some debugging information which states the
-    thread name a colon, and whatever arguments have been passed to
-    it.
-
-    Args:
-      args: a list of additional arguments to pass, much like what
-        print() takes.
-    """
-    
-    if tsumufs.debugMode:
-      if not self._syslogOpen:
-        syslog.openlog(tsumufs.progName)
-
-      s = "%s: %s" % (self._getName(), args)
-      if len(s) > 252:
-        s = s[:252] + "..."
-
-      syslog.syslog(s)
+  pass
