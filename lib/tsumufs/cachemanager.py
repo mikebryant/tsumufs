@@ -130,16 +130,14 @@ class CacheManager(tsumufs.Debuggable):
           shutil.copystat(nfsfilename, cachefilename)
 
           stat = os.lstat(nfsfilename)
-          os.chown(cachefilename, stat.uid)
-          os.chgrp(cachefilename, stat.gid)
+          os.chown(cachefilename, stat.uid, stat.gid)
         
         elif os.path.isdir(nfsfilename):
           os.mkdir(cachefilename)
           shutil.copystat(nfsfilename, cachefilename)
 
           stat = os.lstat(nfsfilename)
-          os.chown(cachefilename, stat.uid)
-          os.chgrp(cachefilename, stat.gid)
+          os.chown(cachefilename, stat.uid, stat.gid)
 
         self._cachedFiles[path] = True
       except OSError, e:
@@ -208,13 +206,13 @@ class CacheManager(tsumufs.Debuggable):
       None
     """
 
-    self.lockFile(self, path)
+    self.lockFile(path)
 
     if self._cachedFiles.has_key(path):
-      self.unlockFile(self, path)
+      self.unlockFile(path)
       return False
     else:
-      self.unlockFile(self, path)
+      self.unlockFile(path)
       return True
 
   def lockFile(self, path):
