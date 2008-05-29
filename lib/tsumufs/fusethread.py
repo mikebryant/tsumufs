@@ -211,12 +211,33 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   def getxattr(self, path, name, size):
     self._debug("opcode: getxattr | path: %s | name: %s | size: %d"
                 % (path, name, size))
-    return -errno.ENOSYS
+
+    name = name.lower()
+
+    if name == 'in-cache':
+      if size == 0:           # asked to return the size of the data
+        return len('0') + 1
+      else:
+        return '0'
+
+    elif name == 'dirty':
+      if size == 0:
+        return len('0') + 1
+      else:
+        return '0'
+
+    return -errno.ENOENT
 
   def listxattr(self, path, size):
     self._debug("opcode: listxattr | path: %s | size: %d"
                 % (path, size))
-    return -errno.ENOSYS
+
+    keys = ['in-cache', 'dirty']
+    
+    if size == 0:
+      return len("".join(keys)) + len(keys)
+
+    return keys
 
   def readlink(self, path):
     self._debug("opcode: readlink | path: %s" % path)
