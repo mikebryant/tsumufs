@@ -103,8 +103,8 @@ class FuseFile(object):
       return -e.errno
 
   def write(self, buf, offset):
-    self._debug("opcode: write | buf: %s | offset: %d"
-                % (repr(buf), offset))
+    self._debug("opcode: write | offset: %d | buf: %s"
+                % (offset, repr(buf)))
 
     try:
       fp = open(tsumufs.nfsMountPoint + self._path,
