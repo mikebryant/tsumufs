@@ -51,6 +51,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self.file_class    = tsumufs.FuseFile
 
   def fsinit(self):
+    self._debug("Initializing cachemanager object.")
+    tsumufs.cacheManager = tsumufs.CacheManager()
+
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
     self._debug("Initializing nfsMount proxy.")
@@ -218,7 +221,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       if size == 0:           # asked to return the size of the data
         return len('0') + 1
       else:
-        return '0'
+        if tsumufs.cacheManager.isFileCached(path):
+          return '1'
+        else:
+          return '0'
 
     elif name == 'dirty':
       if size == 0:
