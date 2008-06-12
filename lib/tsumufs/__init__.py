@@ -34,7 +34,8 @@ __version__ = (0, 6)
 
 debugMode = False
 
-progName = None
+progName   = None
+syslogOpen = False
 
 mountSource  = None
 mountPoint   = None
@@ -42,6 +43,7 @@ mountOptions = None
 
 nfsBaseDir    = "/var/lib/tsumufs/nfs"
 nfsMountPoint = None
+nfsMount      = None
 
 cacheBaseDir = "/var/cache/tsumufs"
 cacheSpecDir = "/var/lib/tsumufs/cachespec"
@@ -52,5 +54,3 @@ socketDir    = "/var/run/tsumufs"
 
 unmounted    = threading.Event()
 nfsAvailable = threading.Event()
-
-nfsMount = None
