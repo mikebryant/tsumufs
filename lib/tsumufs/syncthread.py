@@ -53,15 +53,14 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
   def _attemptMount(self):
     self._debug("Attempting to mount NFS.")
-    self._debug("Checking for NFS server availability")
 
+    self._debug("Checking for NFS server availability")
     if not tsumufs.nfsMount.pingServerOK():
       self._debug("NFS ping failed.")
       return False
 
     self._debug("NFS ping successful.")
     self._debug("Checking NFS sanity.")
-
     if not tsumufs.nfsMount.nfsCheckOK():
       self._debug("NFS sanity check failed.")
       return False
@@ -91,10 +90,17 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
       while not tsumufs.unmounted.isSet():
         self._debug("TsumuFS not unmounted yet.")
 
-        while not tsumufs.nfsAvailable.isSet() and not tsumufs.unmounted.isSet():
+        while (not tsumufs.nfsAvailable.isSet()
+               and not tsumufs.unmounted.isSet()):
           self._debug('NFS unavailable')
-          self._attemptMount()
-          tsumufs.unmounted.wait(5)
+
+          if not tsumufs.forceDisconnect.isSet():
+            self._attemptMount()
+            tsumufs.unmounted.wait(5)
+          else:
+            self._debug(('...because user forced disconnect. '
+                         'Not attempting mount.'))
+            time.sleep(5)
 
         while tsumufs.nfsAvailable.isSet() and not tsumufs.unmounted.isSet():
           try:
