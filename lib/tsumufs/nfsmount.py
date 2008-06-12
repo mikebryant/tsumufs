@@ -23,16 +23,26 @@ import errno
 import stat
 import syslog
 
+from threading import Lock
 from threading import Event
 
 import tsumufs
 
+
+class NFSMountError(Exception):
+  pass
+
+
 class NFSMount(tsumufs.Debuggable):
-  """Represents the NFS mount iself.
+  """
+  Represents the NFS mount iself.
 
   This object is responsible for accessing files and data in the NFS
   mount. It is also responsible for setting the connectedEvent to
-  False in case of an NFS access error."""
+  False in case of an NFS access error.
+  """
+
+  _fileLocks = {}
 
   def __init__(self):
     pass
@@ -47,7 +57,12 @@ class NFSMount(tsumufs.Debuggable):
     Returns:
       A boolean value.
     """
-    pass
+
+    try:
+      self._fileLocks[filename].acquire()
+    except NameError:
+      self._fileLocks[filename] = threading.Lock()
+      self._fileLocks[filename].acquire()
 
   def unlockFile(self, filename):
     """
@@ -59,7 +74,8 @@ class NFSMount(tsumufs.Debuggable):
     Returns:
       A boolean value.
     """
-    pass
+
+    self._fileLocks[filename].release()
 
   def pingServerOK(self):
     """
@@ -88,11 +104,29 @@ class NFSMount(tsumufs.Debuggable):
       A string containing the data read.
 
     Raises:
-      NFSMountError: An error occurred during an NFS call.
+      NFSMountError: An error occurred during an NFS call which is
+        unrecoverable.
       RangeError: The start and end provided are invalid.
       IOError: Usually relating to permissions issues on the file.
     """
-    pass
+
+    self.lockFile(filename)
+
+    try:
+      fp = open(tsumufs.nfsMountPoint + filename, "r")
+      fp.seek(start)
+      result = fp.read(end - start)
+      fp.close()
+    except OSError, e:
+      if e.errno in (errno.EIO, errno.ESTALE):
+        tsumufs.nfsAvailable.clear()
+        tsumufs.nfsAvailable.notifyAll()
+        raise tsumufs.NFSMountError()
+      else:
+        raise
+
+    self.unlockFile(filename)
+    return result
 
   def writeFileRegion(self, filename, start, end, data):
     """
@@ -109,9 +143,25 @@ class NFSMount(tsumufs.Debuggable):
     Raises:
       NFSMountError: An error occurred during an NFS call.
       RangeError: The start and end provided are invalid.
-      IOError: Usually relating to permissions on the file.
+      OSError: Usually relating to permissions on the file.
     """
-    pass
+
+    self.lockFile(filename)
+
+    try:
+      fp = open(tsumufs.nfsMountPoint + filename, "w+")
+      fp.seek(start)
+      fp.write(data)
+      fp.close()
+    except OSError, e:
+      if e.errno in (errno.EIO, errno.ESTALE):
+        tsumufs.nfsAvailable.clear()
+        tsumufs.nfsAvailable.notifyAll()
+        raise tsumufs.NFSMountError()
+      else:
+        raise
+
+    self.unlockFile(filename)
 
   def mount(self):
     """
@@ -173,3 +223,17 @@ class NFSMount(tsumufs.Debuggable):
     else:
       self._debug("Unmount of NFS succeeded.")
       return True
+    
+  def _debug(self, args):
+    """
+    Quick method to output some debugging information which states the
+    thread name, a colon, and whatever arguments have been passed to
+    it.
+
+    Args:
+      args: a list of additional arguments to pass, much like what
+        print() takes.
+    """
+    
+    if tsumufs.debugMode:
+      syslog.syslog("nfsmount: " + str(args))

@@ -25,6 +25,7 @@ import errno
 import stat
 import syslog
 import threading
+import time
 
 import tsumufs
 
@@ -46,7 +47,25 @@ class CacheManager(tsumufs.Debuggable):
                            # access to files in the cache.
 
   def __init__(self):
-    pass
+    try:
+      os.stat(tsumufs.cachePoint)
+    except OSError, e:
+      if e.errno == errno.ENOENT:
+        self._debug('Cache point %s was not found -- creating'
+                    % tsumufs.cachePoint)
+
+        try:
+          os.mkdir(tsumufs.cachePoint)
+        except OSError, e:
+          self._debug('Unable to create cache point: %s'
+                      % os.strerror(e.errno))
+          raise
+
+      elif e.errno == errno.EACCES:
+        self._debug('Cache point %s is unavailable: %s'
+                    % (tsumufs.cachePoint,
+                       os.strerror(e.errno)))
+        raise
 
   def isFileCached(self, path):
     """
@@ -66,30 +85,207 @@ class CacheManager(tsumufs.Debuggable):
     # Lock the file for access
     self.lockFile(path)
 
-    if self._cachedFiles.has_key(path):
+    if (self._cachedFiles.has_key(path) and
+        self._cachedFiles[path]['type'] != 'stat'):
       self.unlockFile(path)
       return True
-    else:
+
+    try:
       try:
-        os.lstat("%s/%s" % (tsumufs.cacheBaseDir, path))
+        stat = self.statFile("%s/%s" % (tsumufs.cachePoint, path))
       except OSError, e:
         if e.errno == errno.ENOENT:
           if self._cachedFiles.has_key(path):
             del self._cachedFiles[path]
-
-          self.unlockFile(path)
-          return False
+            return False
         else:
-          self._debug("Caught OSError: errno %d: %s"
+          self._debug("isFileCached: Caught OSError: errno %d: %s"
                       % (e.errno, e.strerror))
-          
+          self.unlockFile(path)
+          raise
       else:
+        return True
+    finally:
+      self.unlockFile(path)
+
+  def statFile(self, path):
+    """
+    Cache the stat referenced by path.
+
+    This method locks the file for reading, returns the stat result
+    (as returned by lstat()), enters the stat entry into the cache,
+    and unlocks the file.
+    """
+
+    self.lockFile(path)
+
+    nfsfilename   = "%s/%s" % (tsumufs.nfsMountPoint, path)
+    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
+
+    # Bail out early if we've not cached the file and NFS is
+    # unavailable. Simply unlock and return ENOENT.
+
+    if not tsumufs.nfsAvailable.isSet():
+      if not self._cachedFiles.has_key(path):
+        self._debug("NFS unavailable and file not cached. Raising ENOENT.")
+        self.unlockFile(path)
+        raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
+
+    # Check to see if the file has been cached. If cached, and stat
+    # has timed out, re-cache stat from nfs if available. Return the
+    # cached stat.
+    
+    if self._cachedFiles.has_key(path):
+      self._debug("Stat cache available for %s." % path)
+
+      if ((time.time() - self._cachedFiles[path]['timestamp']) >
+          self._statTimeout):
+        self._debug("Stat cache timeout occurred for %s (%d)." %
+                    (path,
+                     time.time() - self._cachedFiles[path]['timestamp']))
+
+        if self._cachedFiles[path]['type'] == 'file':
+          stat = os.lstat(nfsfilename)
+          
+          if self._cachedFiles[path]['stat'] != stat:
+            # TODO: Schedule this file for reintegration or update of
+            # the full cached copy.
+            pass
+
+          self._cachedFiles[path]['timestamp'] = time.time()
+          self._cachedFiles[path]['stat'] = stat
+
+        elif self._cachedFiles[path]['type'] == 'dir':
+          stat = os.lstat(nfsfilename)
+          
+          if self._cachedFiles[path]['stat'] != stat:
+            # TODO: Should maybe update the dir's dirents here?
+            pass
+
+          self._cachedFiles[path]['timestamp'] = time.time()
+          self._cachedFiles[path]['stat'] = stat
+          
+        elif self._cachedFiles[path]['type'] == 'stat':
+          # Just an ordinary stat cache.
+          
+          self._cachedFiles[path]['timestamp'] = time.time()
+          self._cachedFiles[path]['stat'] = os.lstat(nfsfilename)
+
+
+        self._debug("Stat cache acquired: %s" %
+                    (str(self._cachedFiles[path]['stat'])))
+    else:
+      self._debug("No stat cache for %s available. Caching stat." % path)
+
+      try:
+        # Create a new stat cached entry
+        self._cachedFiles[path] = {
+          'type': 'stat',
+          'stat': os.lstat(nfsfilename),
+          'timestamp': time.time()
+          }
+      except:
         self.unlockFile(path)
         raise
+        
+    self.unlockFile(path)
+    return self._cachedFiles[path]['stat']
 
-      self._cachedFiles[path] = True
+  def getDirents(self, path):
+    """
+    Return the dirents from a directory's contents if cached.
+    """
+
+    self.lockFile(path)
+
+    nfsfilename   = "%s/%s" % (tsumufs.nfsMountPoint, path)
+    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
+
+    # Bail out early if we've not cached the file and NFS is
+    # unavailable. Simply unlock and return ENOENT.
+
+    if not tsumufs.nfsAvailable.isSet():
+      if not self._cachedFiles.has_key(path):
+        self._debug('NFS not available, and %s not cached -- raising ENOENT.'
+                    % path)
+        self.unlockFile(path)
+        raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
+
+    # Check to see if the file has been cached. If cached, and stat
+    # has timed out, re-cache stat from nfs if available. Return the
+    # cached dirents.
+    
+    if (self._cachedFiles.has_key(path) and
+        (self._cachedFiles[path]['type'] == 'dir')):
+      if ((time.time() - self._cachedFiles[path]['timestamp']) >
+          self._statTimeout):
+        self._cachedFiles[path]['timestamp'] = time.time()
+        self._cachedFiles[path]['stat'] = os.lstat(nfsfilename)
+        self._cachedFiles[path]['dirents'] = ([ '.', '..' ] +
+                                              os.listdir(nfsfilename))
+    else:
+      if os.path.isdir(nfsfilename):
+        self._debug('Dirents not cached -- caching %s.' % path)
+        self.cacheDir(path)
+      else:
+        self._debug(('Path %s is not a directory (os.path.isdir()'
+                     'reports false') % path)
+        self.unlockFile(path)
+        raise OSError(errno.ENOTDIR, os.strerror(errno.ENOTDIR))
+      
+    self.unlockFile(path)
+    return self._cachedFiles[path]['dirents']
+
+  def cacheDir(self, path):
+    """
+    Cache the directory referenced by path.
+
+    If the directory should not be cached to disk (as specified in the
+    cachespec) then only the contents of the directory hash table will
+    be stored in the _cachedFiles hash.
+
+    Returns:
+      None
+
+    Raises:
+      OSError - when an error operating on the filesystem occurs.
+    """
+
+    self.lockFile(path)
+
+    nfsfilename   = "%s/%s" % (tsumufs.nfsMountPoint, path)
+    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
+
+    try:
+      try:
+        stat = os.lstat(nfsfilename)
+
+        if (self.shouldCacheFile(path) and
+            (path != '/')):
+          self._debug("Caching file %s to disk." % path)
+
+          try:
+            os.mkdir(cachefilename)
+            shutil.copystat(nfsfilename, cachefilename)
+            os.chown(cachefilename, stat.st_uid, stat.st_gid)
+          except OSError, e:
+            if e.errno == errno.EEXIST:
+              self._debug("Dir %s already cached." % path)
+            else:
+              raise
+
+        self._cachedFiles[path] = {
+          'type': 'dir',
+          'timestamp': time.time(),
+          'dirents': ([ '.', '..' ] + os.listdir(nfsfilename)),
+          'stat': stat
+          }
+      except OSError, e:
+        self._debug("cacheDir: caught OSError: errno %d: %s"
+                    % (e.errno, e.strerror))
+        raise
+    finally:
       self.unlockFile(path)
-      return True
 
   def cacheFile(self, path):
     """
@@ -116,32 +312,53 @@ class CacheManager(tsumufs.Debuggable):
     """
 
     nfsfilename   = "%s/%s" % (tsumufs.nfsMountPoint, path)
-    cachefilename = "%s/%s" % (tsumufs.cacheBaseDir, path)
+    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
 
     if not self.shouldCacheFile(path):
-      return False
+      return None
+
+    self.lockFile(path)
+
+    if (self._cachedFiles.has_key(path) and
+        self._cachedFiles[path]['type'] == 'file'):
+      if time.time() - self._cachedFiles[path]['timestamp'] <= self._statTimeout:
+        self._debug("File cached and has not reached the stat timeout.")
+        self.unlockFile(path)
+        return None
+
+    self._debug("Caching file %s to disk." % path)
 
     try:
       try:
-        self.lockFile(path)
+        timestamp = time.time()
+        curstat = os.lstat(nfsfilename)
 
-        if os.path.isfile(nfsfilename) or os.path.islink(nfsfilename):
-          shutil.copy2(nfsfilename, cachefilename)
-          shutil.copystat(nfsfilename, cachefilename)
+        # TODO: Make this not check against the atime -- atime causes
+        # cache invalidation too frequently when nothing has changed.
 
-          stat = os.lstat(nfsfilename)
-          os.chown(cachefilename, stat.uid, stat.gid)
+        if ((curstat.st_blocks != self._cachedFiles[path]['stat'].st_blocks) or
+            (curstat.st_mtime != self._cachedFiles[path]['stat'].st_mtime) or
+            (curstat.st_size != self._cachedFiles[path]['stat'].st_size) or
+            (curstat.st_ino != self._cachedFiles[path]['stat'].st_ino)):
+          self._debug("Data stat changed. Recaching file.")
+
+          if stat.S_ISREG(curstat) or stat.S_ISLNK(curstat):
+            shutil.copy2(nfsfilename, cachefilename)
+            shutil.copystat(nfsfilename, cachefilename)
+            os.chown(cachefilename, curstat.st_uid, curstat.st_gid)
         
-        elif os.path.isdir(nfsfilename):
-          os.mkdir(cachefilename)
-          shutil.copystat(nfsfilename, cachefilename)
+            self._cachedFiles[path] = {
+              'type': 'file',
+              'timestamp': time.time(),
+              'stat': curstat
+              }
+        else:
+          self._debug("Data stat unchanged. Recaching metadata via stat().")
 
-          stat = os.lstat(nfsfilename)
-          os.chown(cachefilename, stat.uid, stat.gid)
-
-        self._cachedFiles[path] = True
+          self._cachedFiles[path]['timestamp'] = timestamp
+          self._cachedFiles[path]['stat'] = curstat
       except OSError, e:
-        self._debug("Caught OSError: errno %d: %s"
+        self._debug("cacheFile: Caught OSError: errno %d: %s"
                     % (e.errno, e.strerror))
     finally:
       self.unlockFile(path)
@@ -165,7 +382,7 @@ class CacheManager(tsumufs.Debuggable):
     """
 
     self.lockFile(path)
-    cachefilename = "%s/%s" % (tsumufs.cacheBaseDir, path)
+    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
 
     try:
       try:
@@ -174,27 +391,24 @@ class CacheManager(tsumufs.Debuggable):
         elif os.path.isdir(cachefilename):
           # Recursively descend into the path, removing all of the files
           # and dirs from the cache as well as this one.
-
           pass
 
         del self._cachedFiles[path]
-
       except OSError, e:
-        self._debug("Caught OSError: errno %d: %s"
+        self._debug("removeCachedFile: Caught OSError: errno %d: %s"
                     % (e.errno, e.strerror))
         
         if e.errno == errno.ENOENT:
           del self._cachedFiles[path]
         else:
           raise
-
     finally:
       self.unlockFile(path)
 
   def shouldCacheFile(self, path):
     """
     Method to determine if a file referenced by path should be
-    cached.
+    cached, as aoccording to the cachespec file.
 
     Note: Currently this method only returns True, and none of the
     cachespec information is actually processed or used.
@@ -206,14 +420,7 @@ class CacheManager(tsumufs.Debuggable):
       None
     """
 
-    self.lockFile(path)
-
-    if self._cachedFiles.has_key(path):
-      self.unlockFile(path)
-      return False
-    else:
-      self.unlockFile(path)
-      return True
+    return True
 
   def lockFile(self, path):
     """
@@ -230,10 +437,14 @@ class CacheManager(tsumufs.Debuggable):
       None
     """
 
+    tb = self._getCaller()
+    self._debug("Locking file %s (from: %s(%d): in %s)."
+                % (path, tb[0], tb[1], tb[2]))
+
     try:
       self._fileLocks[path].acquire()
     except KeyError:
-      self._fileLocks[path] = threading.Lock()
+      self._fileLocks[path] = threading.RLock()
       self._fileLocks[path].acquire()
 
   def unlockFile(self, path):
@@ -249,5 +460,9 @@ class CacheManager(tsumufs.Debuggable):
     Raises:
       None
     """
+
+    tb = self._getCaller()
+    self._debug("Unlocking file %s (from: %s(%d): in %s)."
+                % (path, tb[0], tb[1], tb[2]))
 
     self._fileLocks[path].release()

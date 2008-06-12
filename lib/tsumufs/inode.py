@@ -88,13 +88,19 @@ class InodeChange:
     pointed to by this inode."""
     return self.dataRegions
 
+
 class InodeMap(object):
-  """Singleton object whose implementation is borrowed directly from the
+  """
+  Singleton object whose implementation is borrowed directly from the
   ASPN: Python Cookbook at
-  <http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/52558>."""
+  <http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/52558>.
+  """
+
+  __instance = None
 
   class __impl(object):
-    """Implementation of the Singleton object as described in the
+    """
+    Implementation of the Singleton object as described in the
     docstring for InodeMap.
 
     This class implements a pair of mappings of inode numbers to
@@ -102,7 +108,8 @@ class InodeMap(object):
     a singleton so that all objects in all threads may access this
     data. This class also implements __getstate__() and __setstate__()
     so that upon pickling, only the hashes are stored, excluding the
-    internal locks used to serialize write access."""
+    internal locks used to serialize write access.
+    """
 
     __inumToFileHash = {}
     __fileToInumHash = {}
@@ -122,29 +129,28 @@ class InodeMap(object):
       self.__fileToInumHash = args[1]
       self.__lock = Lock()
 
-      def addMapping(self, inum, filename):
-        self.__lock.acquire()
-        if self.__inumToFileHash.has_key(inum):
-          self.__inumToFileHash[inum].append(filename)
-        else:
-          self.__inumToFileHash[inum] = [filename]
-          self.__fileToInumHash[filename] = inum
-        self.__lock.release()
+    def addMapping(self, inum, filename):
+      self.__lock.acquire()
+      if self.__inumToFileHash.has_key(inum):
+        self.__inumToFileHash[inum].append(filename)
+      else:
+        self.__inumToFileHash[inum] = [filename]
+        self.__fileToInumHash[filename] = inum
+      self.__lock.release()
 
-      def lookupByInum(self, inum):
-        self.__lock.acquire()
-        retval = {inum: self.__inumToFileHash[inum]}
-        self.__lock.release()
-        return retval
+    def lookupByInum(self, inum):
+      self.__lock.acquire()
+      retval = {inum: self.__inumToFileHash[inum]}
+      self.__lock.release()
+      return retval
 
-      def lookupByFilename(self, filename):
-        self.__lock.acquire()
-        inum = self.__fileToInumHash[filename]
-        retval = {inum: self.__inumToFileHash[inum]}
-        self.__lock.release()
-        return retval
+    def lookupByFilename(self, filename):
+      self.__lock.acquire()
+      inum = self.__fileToInumHash[filename]
+      retval = {inum: self.__inumToFileHash[inum]}
+      self.__lock.release()
+      return retval
 
-  __instance = None
 
   def __init__(self):
     if InodeMap.__instance == None:

@@ -45,13 +45,13 @@ class FuseFile(tsumufs.Debuggable):
   _fdMode  = None
 
   def __init__(self, path, flags, mode=None):
-    self._setName("fusefile <%s>: %s" % (self._path, args))
+    self._path  = path
+    self._fdFlags = flags
+    self._fdMode  = mode
+
+    self._setName("fusefile <%s>" % self._path)
 
     try:
-      self._path  = path
-      self._fdFlags = flags
-      self._fdMode  = mode
-
       self._debug("opcode: open | flags: %s | mode: %s"
                   % (flags, mode))
 
@@ -82,9 +82,20 @@ class FuseFile(tsumufs.Debuggable):
     self._debug("opcode: read | len: %d | offset: %d"
                 % (length, offset))
     
+    if tsumufs.nfsAvailable.isSet():
+      if tsumufs.cacheManager.shouldCacheFile(self._path):
+        tsumufs.cacheManager.cacheFile(self._path)
+        filepath = tsumufs.cachePoint + self._path
+      else:
+        filepath = tsumufs.nfsMountPoint + self._path
+    else:
+      if tsumufs.cacheManager.isFileCached(self._path):
+        filepath = tsumufs.cachePoint + self._path
+      else:
+        return -errno.ENOENT
+      
     try:
-      fp = open(tsumufs.nfsMountPoint + self._path,
-                self._flags2mode(self._fdFlags))
+      fp = open(filepath, self._flags2mode(self._fdFlags))
       fp.seek(offset)
       result = fp.read(length)
       fp.close()
@@ -129,7 +140,7 @@ class FuseFile(tsumufs.Debuggable):
     self._debug("opcode: fgetattr")
 
     try:
-      return os.lstat(tsumufs.nfsMountPoint + self._path)
+      return tsumufs.cacheManager.statFile(filepath)
     except OSError, e:
       self._debug("OSError caught: errno %d: %s"
                   % (e.errno, e.strerror))

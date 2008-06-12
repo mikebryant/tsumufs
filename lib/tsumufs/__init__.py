@@ -29,6 +29,7 @@ from syncqueue import *
 from fusefile import *
 from fusethread import *
 from syncthread import *
+from inode import *
 
 __version__ = (0, 6)
 
@@ -52,5 +53,6 @@ cacheManager = None
 
 socketDir    = "/var/run/tsumufs"
 
-unmounted    = threading.Event()
-nfsAvailable = threading.Event()
+unmounted       = threading.Event()
+nfsAvailable    = threading.Event()
+forceDisconnect = threading.Event()
