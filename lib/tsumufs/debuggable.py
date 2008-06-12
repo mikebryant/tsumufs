@@ -19,6 +19,7 @@
 """TsumuFS, a NFS-based caching filesystem."""
 
 import syslog
+import threading
 
 import tsumufs
 
@@ -28,7 +29,6 @@ class Debuggable(object):
   objects should use.
   """
 
-  _syslogOpen = False
   _name = None
 
   def _setName(self, name):
@@ -36,7 +36,7 @@ class Debuggable(object):
 
   def _validateName(self):
     if self._name == None:
-      self._name = self.__class__
+      self._name = self.__class__.__name__
 
   def _getName(self):
     self._validateName()
@@ -55,8 +55,10 @@ class Debuggable(object):
     self._validateName()
 
     if tsumufs.debugMode:
-      if not self._syslogOpen:
+      if not tsumufs.syslogOpen:
         syslog.openlog(tsumufs.progName)
+        tsumufs.syslogOpen = True
+        self._debug('Opened syslog.')
 
       s = "%s: %s" % (self._getName(), args)
       if len(s) > 252:
