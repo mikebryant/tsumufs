@@ -229,6 +229,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
           return
         elif value == '1':
           tsumufs.forceDisconnect.set()
+          tsumufs.nfsMount.unmount()
+          tsumufs.nfsAvailable.clear()
+          tsumufs.nfsAvailable.notifyAll()
           return
 
     return -errno.EOPNOTSUPP
