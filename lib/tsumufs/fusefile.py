@@ -140,7 +140,7 @@ class FuseFile(tsumufs.Debuggable):
     self._debug("opcode: fgetattr")
 
     try:
-      return tsumufs.cacheManager.statFile(filepath)
+      return tsumufs.cacheManager.statFile(self._path)
     except OSError, e:
       self._debug("OSError caught: errno %d: %s"
                   % (e.errno, e.strerror))

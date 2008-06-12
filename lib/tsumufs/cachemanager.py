@@ -92,7 +92,7 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       try:
-        stat = self.statFile("%s/%s" % (tsumufs.cachePoint, path))
+        self.statFile("%s/%s" % (tsumufs.cachePoint, path))
       except OSError, e:
         if e.errno == errno.ENOENT:
           if self._cachedFiles.has_key(path):
@@ -120,7 +120,6 @@ class CacheManager(tsumufs.Debuggable):
     self.lockFile(path)
 
     nfsfilename   = "%s/%s" % (tsumufs.nfsMountPoint, path)
-    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
 
     # Bail out early if we've not cached the file and NFS is
     # unavailable. Simply unlock and return ENOENT.
@@ -199,7 +198,6 @@ class CacheManager(tsumufs.Debuggable):
     self.lockFile(path)
 
     nfsfilename   = "%s/%s" % (tsumufs.nfsMountPoint, path)
-    cachefilename = "%s/%s" % (tsumufs.cachePoint, path)
 
     # Bail out early if we've not cached the file and NFS is
     # unavailable. Simply unlock and return ENOENT.
