@@ -39,7 +39,6 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
   _syncQueue = None
 
   def __init__(self):
-    self._setName("sync")
     self._debug("Initializing.")
 
     self._debug("Loading SyncQueue.")

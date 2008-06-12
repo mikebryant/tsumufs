@@ -46,7 +46,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     Fuse.__init__(self, *args, **kw)
 
-    self._setName('fuse')
     self.multithreaded = 1
     self.file_class    = tsumufs.FuseFile
 

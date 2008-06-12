@@ -223,17 +223,3 @@ class NFSMount(tsumufs.Debuggable):
     else:
       self._debug("Unmount of NFS succeeded.")
       return True
-
-  def _debug(self, args):
-    """
-    Quick method to output some debugging information which states the
-    thread name, a colon, and whatever arguments have been passed to
-    it.
-
-    Args:
-      args: a list of additional arguments to pass, much like what
-        print() takes.
-    """
-
-    if tsumufs.debugMode:
-      syslog.syslog("nfsmount: " + str(args))
