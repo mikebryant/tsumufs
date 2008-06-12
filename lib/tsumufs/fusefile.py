@@ -33,7 +33,7 @@ from fuse import Fuse
 import tsumufs
 
 
-class FuseFile(object):
+class FuseFile(tsumufs.Debuggable):
   """
   This class represents a file handle for FUSE. With it, we can
   implement stateful file handle management. It also helps to reduce
@@ -45,6 +45,8 @@ class FuseFile(object):
   _fdMode  = None
 
   def __init__(self, path, flags, mode=None):
+    self._setName("fusefile <%s>: %s" % (self._path, args))
+
     try:
       self._path  = path
       self._fdFlags = flags
@@ -75,15 +77,6 @@ class FuseFile(object):
       m = m.replace('w', 'a', 1)
       
     return m
-
-  def _debug(self, args):
-    if tsumufs.debugMode:
-      s = "fusefile <%s>: %s" % (self._path, args)
-
-      if len(s) > 252:
-        s = s[:252] + "..."
-
-      syslog.syslog(s)
 
   def read(self, length, offset):
     self._debug("opcode: read | len: %d | offset: %d"
