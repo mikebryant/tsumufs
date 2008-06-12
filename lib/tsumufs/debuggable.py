@@ -56,7 +56,7 @@ class Debuggable(object):
 
     self._validateName()
     return self._name
-  
+
   def _debug(self, args):
     """
     Quick method to output some debugging information which states the
@@ -67,7 +67,7 @@ class Debuggable(object):
       args: a list of additional arguments to pass, much like what
         print() takes.
     """
-    
+
     self._validateName()
 
     if tsumufs.debugMode:

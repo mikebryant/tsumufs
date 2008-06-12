@@ -92,13 +92,13 @@ class SyncLog:
 
   def flushToDisk(self):
     """Save the sync queue and inode hashes to disk.
-    
+
     Run through each element in both queues and generate two lists of
     objects. Once the two lists have been generated, dump the lists to
     disk via the cPickle module.
-    
+
     Queue files are stored on disk in the following python format:
-    
+
     { inodeChanges: { <inum>: <InodeChange1>, ... ],
       syncQueue:   [ <SyncQueueItem1>, <SyncQueueItem2>, ... ] }
 
@@ -119,7 +119,7 @@ class SyncLog:
     finally:
       fp.close()
       self._lock.release()
-        
+
   def addNew(self, type, **params):
     """Add a change for a new file to the queue.
 
@@ -140,13 +140,13 @@ class SyncLog:
     syncitem = SyncQueueItem(params)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
-    
+
   def addLink(self, inum, filename):
     self._lock.acquire()
     syncitem = SyncQueueItem("link", inum=inum, filename=filename)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
-    
+
   def addUnlink(self, filename):
     self._lock.acquire()
     syncitem = SyncQueueItem("unlink", filename=filename)

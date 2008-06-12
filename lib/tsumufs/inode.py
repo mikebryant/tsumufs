@@ -45,7 +45,7 @@ class InodeChange:
         if r != self.dataRegions[-1]:
           rep += "\n" + (" " * 14)
           rep += "]"
-          
+
       if self.ctime:
         rep += "\n\tctime: %d" % self.ctime
       if self.mtime:

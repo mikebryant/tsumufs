@@ -72,16 +72,16 @@ class FuseFile(tsumufs.Debuggable):
 
     md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
     m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
-    
+
     if flags | os.O_APPEND:
       m = m.replace('w', 'a', 1)
-      
+
     return m
 
   def read(self, length, offset):
     self._debug("opcode: read | len: %d | offset: %d"
                 % (length, offset))
-    
+
     if tsumufs.nfsAvailable.isSet():
       if tsumufs.cacheManager.shouldCacheFile(self._path):
         tsumufs.cacheManager.cacheFile(self._path)
@@ -93,7 +93,7 @@ class FuseFile(tsumufs.Debuggable):
         filepath = tsumufs.cachePoint + self._path
       else:
         return -errno.ENOENT
-      
+
     try:
       fp = open(filepath, self._flags2mode(self._fdFlags))
       fp.seek(offset)

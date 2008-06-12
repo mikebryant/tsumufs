@@ -86,7 +86,7 @@ class SyncQueue(object):
       raise Queue.Empty('Item not found.')
     else:
       return True
-      
+
   def put(self, item):
     self.acquire()
     self._queue.append(item)

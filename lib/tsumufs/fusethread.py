@@ -73,7 +73,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._syncThread.start()
 
     self._debug('fsinit complete.')
-    
+
   def main(self, args=None):
     Fuse.main(self, args)
     self._debug('Fuse main event loop exited.')
@@ -137,7 +137,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                            default=None,
                            help=('Set the directory name for cache storage '
                                  '[default: calculated]'))
-    
+
     self.parser.add_option('-O',
                            dest='mountOptions',
                            default=None,
@@ -275,7 +275,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     if path == '/':
       keys.append('force-disconnect')
-    
+
     if size == 0:
       return len(''.join(keys)) + len(keys)
 
@@ -286,7 +286,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       self._debug("Readlink of %s" % (tsumufs.cachePoint + path))
-      
+
       if tsumufs.nfsAvailable.isSet():
         return os.readlink(tsumufs.nfsMountPoint + path)
       else:
@@ -306,7 +306,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
         dirent        = fuse.Direntry(filename)
         dirent.type   = stat.S_IFMT(stat_result.st_mode)
         dirent.offset = offset
-        
+
         yield dirent
     except OSError, e:
       self._debug('readdir: Caught OSError: errno %d: %s'
@@ -319,7 +319,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     try:
       os.unlink(tsumufs.nfsMountPoint + path)
       tsumufs.cacheManager.removeCachedFile(path)
-      
+
       return True
     except OSError, e:
       self._debug('unlink: Caught OSError: errno %d: %s'
@@ -381,7 +381,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       self._debug('chmod: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
-    
+
   def chown(self, path, uid, gid):
     self._debug('opcode: chown | path: %s | uid: %d | gid: %d' %
                (path, uid, gid))
@@ -455,10 +455,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     Eg., the return value of os.statvfs() is such a thing (since py 2.2).
     If you are not reusing an existing statvfs object, start with
     fuse.StatVFS(), and define the attributes.
-    
+
     To provide usable information (ie., you want sensible df(1)
     output, you are suggested to specify the following attributes:
-    
+
     - f_bsize - preferred size of file blocks, in bytes
     - f_frsize - fundamental size of file blcoks, in bytes
     [if you have no idea, use the same as blocksize]
@@ -468,7 +468,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     - f_ffree - nunber of free file inodes
     """
     self._debug('opcode: statfs')
-    
+
     try:
       if tsumufs.nfsAvailable.isSet():
         return os.statvfs(tsumufs.nfsMountPoint)

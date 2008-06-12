@@ -52,7 +52,7 @@ if __name__ == '__main__':
         format = "%(filename)s: %(value)s"
       else:
         format = "%(value)s"
-          
+
       try:
         print format % {'filename': filename,
                         'value': attribs[options.attribute]}
@@ -67,7 +67,7 @@ if __name__ == '__main__':
         format = "%(filename)s: %(key)s=%(value)s"
       else:
         format = "%(key)s=%(value)s"
-          
+
       try:
         for key in attribs.keys():
           print format % {'filename': filename,
