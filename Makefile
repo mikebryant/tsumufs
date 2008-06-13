@@ -14,10 +14,13 @@ check:
 	$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
 	$(PYCHECKER) -F pycheckerrc $(PY_TESTS)
 
+fixspaces:
+	sed -i -r 's/^[ ]+$$//' $(PY_MODULES) $(PY_SOURCE) $(PY_TESTS)
+
 clean:
 	find -iname \*.pyc -exec rm -f '{}' ';'
 
 mrclean: clean
 	find -iname \*~ -exec rm -rf '{}' ';' -prune
 
-.PHONY: all test check clean mrclean
+.PHONY: all test check fixspaces clean mrclean
