@@ -92,7 +92,7 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       try:
-        self.statFile('%s/%s' % (tsumufs.cachePoint, path))
+        self.statFile(path)
       except OSError, e:
         if e.errno == errno.ENOENT:
           if self._cachedFiles.has_key(path):
@@ -116,6 +116,8 @@ class CacheManager(tsumufs.Debuggable):
     (as returned by lstat()), enters the stat entry into the cache,
     and unlocks the file.
     '''
+
+    # TODO: Make this update the inode -> file mappings.
 
     self.lockFile(path)
 
@@ -260,7 +262,7 @@ class CacheManager(tsumufs.Debuggable):
 
         if (self.shouldCacheFile(path) and
             (path != '/')):
-          self._debug('Caching file %s to disk.' % path)
+          self._debug('Caching directory %s to disk.' % path)
 
           try:
             os.mkdir(cachefilename)
@@ -331,16 +333,16 @@ class CacheManager(tsumufs.Debuggable):
         timestamp = time.time()
         curstat = os.lstat(nfsfilename)
 
-        # TODO: Make this not check against the atime -- atime causes
-        # cache invalidation too frequently when nothing has changed.
-
-        if ((curstat.st_blocks != self._cachedFiles[path]['stat'].st_blocks) or
+        if (not self._cachedFiles.has_key(path) or
+            (curstat.st_blocks != self._cachedFiles[path]['stat'].st_blocks) or
             (curstat.st_mtime != self._cachedFiles[path]['stat'].st_mtime) or
             (curstat.st_size != self._cachedFiles[path]['stat'].st_size) or
             (curstat.st_ino != self._cachedFiles[path]['stat'].st_ino)):
-          self._debug('Data stat changed. Recaching file.')
+          self._debug(('Data stat changed or file never cached '
+                       'before. Recaching file.'))
 
-          if stat.S_ISREG(curstat) or stat.S_ISLNK(curstat):
+          if (stat.S_ISREG(curstat.st_mode) or
+              stat.S_ISLNK(curstat.st_mode)):
             shutil.copy2(nfsfilename, cachefilename)
             shutil.copystat(nfsfilename, cachefilename)
             os.chown(cachefilename, curstat.st_uid, curstat.st_gid)
@@ -400,6 +402,74 @@ class CacheManager(tsumufs.Debuggable):
           del self._cachedFiles[path]
         else:
           raise
+    finally:
+      self.unlockFile(path)
+
+  def readFile(self, path, offset, length, mode):
+    '''
+    Read a chunk of data from the file referred to by path.
+
+    This method acts very much like the typical idiom:
+
+      fp = open(file, mode)
+      fp.seek(offset)
+      result = fp.read(length)
+      return result
+
+    Except it works in respect to the cache and the NFS mount. If the
+    file is available from NFS and should be cached to disk, it will
+    be cached and then read from there.
+
+    Otherwise, NFS reads are done directly.
+
+    Returns:
+      The data requested.
+
+    Raises:
+      OSError on error reading the data.
+    '''
+
+    self.lockFile(path)
+
+    if not self.isFileCached(path):
+      if not tsumufs.nfsAvailable.isSet():
+        self._debug(('NFS not available, and %s not cached '
+                     '-- raising ENOENT.') % path)
+        self.unlockFile(path)
+        raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
+      else:
+        if tsumufs.cacheManager.shouldCacheFile(path):
+          self._debug(('File not cached to disk, but NFS '
+                       'available. Caching file to disk.'))
+          tsumufs.cacheManager.cacheFile(path)
+          filepath = tsumufs.cachePoint + path
+        else:
+          # TODO: Make this use calls into NFSMount to read the NFS
+          # side of things instead of just arbitrarily reading it out
+          # ourselves.
+
+          self._debug(('File not cached to disk and should not cache '
+                       'to disk.'))
+          filepath = tsumufs.nfsMountPoint + path
+    else:
+      self._debug(('File already fully cached to disk and should not cache '
+                   'to disk again. Reading from cache.'))
+      filepath = tsumufs.cachePoint + path
+
+    try:
+      try:
+        self._debug('Reading file contents from %s' % filepath)
+
+        fp = open(filepath, mode)
+        fp.seek(offset)
+        result = fp.read(length)
+        fp.close()
+
+        return result
+      except OSError, e:
+        self._debug('OSError caught: errno %d: %s'
+                    % (e.errno, e.strerror))
+        raise
     finally:
       self.unlockFile(path)
 

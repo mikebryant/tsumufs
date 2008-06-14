@@ -54,6 +54,15 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self.file_class    = tsumufs.FuseFile
 
   def fsinit(self):
+    '''
+    Method callback that is called when FUSE's initial startup has
+    completed, and the initialization of our client filesystem should
+    start.
+
+    Basic setup is done in here, such as instanciation of new objects
+    and the startup of threads.
+    '''
+
     self._debug('Initializing cachemanager object.')
     tsumufs.cacheManager = tsumufs.CacheManager()
 
@@ -78,6 +87,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('fsinit complete.')
 
   def main(self, args=None):
+    '''
+    Mainline of the FUSE client filesystem. This directly overrides
+    the Fuse.main() method to allow us to manually shutdown things
+    after the FUSE event loop has finished.
+    '''
+
     Fuse.main(self, args)
     self._debug('Fuse main event loop exited.')
 
@@ -213,6 +228,17 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   # Filesystem operations and system calls below here
 
   def getattr(self, path):
+    '''
+    Callback which is called into when a stat() is performed on the
+    user side of things.
+
+    Returns:
+      A stat result object, the same as an os.lstat() call.
+
+    Raises:
+      None
+    '''
+
     self._debug('opcode: getattr | path: %s' % path)
 
     try:
@@ -223,6 +249,16 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def setxattr(self, path, name, value, size):
+    '''
+    Callback that is called into when a setxattr() call is
+    performed. This sets the value of an extended attribute, if that
+    attribute is non-readonly. If the attribute isn't a valid name, or
+    is read-only, this method returns -errno.EOPNOTSUPP.
+
+    Returns:
+      None, or -EOPNOTSUPP on error.
+    '''
+
     self._debug(('opcode: setxattr | path: %s | name: %s | '
                  'value: %s | size: %d')
                 % (path, name, value, size))
@@ -241,39 +277,60 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     return -errno.EOPNOTSUPP
 
   def getxattr(self, path, name, size):
+    '''
+    Callback that is called to get a specific extended attribute size
+    or value by name.
+
+    Returns:
+      The size of the value (including the null terminator) if size is
+        set to 0.
+      The string the extended attribute contains if size > 0
+      -EOPNOTSUPP if the name is invalid.
+    '''
+
     self._debug('opcode: getxattr | path: %s | name: %s | size: %d'
                 % (path, name, size))
 
-    name = name.lower()
+    if size == 0:
+      # Caller just wants the size of the value.
+      return 2   # Currently the single 1 or 0 plus the null
+
+    # var  ? true-case  :  false-case
+    # var and true-case or false-case
+    #
+    # Python can be so obtuse and boneheaded sometimes. My kingdom for
+    # a proper switch statement! =o(
+    #
+    xattrs = {
+      'in-cache': tsumufs.cacheManager.isFileCached(path) and '1' or '0',
+      'dirty': '0'
+      }
+
+    # TODO: Make dirty actually reference the dirty state of the file
+    # in cache, as reflected by the synclog.
 
     if path == '/':
-      if name == 'force-disconnect':
-        if size == 0:
-          return len('0') + 1
-        else:
-          if tsumufs.forceDisconnect.isSet():
-            return '1'
-          else:
-            return '0'
+      xattrs['force-disconnect'] = (tsumufs.forceDisconnect.isSet() and
+                                    '1' or '0')
+      xattrs['connected'] = tsumufs.nfsAvailable.isSet() and '1' or '0'
 
-    if name == 'in-cache':
-      if size == 0:           # asked to return the size of the data
-        return len('0') + 1
-      else:
-        if tsumufs.cacheManager.isFileCached(path):
-          return '1'
-        else:
-          return '0'
+    name = name.lower()
 
-    elif name == 'dirty':
-      if size == 0:
-        return len('0') + 1
-      else:
-        return '0'
-
-    return -errno.EOPNOTSUPP
+    try:
+      return xattrs[name]
+    except KeyError:
+      return -errno.EOPNOTSUPP
 
   def listxattr(self, path, size):
+    '''
+    Callback method to list the names of valid extended attributes in
+    a file.
+
+    Returns:
+      The number of variables available if size is 0.
+      A list of key names if size > 0.
+    '''
+
     self._debug('opcode: listxattr | path: %s | size: %d'
                 % (path, size))
 
@@ -281,6 +338,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     if path == '/':
       keys.append('force-disconnect')
+      keys.append('connected')
 
     if size == 0:
       return len(''.join(keys)) + len(keys)
@@ -288,6 +346,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     return keys
 
   def readlink(self, path):
+    '''
+    Reads the value of a symlink.
+
+    Returns:
+      The string representation of the file the symlink points to, or
+      a negative errno code on error.
+    '''
+
     self._debug('opcode: readlink | path: %s' % path)
 
     try:
@@ -303,6 +369,15 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def readdir(self, path, offset):
+    '''
+    Generator callback that returns a fuse.Direntry object every time
+    it is called. Similar to the C readdir() call.
+
+    Returns:
+      A generator that yields a fuse.Direntry object, or an errno
+      code on error.
+    '''
+
     self._debug('opcode: readdir | path: %s | offset: %d' % (path, offset))
 
     try:
@@ -320,6 +395,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       yield -e.errno
 
   def unlink(self, path):
+    '''
+    Callback to unlink a file on disk.
+
+    Returns:
+      True on successful unlink, or an errno code on error.
+    '''
+
     self._debug('opcode: unlink | path: %s' % path)
 
     try:
@@ -333,6 +415,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def rmdir(self, path):
+    '''
+    Removes a directory from disk.
+
+    Returns:
+      True on successful unlink, or errno code on error.
+    '''
+
     self._debug('opcode: rmdir | path: %s' % path)
 
     try:
@@ -346,6 +435,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def symlink(self, src, dest):
+    '''
+    Creates a symlink pointing to src as a file called dest.
+
+    Returns:
+      True on successful link creation, or errno code on error.
+    '''
+
     self._debug('opcode: symlink | src: %s | dest:: %s' % (src, dest))
 
     try:
@@ -357,6 +453,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def rename(self, old, new):
+    '''
+    Renames a file from old to new, possibly changing it's path as
+    well as its filename.
+
+    Returns:
+      True on successful rename, or errno code on error.
+    '''
+
     self._debug('opcode: rename | old: %s | new: %s' % (old, new))
 
     try:
@@ -368,6 +472,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def link(self, src, dest):
+    '''
+    Links a the dest filename to the inode number of the src
+    filename.
+
+    Returns:
+      True on successful linking, or errno code on error.
+    '''
+
     self._debug('opcode: link | src: %s | dest: %s' % (src, dest))
 
     try:
@@ -379,6 +491,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def chmod(self, path, mode):
+    '''
+    Changes the mode of a file.
+
+    Returns:
+      True on successful mode change, or errno code on error.
+    '''
+
     self._debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
 
     try:
@@ -389,6 +508,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def chown(self, path, uid, gid):
+    '''
+    Change the owner and/or group of a file.
+
+    Returns:
+      True on successful change, otherwise errno code is returned.
+    '''
+
     self._debug('opcode: chown | path: %s | uid: %d | gid: %d' %
                (path, uid, gid))
 
@@ -400,6 +526,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def truncate(self, path, size=None):
+    '''
+    Truncate a file to zero length.
+
+    Returns:
+      0 on successful truncation, otherwise an errno code is
+      returned.
+    '''
+
     self._debug('opcode: truncate | path: %s | size: %d' %
                (path, size))
 
@@ -414,6 +548,15 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def mknod(self, path, mode, dev):
+    '''
+    Creates a special device file with the sepcified mode and device
+    number.
+
+    Returns:
+      True on successful creation, otherwise an errno code is
+      returned.
+    '''
+
     self._debug('opcode: mknod | path: %s | mode: %d | dev: %s' %
                (path, mode, dev))
 
@@ -425,6 +568,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def mkdir(self, path, mode):
+    '''
+    Creates a new directory with the specified mode.
+
+    Returns:
+      True on successful creation, othwerise an errno code is
+      returned.
+    '''
+
     self._debug('opcode: mkdir | path: %s | mode: %o' % (path, mode))
 
     try:
@@ -435,6 +586,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def utime(self, path, times):
+    '''
+    Set the times (atime, mtime, and ctime) of a file.
+
+    Returns:
+      True upon successful modification, otherwise an errno code is
+      returned.
+    '''
+
     self._debug('opcode: utime | path: %s' % path)
 
     try:
@@ -445,6 +604,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def access(self, path, mode):
+    '''
+    Test for access to a path.
+
+    Returns:
+      True upon successful check, otherwise an errno code is
+      returned.
+    '''
+
     self._debug('opcode: access | path: %s | mode: %o' % (path, mode))
 
     try:

@@ -49,19 +49,19 @@ class FuseFile(tsumufs.Debuggable):
     self._fdFlags = flags
     self._fdMode  = mode
 
-    self._setName('fusefile <%s>' % self._path)
+    self._setName('FuseFile <%s>' % self._path)
 
     try:
       self._debug('opcode: open | flags: %s | mode: %s'
                   % (flags, mode))
 
-      fp = open(tsumufs.nfsMountPoint + self._path, self._flags2mode(flags))
+      fp = open(tsumufs.nfsMountPoint + self._path, self._flagsToMode(flags))
       fp.close()
     except:
       self._debug('*** Unable to open file %s: %s'
                   % (self._path, traceback.format_exc()))
 
-  def _flags2mode(self, flags):
+  def _flagsToMode(self, flags):
     '''
     Borrowed directly from fuse-python's xmp.py script. Credits go to
     Jeff Epler and Csaba Henk.
@@ -82,25 +82,9 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: read | len: %d | offset: %d'
                 % (length, offset))
 
-    if tsumufs.nfsAvailable.isSet():
-      if tsumufs.cacheManager.shouldCacheFile(self._path):
-        tsumufs.cacheManager.cacheFile(self._path)
-        filepath = tsumufs.cachePoint + self._path
-      else:
-        filepath = tsumufs.nfsMountPoint + self._path
-    else:
-      if tsumufs.cacheManager.isFileCached(self._path):
-        filepath = tsumufs.cachePoint + self._path
-      else:
-        return -errno.ENOENT
-
     try:
-      fp = open(filepath, self._flags2mode(self._fdFlags))
-      fp.seek(offset)
-      result = fp.read(length)
-      fp.close()
-
-      return result
+      return tsumufs.cacheManager.readFile(self._path, offset, length,
+                                           self._flagsToMode(self._fdFlags))
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -110,9 +94,13 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: write | offset: %d | buf: %s'
                 % (offset, repr(buf)))
 
+    # TODO: Make this write to the cache first, and then update the
+    # synclog with the new data region entry on bottom of the synclog
+    # queue.
+
     try:
       fp = open(tsumufs.nfsMountPoint + self._path,
-                self._flags2mode(self._fdFlags))
+                self._flagsToMode(self._fdFlags))
       fp.seek(offset)
       fp.write(buf)
       fp.close()
