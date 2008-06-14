@@ -12,8 +12,8 @@ test: unit-tests functional-tests
 unit-tests:
 	PYTHONPATH="./lib" python $(PY_UNIT_TESTS)
 
+# TODO: Make these exist and idempotent.
 functional-tests:
-	PYTHONPATH="./lib" python $(PY_FUNC_TESTS)
 
 check:
 	cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
