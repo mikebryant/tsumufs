@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import threading
 
@@ -42,16 +42,16 @@ mountSource  = None
 mountPoint   = None
 mountOptions = None
 
-nfsBaseDir    = "/var/lib/tsumufs/nfs"
+nfsBaseDir    = '/var/lib/tsumufs/nfs'
 nfsMountPoint = None
 nfsMount      = None
 
-cacheBaseDir = "/var/cache/tsumufs"
-cacheSpecDir = "/var/lib/tsumufs/cachespec"
+cacheBaseDir = '/var/cache/tsumufs'
+cacheSpecDir = '/var/lib/tsumufs/cachespec'
 cachePoint   = None
 cacheManager = None
 
-socketDir    = "/var/run/tsumufs"
+socketDir    = '/var/run/tsumufs'
 
 unmounted       = threading.Event()
 nfsAvailable    = threading.Event()

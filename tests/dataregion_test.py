@@ -17,7 +17,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""Unit tests for the DataRegion class."""
+'''Unit tests for the DataRegion class.'''
 
 import sys
 
@@ -29,7 +29,7 @@ import tsumufs.dataregion as dataregion
 
 class InstanceCheck(unittest.TestCase):
   def setUp(self):
-    self.testData = "1" * 10
+    self.testData = '1' * 10
 
   def testInstanciation(self):
     r1 = dataregion.DataRegion(0, 9, self.testData)
@@ -45,17 +45,17 @@ class OverlapCheck(unittest.TestCase):
     self.r1Start = 10
     self.r1End   = 100
     self.overlappingRegions = [
-      { "start": 50,  "end": 150 },  # overlap to right
-      { "start": 10,  "end": 100 },  # exact overlap
-      { "start": 0,   "end": 150 },  # complete overlap
-      { "start": 10,  "end": 50 },   # overlap to left, exact on left
-      { "start": 50,  "end": 100},   # overlap to right, exact on right
-      { "start": 100, "end": 1000},  # overlap to right, 
+      { 'start': 50,  'end': 150 },  # overlap to right
+      { 'start': 10,  'end': 100 },  # exact overlap
+      { 'start': 0,   'end': 150 },  # complete overlap
+      { 'start': 10,  'end': 50 },   # overlap to left, exact on left
+      { 'start': 50,  'end': 100},   # overlap to right, exact on right
+      { 'start': 100, 'end': 1000},  # overlap to right,
       ]
 
     self.r1 = dataregion.DataRegion(self.r1Start,
                                     self.r1End,
-                                    "1" * (self.r1End - self.r1Start))
+                                    '1' * (self.r1End - self.r1Start))
 
-if __name__ == "__main__":
+if __name__ == '__main__':
   unittest.main()

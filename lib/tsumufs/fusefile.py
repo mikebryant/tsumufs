@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import os
 import sys
@@ -34,11 +34,11 @@ import tsumufs
 
 
 class FuseFile(tsumufs.Debuggable):
-  """
+  '''
   This class represents a file handle for FUSE. With it, we can
   implement stateful file handle management. It also helps to reduce
   some of the complexity that the FuseThread class has obtained.
-  """
+  '''
 
   _path  = None
   _fdFlags = None
@@ -49,26 +49,26 @@ class FuseFile(tsumufs.Debuggable):
     self._fdFlags = flags
     self._fdMode  = mode
 
-    self._setName("fusefile <%s>" % self._path)
+    self._setName('fusefile <%s>' % self._path)
 
     try:
-      self._debug("opcode: open | flags: %s | mode: %s"
+      self._debug('opcode: open | flags: %s | mode: %s'
                   % (flags, mode))
 
       fp = open(tsumufs.nfsMountPoint + self._path, self._flags2mode(flags))
       fp.close()
     except:
-      self._debug("*** Unable to open file %s: %s"
+      self._debug('*** Unable to open file %s: %s'
                   % (self._path, traceback.format_exc()))
 
   def _flags2mode(self, flags):
-    """
+    '''
     Borrowed directly from fuse-python's xmp.py script. Credits go to
     Jeff Epler and Csaba Henk.
 
     This method converts the POSIX standard bitflags for open calls to
     pythonic mode strings.
-    """
+    '''
 
     md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
     m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
@@ -79,7 +79,7 @@ class FuseFile(tsumufs.Debuggable):
     return m
 
   def read(self, length, offset):
-    self._debug("opcode: read | len: %d | offset: %d"
+    self._debug('opcode: read | len: %d | offset: %d'
                 % (length, offset))
 
     if tsumufs.nfsAvailable.isSet():
@@ -102,12 +102,12 @@ class FuseFile(tsumufs.Debuggable):
 
       return result
     except OSError, e:
-      self._debug("OSError caught: errno %d: %s"
+      self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
   def write(self, buf, offset):
-    self._debug("opcode: write | offset: %d | buf: %s"
+    self._debug('opcode: write | offset: %d | buf: %s'
                 % (offset, repr(buf)))
 
     try:
@@ -119,35 +119,35 @@ class FuseFile(tsumufs.Debuggable):
 
       return len(buf)
     except OSError, e:
-      self._debug("OSError caught: errno %d: %s"
+      self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
   def release(self, flags):
-    self._debug("opcode: release | flags: %s" % flags)
+    self._debug('opcode: release | flags: %s' % flags)
     # Noop since on NFS close doesn't do much
     return 0
 
   def fsync(self, isfsyncfile):
-    self._debug("opcode: fsync | isfsyncfile: %d" % isfsyncfile)
+    self._debug('opcode: fsync | isfsyncfile: %d' % isfsyncfile)
     return -errno.ENOSYS
 
   def flush(self):
-    self._debug("opcode: flush")
+    self._debug('opcode: flush')
     return -errno.ENOSYS
 
   def fgetattr(self):
-    self._debug("opcode: fgetattr")
+    self._debug('opcode: fgetattr')
 
     try:
       return tsumufs.cacheManager.statFile(self._path)
     except OSError, e:
-      self._debug("OSError caught: errno %d: %s"
+      self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
   def ftruncate(self, size):
-    self._debug("opcode: ftruncate | size: %d" % size)
+    self._debug('opcode: ftruncate | size: %d' % size)
 
     try:
       fd = os.open(tsumufs.nfsMountPoint + self._path,
@@ -156,12 +156,12 @@ class FuseFile(tsumufs.Debuggable):
       os.ftruncate(fd, size)
       os.close(fd)
     except OSError, e:
-      self._debug("Caught OSError: errno %d: %s"
+      self._debug('Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
   def lock(self, cmd, owner, **kw):
-    self._debug("opcode: lock | cmd: %o | owner: %d"
+    self._debug('opcode: lock | cmd: %o | owner: %d'
                 % (cmd, owner))
 
     return -errno.ENOSYS

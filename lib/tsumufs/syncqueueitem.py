@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import cPickle
 
@@ -39,7 +39,9 @@ class SyncQueueItem:
     self._hargs = hargs
 
   def getChanges(self):
-    """Calculate the differences in the synclog and the file located in
+    '''
+    Calculate the differences in the synclog and the file located in
     the cache. For each change, generate a SyncChange that it
-    represents, and return a list containing all of these changes."""
+    represents, and return a list containing all of these changes.
+    '''
     pass

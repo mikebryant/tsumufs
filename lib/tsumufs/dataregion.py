@@ -16,61 +16,125 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 class RangeError(Exception):
-  """Exception for representing a range error."""
+  '''
+  Exception for representing a range error.
+  '''
+
   pass
 
 class RegionError(Exception):
-  """Exception to signal when a general region error has occured."""
+  '''
+  Exception to signal when a general region error has occured.
+  '''
+
   pass
 
 class RegionLengthError(RegionError):
-  """Exception to signal when a region length does not match it's
-  range."""
+  '''
+  Exception to signal when a region length does not match it's
+  range.
+  '''
+
   pass
 
 class RegionOverlapError(RegionError):
-  """Exception to signal when a region overlap error has
+  '''
+  Exception to signal when a region overlap error has
   occurred. Typically when a DataRegion::mergeWith call has been made
-  with the argument being a region that cannot be merged."""
+  with the argument being a region that cannot be merged.
+  '''
+
   pass
 
 class DataRegion(object):
+  '''
+  Class that represents a region of data in a file.
+
+  This class is specifically used for managing the changes in files as
+  stored in the cache on disk.
+  '''
+
   _data   = None
   _start  = 0
   _end    = 0
   _length = 0
 
   def getData(self):
+    '''
+    Return the data that this object contains.
+
+    Returns:
+      String
+
+    Raises:
+      Nothing
+    '''
+
     return self._data
 
   def getStart(self):
+    '''
+    Return the start offset of the region in the file it represents.
+
+    Returns:
+      Integer
+
+    Raises:
+      Nothing
+    '''
+
     return self._start
 
   def getEnd(self):
+    '''
+    Return the end offset of the region in the file it represents.
+
+    Returns:
+      Integer
+
+    Raises:
+      Nothing
+    '''
     return self._end
 
   def __len__(self):
+    '''
+    Return the length of the region.
+
+    Returns:
+      Integer
+
+    Raises:
+      None
+    '''
+
     return self._length
 
   def __repr__(self):
-    """Method to display a somewhat transparent representation of a
-    DataRegion object."""
-    return("<DataRegion [%d:%d] (%d): \"%s\">"
+    '''
+    Method to display a somewhat transparent representation of a
+    DataRegion object.
+    '''
+
+    return('<DataRegion [%d:%d] (%d): "%s">'
            % (self.start, self.end, self.length, self.data))
 
   def __init__(self, start, end, data):
-    """Initializer. Can raise InvalidRegionSpecifiedError and
-    RegionDoesNotMatchLengthError."""
+    '''
+    Initializer. Can raise InvalidRegionSpecifiedError and
+    RegionDoesNotMatchLengthError.
+    '''
+
     if (end < start):
-      raise RangeError, ("End of range is before start (%d, %d)"
+      raise RangeError, ('End of range is before start (%d, %d)'
                          % (start, end))
 
     if ((end - start + 1) != len(data)):
-      raise RegionLengthError, ("Range specified does not match"+
-                                "the length of the data given.")
+      raise RegionLengthError, ('Range specified does not match'+
+                                'the length of the data given.')
 
     self.start = start
     self.end = end
@@ -96,16 +160,18 @@ class DataRegion(object):
       return True
 
   def mergeWith(self, dataregion):
-    """Attempt to merge the given DataRegion into the current
+    '''
+    Attempt to merge the given DataRegion into the current
     instance. Raises RegionError if the given DataRegion does not
-    overlap with the self."""
+    overlap with the self.
+    '''
 
     if (not self.canMerge(dataregion)):
       # Catch the invalid case where the region doesn't overlap
       # or is not adjacent.
-      raise RegionOverlapError, ("The DataRegion given does "+
-                                 "not overlap this instance "+
-                                 "(%s, %s)" % (self, dataregion))
+      raise RegionOverlapError, (('The DataRegion given does not '
+                                  'overlap this instance '
+                                  '(%s, %s)') % (self, dataregion))
 
     # Case where the dataregion given overwrites this one totally,
     # inclusive of the end points.
@@ -129,7 +195,7 @@ class DataRegion(object):
         (dataregion.end < self.end)):
       return DataRegion(self.start,
                         self.end,
-                        (self.data[:start_offset] + 
+                        (self.data[:start_offset] +
                          dataregion.data +
                          self.data[end_offset:]))
 

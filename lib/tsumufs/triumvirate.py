@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import syslog
 
@@ -24,10 +24,12 @@ import tsumufs
 
 
 class Triumvirate(tsumufs.Debuggable):
-  """Defines some basic behavior and utility functions that all three
+  '''
+  Defines some basic behavior and utility functions that all three
   main threads require for functioning.
 
   Any shared code between the three should be placed here instead of
-  copying."""
+  copying.
+  '''
 
   pass

@@ -17,12 +17,12 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""
+'''
 TsumuFS, a NFS-based caching filesystem.
 
 This file contains the startup code that launches into the FuseThread
 class. See that module for more details.
-"""
+'''
 
 import sys
 import syslog
@@ -38,18 +38,18 @@ import tsumufs
 
 
 def syslogExceptHook(type, value, tb):
-  """
+  '''
   Quick exception handler to log exceptions to syslog rather than
   dumping them to /dev/null after FUSE has forked.
-  """
+  '''
 
-  syslog.syslog("*** Unhandled exception occurred")
-  syslog.syslog("***     Type: %s" % str(type))
-  syslog.syslog("***    Value: %s" % str(value))
-  syslog.syslog("*** Traceback:")
+  syslog.syslog('*** Unhandled exception occurred')
+  syslog.syslog('***     Type: %s' % str(type))
+  syslog.syslog('***    Value: %s' % str(value))
+  syslog.syslog('*** Traceback:')
 
   for line in traceback.extract_tb(tb):
-    syslog.syslog("***    %s(%d) in %s: %s"
+    syslog.syslog('***    %s(%d) in %s: %s'
                   % line)
 
 

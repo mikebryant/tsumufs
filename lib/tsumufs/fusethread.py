@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import os
 import sys
@@ -34,15 +34,19 @@ import tsumufs
 
 
 class FuseThread(tsumufs.Triumvirate, Fuse):
-  """Class that implements the prototype design of the TsumuFS
+  '''
+  Class that implements the prototype design of the TsumuFS
   filesystem. This class provides the main interface to Fuse. Note
   that this class is not a thread, yet it is considered as one in the
-  design docs."""
+  design docs.
+  '''
 
   syncThread    = None
 
   def __init__(self, *args, **kw):
-    """Initializer. Prepares the object for initial use."""
+    '''
+    Initializer. Prepares the object for initial use.
+    '''
 
     Fuse.__init__(self, *args, **kw)
 
@@ -87,7 +91,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('Shutdown complete.')
 
   def parseCommandLine(self):
-    """
+    '''
     Parse the command line arguments into a usable set of
     variables. This sets the following instance variables:
 
@@ -107,7 +111,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     If the argument list is too short, or the -o option is missing
     arguments, this method will immediately exit the program with a
-    code of 1."""
+    code of 1.
+    '''
 
     # Setup our option parser to not be retarded.
     self.parser = fuse.FuseOptParse(standard_mods=False,
@@ -117,7 +122,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     # Add in the named options we care about.
     self.parser.add_option(mountopt='nfsbasedir',
                            default='/var/lib/tsumufs/nfs',
-                           help=('Set the NFS mount base directory [default: ' 
+                           help=('Set the NFS mount base directory [default: '
                                  '%default]'))
     self.parser.add_option(mountopt='nfsmountpoint',
                            default=None,
@@ -286,7 +291,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: readlink | path: %s' % path)
 
     try:
-      self._debug("Readlink of %s" % (tsumufs.cachePoint + path))
+      self._debug('Readlink of %s' % (tsumufs.cachePoint + path))
 
       if tsumufs.nfsAvailable.isSet():
         return os.readlink(tsumufs.nfsMountPoint + path)
@@ -451,7 +456,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   def statfs(self):
-    """
+    '''
     Should return an object with statvfs attributes (f_bsize, f_frsize...).
     Eg., the return value of os.statvfs() is such a thing (since py 2.2).
     If you are not reusing an existing statvfs object, start with
@@ -467,7 +472,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     - f_bfree - number of free blocks
     - f_files - total number of file inodes
     - f_ffree - nunber of free file inodes
-    """
+    '''
     self._debug('opcode: statfs')
 
     try:

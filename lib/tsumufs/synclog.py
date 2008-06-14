@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import cPickle
 
@@ -25,11 +25,15 @@ from dataregion import *
 from syncqueueitem import *
 
 class SyncConflictError(Exception):
-  """Class to represent a syncronization conflict."""
+  '''
+  Class to represent a syncronization conflict.
+  '''
   pass
 
 class QueueValidationError(Exception):
-  """Class to represent a SyncLog queue validation error."""
+  '''
+  Class to represent a SyncLog queue validation error.
+  '''
   pass
 
 # syncqueue:
@@ -52,9 +56,10 @@ class QueueValidationError(Exception):
 #    ... )
 
 class SyncLog:
-  """Class that implements a queue for storing synclog entries in. Used
+  '''
+  Class that implements a queue for storing synclog entries in. Used
   primarily by the SyncThread class.
-  """
+  '''
 
   _syncLogDir      = None
   _syncLogFilename = None
@@ -63,13 +68,14 @@ class SyncLog:
   _inodeMap        = InodeMap()
   _lock            = Lock()
 
-  def __init__(self, logdir, logfilename="sync.log"):
+  def __init__(self, logdir, logfilename='sync.log'):
     self._syncLogDir = logdir
     self._syncLogFilename = logfilename
     self.loadFromDisk()
 
   def loadFromDisk(self):
-    """Load the internal state of the SyncLog from disk and initialize
+    '''
+    Load the internal state of the SyncLog from disk and initialize
     the data structures.
 
     Raises:
@@ -77,21 +83,22 @@ class SyncLog:
         file.
       PickleError: Error relating to the actual un-pickling of the
         data structures used internally.
-    """
+    '''
     try:
       self._lock.acquire()
-      filename = "%s/%s" % (self._syncLogDir, self._syncLogFilename)
-      fp = open(filename, "rb")
+      filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
+      fp = open(filename, 'rb')
       data = cPickle.load(fp)
-      self._inodeChanges = data["inodeChanges"]
-      self._syncQueue = data["syncQueue"]
-      self._inodeMap = data["inodeMap"]
+      self._inodeChanges = data['inodeChanges']
+      self._syncQueue = data['syncQueue']
+      self._inodeMap = data['inodeMap']
     finally:
       fp.close()
       self._lock.release()
 
   def flushToDisk(self):
-    """Save the sync queue and inode hashes to disk.
+    '''
+    Save the sync queue and inode hashes to disk.
 
     Run through each element in both queues and generate two lists of
     objects. Once the two lists have been generated, dump the lists to
@@ -107,55 +114,56 @@ class SyncLog:
         file on disk.
       PickleError: Relates to the process of actually pickling the
         internal data structures.
-    """
+    '''
 
     try:
       self._lock.acquire()
-      filename = "%s/%s" % (self._syncLogDir, self._syncLogFilename)
-      fp = open(filename, "wb")
-      cPickle.dump({ "inodeChanges": self._inodeChanges,
-                     "syncQueue": self._syncQueue,
-                     "inodeMap": self._inodeMap}, fp)
+      filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
+      fp = open(filename, 'wb')
+      cPickle.dump({ 'inodeChanges': self._inodeChanges,
+                     'syncQueue': self._syncQueue,
+                     'inodeMap': self._inodeMap}, fp)
     finally:
       fp.close()
       self._lock.release()
 
   def addNew(self, type, **params):
-    """Add a change for a new file to the queue.
+    '''
+    Add a change for a new file to the queue.
 
     Args:
-      type: A string of one one of the following: "file", "dir",
-        "socket", "fifo", or "dev".
+      type: A string of one one of the following: 'file', 'dir',
+        'socket', 'fifo', or 'dev'.
       params: A hash of parameters used to complete the data
-        structure. If type is set to "dev", this structure must have
-        the following members: dtype (set to one of "char" or
-        "block"), and major and minor, representing the major and minor
+        structure. If type is set to 'dev', this structure must have
+        the following members: dtype (set to one of 'char' or
+        'block'), and major and minor, representing the major and minor
         numbers of the device being created.
 
     Raises:
       TypeError: When data passed in params is invalid or missing.
-    """
+    '''
     self._lock.acquire()
-    params["type"] = type
+    params['type'] = type
     syncitem = SyncQueueItem(params)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
   def addLink(self, inum, filename):
     self._lock.acquire()
-    syncitem = SyncQueueItem("link", inum=inum, filename=filename)
+    syncitem = SyncQueueItem('link', inum=inum, filename=filename)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
   def addUnlink(self, filename):
     self._lock.acquire()
-    syncitem = SyncQueueItem("unlink", filename=filename)
+    syncitem = SyncQueueItem('unlink', filename=filename)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
   def addChange(self, inum, start, end, data):
     self._lock.acquire()
-    syncitem = SyncQueueItem("change",
+    syncitem = SyncQueueItem('change',
                              inum=inum,
                              start=start,
                              end=end,
@@ -165,14 +173,14 @@ class SyncLog:
 
   def addRename(self, old, new):
     self._lock.acquire()
-    syncitem = SyncQueueItem("rename", old=old, new=new)
+    syncitem = SyncQueueItem('rename', old=old, new=new)
     self._syncQueue.unshift(syncitem)
     self._lock.release()
 
   def popChange(self):
     self._lock.acquire()
     syncitem = self._syncQueue.shift()
-    if syncitem.type == "change":
+    if syncitem.type == 'change':
       change = self._inodeChanges[syncitem.inum]
       del self._inodeChanges[syncitem.inum]
     else:

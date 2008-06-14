@@ -17,7 +17,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import sys
 import optparse
@@ -28,30 +28,30 @@ if __name__ == '__main__':
   format = None
 
   parser = optparse.OptionParser()
-  parser.add_option("-g", "--get",
-                    action="store",
-                    type="string",
-                    dest="attribute",
-                    help=("Get an attribute by name, rather than "
-                          "listing all of them."))
-  parser.add_option("-f", "--show-filename",
-                    action="store_true",
-                    dest="show_filename",
-                    help=("Show the filename of each file specified on "
-                          "the command line."))
+  parser.add_option('-g', '--get',
+                    action='store',
+                    type='string',
+                    dest='attribute',
+                    help=('Get an attribute by name, rather than '
+                          'listing all of them.'))
+  parser.add_option('-f', '--show-filename',
+                    action='store_true',
+                    dest='show_filename',
+                    help=('Show the filename of each file specified on '
+                          'the command line.'))
   (options, args) = parser.parse_args()
 
   if len(args) < 1:
-    parser.error("You must specify at least one filename to read from.")
+    parser.error('You must specify at least one filename to read from.')
 
   for filename in args:
     attribs = xattr.xattr(filename)
 
     if options.attribute != None:
       if options.show_filename:
-        format = "%(filename)s: %(value)s"
+        format = '%(filename)s: %(value)s'
       else:
-        format = "%(value)s"
+        format = '%(value)s'
 
       try:
         print format % {'filename': filename,
@@ -60,13 +60,13 @@ if __name__ == '__main__':
         if options.show_filename:
           print format % {'filename': filename}
       except IOError, e:
-        print "xattr: %s" % e.strerror
+        print 'xattr: %s' % e.strerror
 
     else:
       if options.show_filename:
-        format = "%(filename)s: %(key)s=%(value)s"
+        format = '%(filename)s: %(key)s=%(value)s'
       else:
-        format = "%(key)s=%(value)s"
+        format = '%(key)s=%(value)s'
 
       try:
         for key in attribs.keys():
@@ -74,4 +74,4 @@ if __name__ == '__main__':
                           'key': key,
                           'value': attribs[key]}
       except IOError, e:
-        print "xattr: %s" % e.strerror
+        print 'xattr: %s' % e.strerror

@@ -16,7 +16,7 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 import os
 import errno
@@ -34,13 +34,13 @@ class NFSMountError(Exception):
 
 
 class NFSMount(tsumufs.Debuggable):
-  """
+  '''
   Represents the NFS mount iself.
 
   This object is responsible for accessing files and data in the NFS
   mount. It is also responsible for setting the connectedEvent to
   False in case of an NFS access error.
-  """
+  '''
 
   _fileLocks = {}
 
@@ -48,7 +48,7 @@ class NFSMount(tsumufs.Debuggable):
     pass
 
   def lockFile(self, filename):
-    """
+    '''
     Method to lock a file. Blocks if the file is already locked.
 
     Args:
@@ -56,7 +56,7 @@ class NFSMount(tsumufs.Debuggable):
 
     Returns:
       A boolean value.
-    """
+    '''
 
     try:
       self._fileLocks[filename].acquire()
@@ -65,7 +65,7 @@ class NFSMount(tsumufs.Debuggable):
       self._fileLocks[filename].acquire()
 
   def unlockFile(self, filename):
-    """
+    '''
     Method to unlock a file.
 
     Args:
@@ -73,25 +73,25 @@ class NFSMount(tsumufs.Debuggable):
 
     Returns:
       A boolean value.
-    """
+    '''
 
     self._fileLocks[filename].release()
 
   def pingServerOK(self):
-    """
+    '''
     Method to verify that the NFS server is available.
-    """
+    '''
     return True
 
   def nfsCheckOK(self):
-    """
+    '''
     Method to verify that the NFS server is available and returning
     valid responses.
-    """
+    '''
     return True
 
   def readFileRegion(self, filename, start, end):
-    """
+    '''
     Method to read a region of a file from the NFS mount. Additionally
     adds the inode to filename mapping to the InodeMap singleton.
 
@@ -108,12 +108,12 @@ class NFSMount(tsumufs.Debuggable):
         unrecoverable.
       RangeError: The start and end provided are invalid.
       IOError: Usually relating to permissions issues on the file.
-    """
+    '''
 
     self.lockFile(filename)
 
     try:
-      fp = open(tsumufs.nfsMountPoint + filename, "r")
+      fp = open(tsumufs.nfsMountPoint + filename, 'r')
       fp.seek(start)
       result = fp.read(end - start)
       fp.close()
@@ -129,7 +129,7 @@ class NFSMount(tsumufs.Debuggable):
     return result
 
   def writeFileRegion(self, filename, start, end, data):
-    """
+    '''
     Method to write a region to a file on the NFS mount. Additionally
     adds the resulting inode to filename mapping to the InodeMap
     singleton.
@@ -144,12 +144,12 @@ class NFSMount(tsumufs.Debuggable):
       NFSMountError: An error occurred during an NFS call.
       RangeError: The start and end provided are invalid.
       OSError: Usually relating to permissions on the file.
-    """
+    '''
 
     self.lockFile(filename)
 
     try:
-      fp = open(tsumufs.nfsMountPoint + filename, "w+")
+      fp = open(tsumufs.nfsMountPoint + filename, 'w+')
       fp.seek(start)
       fp.write(data)
       fp.close()
@@ -164,62 +164,62 @@ class NFSMount(tsumufs.Debuggable):
     self.unlockFile(filename)
 
   def mount(self):
-    """
+    '''
     Quick and dirty method to actually mount the real NFS connection
     somewhere else on the filesystem. For now, this just shells out to
     the mount(8) command to do its dirty work.
-    """
+    '''
 
     try:
       os.stat(tsumufs.nfsMountPoint)
     except OSError, e:
       if e.errno == errno.ENOENT:
-        self._debug("Mount point %s was not found -- creating"
+        self._debug('Mount point %s was not found -- creating'
                    % tsumufs.nfsMountPoint)
         try:
           os.mkdir(tsumufs.nfsMountPoint)
         except OSError, e:
-          self._debug("Unable to create mount point: %s"
+          self._debug('Unable to create mount point: %s'
                      % os.strerror(e.errno))
           return False
       elif e.errno == errno.EACCES:
-        self._debug("Mount point %s unavailable: %s"
+        self._debug('Mount point %s unavailable: %s'
                    % (tsumufs.nfsMountPoint,
                       os.strerror(e.errno)))
         return False
 
     try:
-      cmd = "/usr/bin/sudo -u root /bin/mount -t nfs"
+      cmd = '/usr/bin/sudo -u root /bin/mount -t nfs'
       if tsumufs.mountOptions != None:
-        cmd += " -o " + tsumufs.mountOptions
-      cmd += " " + tsumufs.mountSource + " " + tsumufs.nfsMountPoint
+        cmd += ' -o ' + tsumufs.mountOptions
+      cmd += ' ' + tsumufs.mountSource + ' ' + tsumufs.nfsMountPoint
 
       self._debug(cmd)
       rc = os.system(cmd)
     except OSError, e:
-      self._debug("Mount of NFS failed: %s." % os.strerror(e.errno))
+      self._debug('Mount of NFS failed: %s.' % os.strerror(e.errno))
       return False
     else:
       if rc != 0:
-        self._debug("Mount of NFS failed -- mount returned nonzero.")
+        self._debug('Mount of NFS failed -- mount returned nonzero.')
         return False
       else:
-        self._debug("Mount of NFS succeeded.")
+        self._debug('Mount of NFS succeeded.')
         return True
 
   def unmount(self):
-    """
+    '''
     Quick and dirty method to actually UNmount the real NFS connection
     somewhere else on the filesystem.
-    """
+    '''
 
-    self._debug("Unmounting NFS mount from %s" %
+    self._debug('Unmounting NFS mount from %s' %
                tsumufs.nfsMountPoint)
-    rc = os.system("/usr/bin/sudo /bin/umount %s" % tsumufs.nfsMountPoint)
+    rc = os.system('/usr/bin/sudo /bin/umount %s' % tsumufs.nfsMountPoint)
 
     if rc != 0:
-      self._debug("Unmount of NFS failed.")
+      self._debug('Unmount of NFS failed.')
       return False
     else:
-      self._debug("Unmount of NFS succeeded.")
+      self._debug('Unmount of NFS succeeded.')
       return True

@@ -16,14 +16,16 @@
 # with this program; if not, write to the Free Software Foundation, Inc.,
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
-"""TsumuFS, a NFS-based caching filesystem."""
+'''TsumuFS, a NFS-based caching filesystem.'''
 
 from dataregion import *
 from threading import Lock
 
 class InodeChange:
-  """Class that represents any change to an inode and the data that it
-  points to."""
+  '''
+  Class that represents any change to an inode and the data that it
+  points to.
+  '''
 
   dataRegions = []
   ctime       = None
@@ -35,30 +37,32 @@ class InodeChange:
   dataLength  = None
 
   def __repr__(self):
-    """Pretty printer method to give a bit more transparency into the
-    object."""
+    '''
+    Pretty printer method to give a bit more transparency into the
+    object.
+    '''
 
-    rep = "<InodeChange ["
+    rep = '<InodeChange ['
     if len(self.dataRegions) > 0:
       for r in self.dataRegions:
-        rep += "%s" % r
+        rep += '%s' % r
         if r != self.dataRegions[-1]:
-          rep += "\n" + (" " * 14)
-          rep += "]"
+          rep += '\n' + (' ' * 14)
+          rep += ']'
 
       if self.ctime:
-        rep += "\n\tctime: %d" % self.ctime
+        rep += '\n\tctime: %d' % self.ctime
       if self.mtime:
-        rep += "\n\tmtime: %d" % self.mtime
+        rep += '\n\tmtime: %d' % self.mtime
       if self.permissions:
-        rep += "\n\tperms: %d" % self.permissions
+        rep += '\n\tperms: %d' % self.permissions
       if self.uid:
-        rep += "\n\tuid: %d" % self.uid
+        rep += '\n\tuid: %d' % self.uid
       if self.gid:
-        rep += "\n\tgid: %d" % self.gid
+        rep += '\n\tgid: %d' % self.gid
       if self.symlinkPath:
-        rep += "\n\tsymlinkPath: %s" % self.symlinkPath
-      rep += ">"
+        rep += '\n\tsymlinkPath: %s' % self.symlinkPath
+      rep += '>'
 
     return rep
 
@@ -66,11 +70,14 @@ class InodeChange:
     pass
 
   def addDataChange(self, start, end, data):
-    """Method to add a representation of a change in data in an inode. Can
+    '''
+    Method to add a representation of a change in data in an inode. Can
     throw an InvalidRegionSpecified and
     RegionDoesNotMatchLengthError. Note that this method attempts to
     auto-merge the change with other lists already existing if it
-    can."""
+    can.
+    '''
+
     merged = DataRegion(start, end, data)
     newlist = []
 
@@ -84,22 +91,25 @@ class InodeChange:
       self.dataRegions = newlist
 
   def getDataChanges(self):
-    """Method to return a list of changes made to the data
-    pointed to by this inode."""
+    '''
+    Method to return a list of changes made to the data
+    pointed to by this inode.
+    '''
+
     return self.dataRegions
 
 
 class InodeMap(object):
-  """
+  '''
   Singleton object whose implementation is borrowed directly from the
   ASPN: Python Cookbook at
   <http://aspn.activestate.com/ASPN/Cookbook/Python/Recipe/52558>.
-  """
+  '''
 
   __instance = None
 
   class __impl(object):
-    """
+    '''
     Implementation of the Singleton object as described in the
     docstring for InodeMap.
 
@@ -109,7 +119,7 @@ class InodeMap(object):
     data. This class also implements __getstate__() and __setstate__()
     so that upon pickling, only the hashes are stored, excluding the
     internal locks used to serialize write access.
-    """
+    '''
 
     __inumToFileHash = {}
     __fileToInumHash = {}
