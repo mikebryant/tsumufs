@@ -1,13 +1,19 @@
 PY_MODULES := $(wildcard lib/tsumufs/*.py)
 PY_SOURCE  := $(wildcard src/*.py)
-PY_TESTS   := $(wildcard tests/*.py)
+PY_UNIT_TESTS := $(wildcard tests/unit/*.py)
+PY_FUNC_TESTS := $(wildcard tests/functional/*.py)
 
 PYCHECKER  := /usr/bin/pychecker
 
 all: check test
 
-test:
-	PYTHONPATH="./lib" python $(PY_TESTS)
+test: unit-tests functional-tests
+
+unit-tests:
+	PYTHONPATH="./lib" python $(PY_UNIT_TESTS)
+
+functional-tests:
+	PYTHONPATH="./lib" python $(PY_FUNC_TESTS)
 
 check:
 	cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
@@ -23,4 +29,4 @@ clean:
 mrclean: clean
 	find -iname \*~ -exec rm -rf '{}' ';' -prune
 
-.PHONY: all test check fixspaces clean mrclean
+.PHONY: all test unit-tests functional-tests check fixspaces clean mrclean
