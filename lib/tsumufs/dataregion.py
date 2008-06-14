@@ -133,7 +133,7 @@ class DataRegion(object):
                          % (start, end))
 
     if ((end - start + 1) != len(data)):
-      raise RegionLengthError, ('Range specified does not match'+
+      raise RegionLengthError, ('Range specified does not match '
                                 'the length of the data given.')
 
     self.start = start
