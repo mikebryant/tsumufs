@@ -24,6 +24,7 @@ This file contains the startup code that launches into the FuseThread
 class. See that module for more details.
 '''
 
+import os
 import sys
 import syslog
 import traceback
@@ -57,6 +58,11 @@ def main():
   # Grab the name of this program from the zeroth argument and make
   # sure it's just the last part of the name if there's a path.
   tsumufs.progName = sys.argv[0].split('/')[-1]
+
+  # Add in the calling users' username via the USER environment
+  # variable if it's set.
+  if os.environ.has_key('USER'):
+    tsumufs.progName += '(' + os.environ['USER'] + ')'
 
   # Verify that we're using a fuse-python version new enough to know
   # about __version__. Bail if otherwise.
