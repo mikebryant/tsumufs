@@ -19,10 +19,11 @@ Currently this is horribly insecure, but we know of no other secure
 way to get the prototype the root privileges to mount another
 filesystem.
 
-We've provided two additional scripts in the scripts directory, one
+We've provided two additional scripts in the 'utils' directory, one
 called `test' and the other called `xattr'.
 
 test allows you to easily start the test environment. Simply set
-NFSMOUNT to the path you give the mount command as the source, and
-NFSOPTS to whatever NFS options you usually give to mount. Provide the
-destination mount point on the command line and you should be set.
+the environmental variable NFSHOME to the path you give the mount
+command as the source, and NFSOPTS to whatever NFS options you usually
+give to mount. Provide the destination mount point on the command line
+and you should be set.
