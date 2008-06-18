@@ -49,7 +49,7 @@ class FuseFile(tsumufs.Debuggable):
     self._fdFlags = flags
     self._fdMode  = mode
 
-    self._setName('FuseFile <%s>' % self._path)
+    self._setName('FuseFile <%s> ' % self._path)
 
     try:
       self._debug('opcode: open | flags: %s | mode: %s'

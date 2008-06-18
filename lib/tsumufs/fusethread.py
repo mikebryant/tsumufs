@@ -19,6 +19,7 @@
 '''TsumuFS, a NFS-based caching filesystem.'''
 
 import os
+import os.path
 import sys
 import errno
 import stat
@@ -389,7 +390,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       for filename in tsumufs.cacheManager.getDirents(path):
-        stat_result = tsumufs.cacheManager.statFile('%s/%s' % (path, filename))
+        stat_result = tsumufs.cacheManager.statFile(os.path.join(path, filename))
 
         dirent        = fuse.Direntry(filename)
         dirent.type   = stat.S_IFMT(stat_result.st_mode)
