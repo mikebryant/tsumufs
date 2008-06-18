@@ -76,7 +76,7 @@ class Debuggable(object):
         tsumufs.syslogOpen = True
         self._debug('Opened syslog.')
 
-      s = '%s: %s' % (self._getName(), args)
+      s = '%s(%s): %s' % (self._getName(), self._getCaller()[2], args)
       if len(s) > 252:
         s = s[:252] + '...'
 
