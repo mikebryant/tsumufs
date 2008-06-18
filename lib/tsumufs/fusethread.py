@@ -64,16 +64,23 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     '''
 
     self._debug('Initializing cachemanager object.')
-    tsumufs.cacheManager = tsumufs.CacheManager()
+    try:
+      tsumufs.cacheManager = tsumufs.CacheManager()
+    except:
+      self._debug('Exception: %s' % traceback.format_exc())
+      return False
 
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
     self._debug('Initializing nfsMount proxy.')
-    tsumufs.nfsMount = tsumufs.NFSMount()
+    try:
+      tsumufs.nfsMount = tsumufs.NFSMount()
+    except:
+      self._debug('Exception: %s' % traceback.format_exc())
+      return False
 
     # Initialize our threads
     self._debug('Initializing sync thread.')
-
     try:
       self._syncThread = tsumufs.SyncThread()
     except:

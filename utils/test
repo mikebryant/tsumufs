@@ -36,11 +36,11 @@ cmdline="$cmdline $NFSHOME $MOUNTPOINT"
 eval $cmdline
 
 if [ "$?" == "0" ]; then
-	pushd tmp >/dev/null
+	pushd "$MOUNTPOINT" >/dev/null
 	PS1=$'\e[m\e[31m[TSUMUFS]\e[m \h:\w\$ ' bash -norc
 	popd >/dev/null
 
-	fusermount -u tmp
+	fusermount -u "$MOUNTPOINT"
 fi
 
 PID=$(ps ax |grep tsumufs |grep -v grep |awk '{ print $1 }')

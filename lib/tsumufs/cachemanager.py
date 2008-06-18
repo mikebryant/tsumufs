@@ -59,13 +59,13 @@ class CacheManager(tsumufs.Debuggable):
         except OSError, e:
           self._debug('Unable to create cache point: %s (exiting)'
                       % os.strerror(e.errno))
-          sys.exit(1)
+          raise e
 
       elif e.errno == errno.EACCES:
         self._debug('Cache point %s is unavailable: %s (exiting)'
                     % (tsumufs.cachePoint,
                        os.strerror(e.errno)))
-        sys.exit(1)
+        raise e
 
   def isFileCached(self, path):
     '''
