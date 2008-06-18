@@ -1,0 +1,86 @@
+Truth table:
+------------------------------------------------------------------------------
+
+cached  should cache  cache dirty  nfs avail  nfs changed  action
+------------------------------------------------------------------------------
+no      no            -            no         -            raise -ENOENT
+no      no            -            yes        -            use nfs
+no      yes           -            no         -            raise -ENOENT
+no      yes           -            yes        -            cache, use cached
+yes     no            -            no         -            remove, raise -ENOENT
+yes     no            -            yes        -            remove, use nfs
+yes     yes           -            no         -            use cached
+yes     yes           no           yes        no           use cached
+yes     yes           no           yes        yes          cache, use cached
+yes     yes           yes          yes        no           use cached
+yes     yes           yes          yes        yes          merge/conflict
+
+
+
+Truth table converted to if logic:
+------------------------------------------------------------------------------
+
+if not cachedFile and not shouldCache and not nfsAvailable:
+  raise -ENOENT
+
+if not cachedFile and not shouldCache and     nfsAvailable:
+  return use nfs
+
+if not cachedFile and     shouldCache and not nfsAvailable:
+  raise -ENOENT
+
+if not cachedFile and     shouldCache and     nfsAvailable:
+  cacheFile()
+  return use cached
+
+if     cachedFile and not shouldCache and not nfsAvailable:
+  removeCachedFile()
+  raise -ENOENT
+
+if     cachedFile and not shouldCache and     nfsAvailable:
+  removeCachedFile()
+  return use nfs
+
+if     cachedFile and     shouldCache and     nfsAvailable and not cacheDirty and not nfsChanged:
+  return use cached
+
+if     cachedFile and     shouldCache and     nfsAvailable and not cacheDirty and     nfsChanged:
+  cacheFile()
+  return use cached
+
+if     cachedFile and     shouldCache and     nfsAvailable and     cacheDirty and not nfsChanged:
+  return use cached
+
+if     cachedFile and     shouldCache and     nfsAvailable and     cacheDirty and     nfsChanged:
+  raise merge/conflict
+
+
+
+Simplified if logic:
+------------------------------------------------------------------------------
+
+if not cachedFile and not nfsAvailable:
+  raise -ENOENT
+
+if not cachedFile and nfsAvailable:
+  if not shouldCache:
+    return use nfs
+  else:
+    cacheFile()
+    return use cached
+
+if cachedFile and not shouldCache:
+  removeCachedFile()
+
+  if nfsAvailable:
+    return use nfs
+  else:
+    raise -ENOENT
+
+if cachedFile and shouldCache and nfsAvailable:
+  if (not cacheDirty and not nfsChanged) or
+     (not cacheDirty and     nfsChanged) or
+     (    cacheDirty and not nfsChanged):
+    return use cached
+  else:
+    raise merge/conflict
