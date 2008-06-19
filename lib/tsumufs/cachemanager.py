@@ -80,7 +80,6 @@ class CacheManager(tsumufs.Debuggable):
     '''
     Stat a file, or return the cached stat of that file.
 
-
     This method functions nearly exactly the same as os.lstat(), except it
     returns a cached copy if the last time we cached the stat wasn't longer than
     the _statTimeout set above.
@@ -116,11 +115,16 @@ class CacheManager(tsumufs.Debuggable):
 
   def statFile(self, fusepath):
     '''
-    Cache the stat referenced by fusepath.
+    Return the stat referenced by fusepath.
 
     This method locks the file for reading, returns the stat result
-    (as returned by lstat()), enters the stat entry into the cache,
     and unlocks the file.
+
+    Returns:
+      posix.stat_result
+
+    Raises:
+      OSError if there was a problemg getting the stat.
     '''
 
     # TODO: Make this update the inode -> file mappings.
@@ -132,6 +136,10 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
+      if 'enoent' in opcodes:
+        raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
+
+      # TODO: Don't cache local disk
       self._debug('Statting %s' % realpath)
       return self._cacheStat(realpath)
     finally:
@@ -149,14 +157,16 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      if 'use-nfs' in opcodes:
-        self._debug('use-nfs, so reading from %s' % realpath)
-        return os.listdir(realpath)
-      elif 'use-cache' in opcodes:
-        self._debug('use-cache, so reading from memcache at key %s' % fusepath)
+      if 'enoent' in opcodes:
+        raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
 
-        if self._cachedDirents.has_key(fusepath):
-          return self._cachedDirents[fusepath]
+      if tsumufs.nfsAvailable.isSet():
+        self._debug('NFS is available -- returning dirents from NFS.')
+        return self._cachedDirents[fusepath]
+
+      else:
+        self._debug('NFS is unavailable -- returning cached disk dir stuff.')
+        return os.listdir(self._cachePathOf(fusepath))
 
     finally:
       self._unlockFile(fusepath)
