@@ -38,22 +38,6 @@ if development_mode == True:
 import tsumufs
 
 
-def syslogExceptHook(type, value, tb):
-  '''
-  Quick exception handler to log exceptions to syslog rather than
-  dumping them to /dev/null after FUSE has forked.
-  '''
-
-  syslog.syslog('*** Unhandled exception occurred')
-  syslog.syslog('***     Type: %s' % str(type))
-  syslog.syslog('***    Value: %s' % str(value))
-  syslog.syslog('*** Traceback:')
-
-  for line in traceback.extract_tb(tb):
-    syslog.syslog('***    %s(%d) in %s: %s'
-                  % line)
-
-
 def main():
   # Grab the name of this program from the zeroth argument and make
   # sure it's just the last part of the name if there's a path.
@@ -83,7 +67,7 @@ def main():
 
   # Install our custom exception handler so that any exceptions are
   # output to the syslog rather than to /dev/null.
-  sys.excepthook = syslogExceptHook
+  sys.excepthook = tsumufs.syslogExceptHook
 
   # Go!
   server.main()

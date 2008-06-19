@@ -51,6 +51,10 @@ class FuseFile(tsumufs.Debuggable):
 
     self._setName('FuseFile <%s> ' % self._path)
 
+    # Install our custom exception handler so that any exceptions are
+    # output to the syslog rather than to /dev/null.
+    sys.excepthook = tsumufs.syslogExceptHook
+
     try:
       self._debug('opcode: open | flags: %s | mode: %s'
                   % (flags, mode))
@@ -80,22 +84,17 @@ class FuseFile(tsumufs.Debuggable):
 
   def read(self, length, offset):
     self._debug('opcode: read | path: %s | len: %d | offset: %d'
-                % (path, length, offset))
+                % (self._path, length, offset))
 
     try:
       retval = tsumufs.cacheManager.readFile(self._path, offset, length,
                                              self._flagsToMode(self._fdFlags))
-      self._debug('returning: %d'
-                  % retval)
+      self._debug('Returning: \'%s\'' % retval)
       return retval
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
-    except:
-      self._debug('Exception caught: %s'
-                  % (sys.exc_info()[0]))
-      return -errno.EIO
 
   def write(self, buf, offset):
     self._debug('opcode: write | offset: %d | buf: %s'

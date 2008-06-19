@@ -56,3 +56,19 @@ socketDir    = '/var/run/tsumufs'
 unmounted       = threading.Event()
 nfsAvailable    = threading.Event()
 forceDisconnect = threading.Event()
+
+
+def syslogExceptHook(type, value, tb):
+  '''
+  Quick exception handler to log exceptions to syslog rather than
+  dumping them to /dev/null after FUSE has forked.
+  '''
+
+  syslog.syslog('*** Unhandled exception occurred')
+  syslog.syslog('***     Type: %s' % str(type))
+  syslog.syslog('***    Value: %s' % str(value))
+  syslog.syslog('*** Traceback:')
+
+  for line in traceback.extract_tb(tb):
+    syslog.syslog('***    %s(%d) in %s: %s'
+                  % line)
