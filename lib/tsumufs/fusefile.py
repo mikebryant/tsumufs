@@ -89,7 +89,6 @@ class FuseFile(tsumufs.Debuggable):
     try:
       retval = tsumufs.cacheManager.readFile(self._path, offset, length,
                                              self._flagsToMode(self._fdFlags))
-      self._debug('Returning: \'%s\'' % retval)
       return retval
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
