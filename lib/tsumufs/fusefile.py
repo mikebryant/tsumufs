@@ -89,6 +89,8 @@ class FuseFile(tsumufs.Debuggable):
     try:
       retval = tsumufs.cacheManager.readFile(self._path, offset, length,
                                              self._flagsToMode(self._fdFlags))
+      self._debug('Returning %s' % repr(retval))
+
       return retval
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
@@ -104,23 +106,17 @@ class FuseFile(tsumufs.Debuggable):
     # queue.
 
     try:
-      fp = open(tsumufs.nfsMountPoint + self._path,
-                self._flagsToMode(self._fdFlags))
-      fp.seek(offset)
-      fp.write(buf) # TODO(rcombs): use return value
-      fp.close()
+      tsumufs.cacheManager.writeFile(self._path, offset, buf,
+                                     self._flagsToMode(self._fdFlags))
+      self._debug('Wrote %d bytes.' % len(buf))
 
-      self._debug('returning: %d'
-                  % len(buf))
       return len(buf)
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
-    except:
-      self._debug('Exception caught: %s'
-                  % (sys.exc_info()[0]))
-      return -errno.EIO
+    except IOError, e:
+      self._debug('IOError caught: %s' % str(e))
 
   def release(self, flags):
     self._debug('opcode: release | flags: %s' % flags)

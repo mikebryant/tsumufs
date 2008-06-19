@@ -623,7 +623,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: access | path: %s | mode: %o' % (path, mode))
 
     try:
-      if not os.access(tsumufs.nfsMountPoint + path, mode):
+      if not tsumufs.cacheManager.access(path, mode):
         return -errno.EACCES
     except OSError, e:
       self._debug('access: Caught OSError: errno %d: %s'

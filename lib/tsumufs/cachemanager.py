@@ -213,6 +213,69 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
+  def writeFile(self, fusepath, offset, buf, mode):
+    '''
+    Write a chunk of data to the file referred to by fusepath.
+
+    This method acts very much like the typical idiom:
+
+      fp = open(file, mode)
+      fp.seek(offset)
+      result = fp.write(buf)
+      return result
+
+    Except that all writes go diractly to the cache first, and a synclog entry
+    is created.
+
+    Returns:
+      None
+
+    Raises:
+      OSError on error writing the data.
+      IOError on error writing the data.
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._cachePathOf(fusepath)
+
+      self._debug('Writing to file %s at offset %d with buffer length of %d '
+                  'and mode %s' % (realpath, offset, len(buf), mode))
+
+      fp = open(realpath, mode)
+      fp.seek(offset)
+      fp.write(buf)
+      fp.close()
+    finally:
+      self._unlockFile(fusepath)
+
+  def access(self, fusepath, mode):
+    '''
+    Test for access to a path.
+
+    Returns:
+      True upon successful check, otherwise False.
+
+    Raises:
+      OSError upon access problems.
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      self._debug('Checking for access on %s' % realpath)
+
+      return os.access(realpath, mode)
+    finally:
+      self._unlockFile(fusepath)
+
   def _cacheDir(self, fusepath):
     '''
     Cache the directory referenced by path.
