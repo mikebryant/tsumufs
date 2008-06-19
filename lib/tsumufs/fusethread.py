@@ -310,7 +310,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     # a proper switch statement! =o(
     #
     xattrs = {
-      'in-cache': tsumufs.cacheManager.isFileCached(path) and '1' or '0',
+      'in-cache': tsumufs.cacheManager.isCachedToDisk(path) and '1' or '0',
       'dirty': '0'
       }
 

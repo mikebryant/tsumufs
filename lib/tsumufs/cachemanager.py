@@ -20,6 +20,7 @@
 
 import os
 import os.path
+import sys
 import shutil
 import errno
 import stat
@@ -40,6 +41,10 @@ class CacheManager(tsumufs.Debuggable):
                            # copy's stat information for before we
                            # attempt to update it from the nfs mount.
 
+  _cachedStats = {}        # A hash of paths to stat entires and last stat
+                           # times. This is used to reduce the number of stats
+                           # called on NFS primarily.
+
   _cachedDirents = {}      # A hash of paths to unix timestamps of
                            # when we last cached the file.
 
@@ -47,6 +52,10 @@ class CacheManager(tsumufs.Debuggable):
                            # access to files in the cache.
 
   def __init__(self):
+    # Install our custom exception handler so that any exceptions are
+    # output to the syslog rather than to /dev/null.
+    sys.excepthook = tsumufs.syslogExceptHook
+
     try:
       os.stat(tsumufs.cachePoint)
     except OSError, e:
@@ -67,6 +76,44 @@ class CacheManager(tsumufs.Debuggable):
                        os.strerror(e.errno)))
         raise e
 
+  def _cacheStat(self, realpath):
+    '''
+    Stat a file, or return the cached stat of that file.
+
+
+    This method functions nearly exactly the same as os.lstat(), except it
+    returns a cached copy if the last time we cached the stat wasn't longer than
+    the _statTimeout set above.
+
+    Returns:
+      posix.stat_result
+
+    Raises:
+      OSError if there was a problem reading the stat.
+    '''
+
+    recache = False
+
+    if not self._cachedStats.has_key(realpath):
+      self._debug('Caching stat.')
+      recache = True
+
+    elif (time.time() - self._cachedStats[realpath]['time']
+          > self._statTimeout):
+      self._debug('Stat cache timeout -- recaching.')
+      recache = True
+
+    else:
+      self._debug('Using cached stat.')
+
+    if recache == True:
+      self._cachedStats[realpath] = {
+        'stat': os.lstat(realpath),
+        'time': time.time()
+        }
+
+    return self._cachedStats[realpath]['stat']
+
   def statFile(self, fusepath):
     '''
     Cache the stat referenced by fusepath.
@@ -86,7 +133,7 @@ class CacheManager(tsumufs.Debuggable):
       realpath = self._generatePath(fusepath, opcodes)
 
       self._debug('Statting %s' % realpath)
-      return os.lstat(realpath)
+      return self._cacheStat(realpath)
     finally:
       self._unlockFile(fusepath)
 
@@ -185,7 +232,16 @@ class CacheManager(tsumufs.Debuggable):
         self._debug('Asking to cache root -- skipping the cache to '
                     'disk operation, but caching data in memory.')
       else:
-        os.mkdir(cachepath)
+        try:
+          os.mkdir(cachepath)
+        except OSError, e:
+          # Skip EEXIST errors -- if it already exists, it may have files in it
+          # already. Simply copy the stat and chown it again, then cache the
+          # listdir operation as well.
+
+          if e.errno != errno.EEXIST:
+            raise
+
         shutil.copystat(nfspath, cachepath)
         os.chown(cachepath, stat.st_uid, stat.st_gid)
 
@@ -351,18 +407,18 @@ class CacheManager(tsumufs.Debuggable):
     '''
 
     # if not cachedFile and not nfsAvailable raise -ENOENT
-    if not self._isCachedToDisk(fusepath) and not tsumufs.nfsAvailable.isSet():
+    if not self.isCachedToDisk(fusepath) and not tsumufs.nfsAvailable.isSet():
       self._debug('File not cached, no nfs -- enoent')
       return ['enoent']
 
     # if not cachedFile and not shouldCache
-    if not self._isCachedToDisk(fusepath) and not self._shouldCacheFile(fusepath):
+    if not self.isCachedToDisk(fusepath) and not self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
         self._debug('File not cached, should not cache -- use nfs.')
         return ['use-nfs']
 
     # if not cachedFile and     shouldCache
-    if not self._isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
+    if not self.isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
         if for_stat == True:
           self._debug('Returning use-nfs, as this is for stat.')
@@ -376,7 +432,7 @@ class CacheManager(tsumufs.Debuggable):
         return ['enoent']
 
     # if     cachedFile and not shouldCache
-    if self._isCachedToDisk(fusepath) and not self._shouldCacheFile(fusepath):
+    if self.isCachedToDisk(fusepath) and not self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
         self._debug(('File cached, should not cache, nfs avail '
                      '-- remove cache, use nfs'))
@@ -387,7 +443,7 @@ class CacheManager(tsumufs.Debuggable):
         return ['remove-cache', 'enoent']
 
     # if     cachedFile and     shouldCache
-    if self._isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
+    if self.isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
         if self._dataChanged(fusepath):
           # TODO: Make this really check for dirtiness of the file
@@ -470,7 +526,7 @@ class CacheManager(tsumufs.Debuggable):
     transpath = os.path.join(tsumufs.cachePoint, rhs)
     return transpath
 
-  def _isCachedToDisk(self, fusepath):
+  def isCachedToDisk(self, fusepath):
     '''
     Check to see if the file referenced by fusepath is cached to
     disk.
