@@ -43,6 +43,10 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
   def __init__(self):
     self._debug('Initializing.')
 
+    # Install our custom exception handler so that any exceptions are
+    # output to the syslog rather than to /dev/null.
+    sys.excepthook = tsumufs.syslogExceptHook
+
     self._debug('Loading SyncQueue.')
     self._syncQueue = tsumufs.SyncQueue()
     self._syncQueue.loadFromDisk()
