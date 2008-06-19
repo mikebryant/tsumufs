@@ -106,7 +106,7 @@ class CacheManager(tsumufs.Debuggable):
     else:
       self._debug('Using cached stat.')
 
-    if recache == True:
+    if recache:
       self._cachedStats[realpath] = {
         'stat': os.lstat(realpath),
         'time': time.time()
@@ -420,7 +420,7 @@ class CacheManager(tsumufs.Debuggable):
     # if not cachedFile and     shouldCache
     if not self.isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
-        if for_stat == True:
+        if for_stat:
           self._debug('Returning use-nfs, as this is for stat.')
           return ['use-nfs']
 
@@ -451,7 +451,7 @@ class CacheManager(tsumufs.Debuggable):
             self._debug('Merge conflict detected.')
             return ['merge-conflict']
           else:
-            if for_stat == True:
+            if for_stat:
               self._debug('Returning use-nfs, as this is for stat.')
               return ['use-nfs']
 
