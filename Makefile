@@ -1,7 +1,7 @@
 PY_MODULES := $(wildcard lib/tsumufs/*.py)
 PY_SOURCE  := $(wildcard src/*.py)
-PY_UNIT_TESTS := $(wildcard tests/unit/*.py)
-PY_FUNC_TESTS := $(wildcard tests/functional/*.py)
+PY_UNIT_TESTS := $(wildcard tests/unit/*_test.py)
+PY_FUNC_TESTS := $(wildcard tests/functional/*_test.py)
 
 PYCHECKER  := /usr/bin/pychecker
 
