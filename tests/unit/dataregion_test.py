@@ -27,6 +27,7 @@ sys.path.append('lib')
 import unittest
 import tsumufs.dataregion as dataregion
 
+
 class InstanceCheck(unittest.TestCase):
   def setUp(self):
     self.testData = '1' * 10
@@ -38,6 +39,7 @@ class InstanceCheck(unittest.TestCase):
   def testRegionLengthError(self):
     self.assertRaises(dataregion.RegionLengthError,
                       dataregion.DataRegion(0, 1, self.testData))
+
 
 class OverlapCheck(unittest.TestCase):
   def setUp(self):
@@ -56,6 +58,7 @@ class OverlapCheck(unittest.TestCase):
     self.r1 = dataregion.DataRegion(self.r1Start,
                                     self.r1End,
                                     '1' * (self.r1End - self.r1Start))
+
 
 if __name__ == '__main__':
   unittest.main()
