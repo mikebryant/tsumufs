@@ -98,8 +98,8 @@ class FuseFile(tsumufs.Debuggable):
       return -e.errno
 
   def write(self, buf, offset):
-    self._debug('opcode: write | offset: %d | buf: %s'
-                % (offset, repr(buf)))
+    self._debug('opcode: write | path: %s | offset: %d | buf: %s'
+                % (self._path, offset, repr(buf)))
 
     # TODO: Make this write to the cache first, and then update the
     # synclog with the new data region entry on bottom of the synclog
@@ -120,16 +120,25 @@ class FuseFile(tsumufs.Debuggable):
 
   def release(self, flags):
     self._debug('opcode: release | flags: %s' % flags)
+
     # Noop since on NFS close doesn't do much
+    self._debug('returning: 0')
     return 0
 
   def fsync(self, isfsyncfile):
-    self._debug('opcode: fsync | isfsyncfile: %d' % isfsyncfile)
-    return -errno.ENOSYS
+    self._debug('opcode: fsync | path: %s | isfsyncfile: %d'
+                % (self._path, isfsyncfile))
+
+    err = -errno.ENOSYS
+    self._debug('returning: %d' % err)
+    return err
 
   def flush(self):
-    self._debug('opcode: flush')
-    return -errno.ENOSYS
+    self._debug('opcode: flush | path: %s' % self._path)
+
+    err = -errno.ENOSYS
+    self._debug('returning: %d' % err)
+    return err
 
   def fgetattr(self):
     self._debug('opcode: fgetattr')
@@ -159,4 +168,6 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: lock | cmd: %o | owner: %d'
                 % (cmd, owner))
 
-    return -errno.ENOSYS
+    err = -errno.ENOSYS
+    self._debug('returning: %d' % err)
+    return err

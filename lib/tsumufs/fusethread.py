@@ -365,12 +365,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: readlink | path: %s' % path)
 
     try:
-      self._debug('Readlink of %s' % (tsumufs.cachePoint + path))
-
-      if tsumufs.nfsAvailable.isSet():
-        return os.readlink(tsumufs.nfsMountPoint + path)
-      else:
-        return os.readlink(tsumufs.cachePoint + path)
+      retval = tsumufs.cacheManager.readLink(path)
+      self._debug('returning: %s' % retval)
+      return retval
     except OSError, e:
       self._debug('readlink: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))

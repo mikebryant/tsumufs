@@ -213,6 +213,24 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
+  def readLink(self, fusepath):
+    '''
+    Return the target of a symlink.
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      self._debug('Reading link from %s' % realpath)
+
+      return os.readlink(realpath)
+    finally:
+      self._unlockFile(fusepath)
+
   def writeFile(self, fusepath, offset, buf, mode):
     '''
     Write a chunk of data to the file referred to by fusepath.
@@ -353,16 +371,31 @@ class CacheManager(tsumufs.Debuggable):
     try:
       self._debug('Caching file %s to disk.' % fusepath)
 
-      curstat = os.lstat(self._nfsPathOf(fusepath))
+      nfspath = self._nfsPathOf(fusepath)
+      cachepath = self._cachePathOf(fusepath)
 
-      if (stat.S_ISREG(curstat.st_mode) or
-          stat.S_ISLNK(curstat.st_mode)):
-        shutil.copy2(self._nfsPathOf(fusepath), self._cachePathOf(fusepath))
-        shutil.copystat(self._nfsPathOf(fusepath), self._cachePathOf(fusepath))
-        os.chown(self._cachePathOf(fusepath), curstat.st_uid, curstat.st_gid)
+      curstat = os.lstat(nfspath)
+
+      if stat.S_ISREG(curstat.st_mode):
+        # TODO(rcombs): os.chown follows symlinks
+        shutil.copy2(nfspath, cachepath)
+        shutil.copystat(nfspath, cachepath)
+        os.chown(cachepath, curstat.st_uid, curstat.st_gid)
+      elif stat.S_ISLNK(curstat.st_mode):
+        dest = os.readlink(nfspath)
+
+        try:
+          os.unlink(cachepath)
+        except OSError, e:
+          if e.errno != errno.ENOENT:
+            raise
+
+        os.symlink(dest, cachepath)
+        #os.lchown(cachepath, curstat.st_uid, curstat.st_gid)
+        #os.lutimes(cachepath, (curstat.st_atime, curstat.st_mtime))
       elif stat.S_ISDIR(curstat.st_mode):
         # Caching a directory to disk -- call cacheDir instead.
-        self._debug('Request to cache a directory -- calilng _cacheDir')
+        self._debug('Request to cache a directory -- calling _cacheDir')
         self._cacheDir(fusepath)
 
     finally:
@@ -430,7 +463,7 @@ class CacheManager(tsumufs.Debuggable):
         self._debug('Removing cached file %s' % fusepath)
         self._removeCachedFile(fusepath)
       if opcode == 'cache-file':
-        self._debug('Caching file %s' % fusepath)
+        self._debug('Updating cache of file %s' % fusepath)
         self._cacheFile(fusepath)
       if opcode == 'merge-conflict':
         # TODO: handle a merge-conflict?
