@@ -376,8 +376,11 @@ class CacheManager(tsumufs.Debuggable):
 
       curstat = os.lstat(nfspath)
 
-      if stat.S_ISREG(curstat.st_mode):
-        # TODO(rcombs): os.chown follows symlinks
+      if (stat.S_ISREG(curstat.st_mode) or
+          stat.S_ISFIFO(curstat.st_mode) or
+          stat.S_ISSOCK(curstat.st_mode) or
+          stat.S_ISCHR(curstat.st_mode) or
+          stat.S_ISBLK(curstat.st_mode)):
         shutil.copy2(nfspath, cachepath)
         shutil.copystat(nfspath, cachepath)
         os.chown(cachepath, curstat.st_uid, curstat.st_gid)
