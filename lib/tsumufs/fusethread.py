@@ -387,7 +387,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       for filename in tsumufs.cacheManager.getDirents(path):
-        stat_result = tsumufs.cacheManager.statFile(os.path.join(path, filename))
+        pathname = os.path.join(path, filename)
+        stat_result = tsumufs.cacheManager.statFile(pathname)
 
         dirent        = fuse.Direntry(filename)
         dirent.type   = stat.S_IFMT(stat_result.st_mode)

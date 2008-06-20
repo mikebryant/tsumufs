@@ -55,32 +55,10 @@ class FuseFile(tsumufs.Debuggable):
     # output to the syslog rather than to /dev/null.
     sys.excepthook = tsumufs.syslogExceptHook
 
-    try:
-      self._debug('opcode: open | flags: %s | mode: %s'
-                  % (flags, mode))
+    self._debug('opcode: open | flags: %s | mode: %s'
+                % (flags, mode))
 
-      fp = open(tsumufs.nfsMountPoint + self._path, self._flagsToMode(flags))
-      fp.close()
-    except:
-      self._debug('*** Unable to open file %s: %s'
-                  % (self._path, traceback.format_exc()))
-
-  def _flagsToMode(self, flags):
-    '''
-    Borrowed directly from fuse-python's xmp.py script. Credits go to
-    Jeff Epler and Csaba Henk.
-
-    This method converts the POSIX standard bitflags for open calls to
-    pythonic mode strings.
-    '''
-
-    md = {os.O_RDONLY: 'r', os.O_WRONLY: 'w', os.O_RDWR: 'w+'}
-    m = md[flags & (os.O_RDONLY | os.O_WRONLY | os.O_RDWR)]
-
-    if flags | os.O_APPEND:
-      m = m.replace('w', 'a', 1)
-
-    return m
+    tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode)
 
   def read(self, length, offset):
     self._debug('opcode: read | path: %s | len: %d | offset: %d'
@@ -88,7 +66,7 @@ class FuseFile(tsumufs.Debuggable):
 
     try:
       retval = tsumufs.cacheManager.readFile(self._path, offset, length,
-                                             self._flagsToMode(self._fdFlags))
+                                             self._fdFlags, self._fdMode)
       self._debug('Returning %s' % repr(retval))
 
       return retval
@@ -107,7 +85,7 @@ class FuseFile(tsumufs.Debuggable):
 
     try:
       tsumufs.cacheManager.writeFile(self._path, offset, buf,
-                                     self._flagsToMode(self._fdFlags))
+                                     self._fdFlags, self._fdMode)
       self._debug('Wrote %d bytes.' % len(buf))
 
       return len(buf)
@@ -122,23 +100,21 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: release | flags: %s' % flags)
 
     # Noop since on NFS close doesn't do much
-    self._debug('returning: 0')
+    self._debug('Returning: 0')
     return 0
 
   def fsync(self, isfsyncfile):
     self._debug('opcode: fsync | path: %s | isfsyncfile: %d'
                 % (self._path, isfsyncfile))
 
-    err = -errno.ENOSYS
-    self._debug('returning: %d' % err)
-    return err
+    self._debug('Returning 0')
+    return 0
 
   def flush(self):
     self._debug('opcode: flush | path: %s' % self._path)
 
-    err = -errno.ENOSYS
-    self._debug('returning: %d' % err)
-    return err
+    self._debug('Returning 0')
+    return 0
 
   def fgetattr(self):
     self._debug('opcode: fgetattr')
@@ -154,11 +130,7 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: ftruncate | size: %d' % size)
 
     try:
-      fd = os.open(tsumufs.nfsMountPoint + self._path,
-                   self._fdFlags,
-                   self._fdMode)
-      os.ftruncate(fd, size)
-      os.close(fd)
+      return tsumufs.cacheManager.truncateFile(self._path, size)
     except OSError, e:
       self._debug('Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))

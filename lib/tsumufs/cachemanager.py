@@ -133,6 +133,9 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       opcodes = self._genCacheOpcodes(fusepath, for_stat=True)
+
+      self._debug('Opcodes are: %s' % str(opcodes))
+
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
@@ -142,6 +145,82 @@ class CacheManager(tsumufs.Debuggable):
       # TODO: Don't cache local disk
       self._debug('Statting %s' % realpath)
       return self._cacheStat(realpath)
+
+    finally:
+      self._unlockFile(fusepath)
+
+  def fakeOpen(self, fusepath, flags, mode=None):
+    '''
+    Attempt to open a file on the local disk.
+
+    Returns:
+      None
+
+    Raises:
+      OSError on problems opening the file.
+    '''
+
+    # Several things to worry about here:
+    #
+    # In normal open cases where we just want to open the file and not create
+    # it, we can just assume the normal read routines, and open from cache if
+    # possible.
+    #
+    # Flags that will give us trouble:
+    #
+    #   O_CREAT            - Open and create if not there already, no error if
+    #                        exists.
+    #
+    #   O_CREAT | O_EXCL   - Open, create, and error out if the file exists or
+    #                        if the path contains a symlink. Error used is
+    #                        EEXIST.
+    #
+    #   O_TRUNC            - Open an existing file, truncate the contents.
+    #
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+
+      try:
+        self._validateCache(fusepath, opcodes)
+      except OSError, e:
+        if ((e.errno == errno.ENOENT)
+            and (flags & os.O_CREAT)):
+          self._debug('Skipping over ENOENT since we want O_CREAT')
+          pass
+        else:
+          self._debug('Couldn\'t find %s -- raising ENOENT' % fusepath)
+          raise
+
+      realpath = self._generatePath(fusepath, opcodes)
+
+      self._debug('Attempting open of %s.' % realpath)
+
+      if 'use-cache' in opcodes:
+        self._debug('Told to use the cache.')
+
+        if flags & os.O_CREAT:
+          dirname = os.path.dirname(fusepath)
+          basename = os.path.basename(fusepath)
+
+          if self._cachedDirents.has_key(dirname):
+            if not basename in self._cachedDirents[dirname]:
+              self._debug('Inserting new file into the cached dirents for the '
+                          'parent directory.')
+              self._cachedDirents[dirname].append(basename)
+
+        if flags & os.O_TRUNC:
+          pass
+
+      if mode:
+        fd = os.open(realpath, flags, mode)
+      else:
+        fd = os.open(realpath, flags)
+
+      os.close(fd)
+
     finally:
       self._unlockFile(fusepath)
 
@@ -155,14 +234,22 @@ class CacheManager(tsumufs.Debuggable):
     try:
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
-      realpath = self._generatePath(fusepath, opcodes)
 
       if 'enoent' in opcodes:
         raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
 
       if tsumufs.nfsAvailable.isSet():
-        self._debug('NFS is available -- returning dirents from NFS.')
-        return self._cachedDirents[fusepath]
+        self._debug('NFS is available -- combined dirents from NFS and '
+                    'cached disk.')
+
+        nfs_dirents = set(self._cachedDirents[fusepath])
+        cached_dirents = set(os.listdir(self._cachePathOf(fusepath)))
+        final_dirents_list = []
+
+        for dirent in nfs_dirents.union(cached_dirents):
+          final_dirents_list.append(dirent)
+
+        return final_dirents_list
 
       else:
         self._debug('NFS is unavailable -- returning cached disk dir stuff.')
@@ -171,7 +258,29 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
-  def readFile(self, fusepath, offset, length, mode):
+  def _flagsToStdioMode(self, flags):
+    '''
+    Convert flags to stupidio's mode.
+    '''
+
+    if flags & os.O_RDWR:
+      if flags & os.O_APPEND:
+        result = 'a+'
+      else:
+        result = 'w+'
+
+    elif flags & os.O_WRONLY:
+      if flags & os.O_APPEND:
+        result = 'a'
+      else:
+        result = 'w'
+
+    else: # O_RDONLY
+      result = 'r'
+
+    return result
+
+  def readFile(self, fusepath, offset, length, flags, mode=None):
     '''
     Read a chunk of data from the file referred to by path.
 
@@ -204,34 +313,22 @@ class CacheManager(tsumufs.Debuggable):
 
       self._debug('Reading file contents from %s' % realpath)
 
-      fp = open(realpath, mode)
+      if mode != None:
+        fd = os.open(realpath, flags, mode)
+      else:
+        fd = os.open(realpath, flags)
+
+      fp = os.fdopen(fd, self._flagsToStdioMode(flags))
       fp.seek(offset)
       result = fp.read(length)
       fp.close()
 
       return result
+
     finally:
       self._unlockFile(fusepath)
 
-  def readLink(self, fusepath):
-    '''
-    Return the target of a symlink.
-    '''
-
-    self._lockFile(fusepath)
-
-    try:
-      opcodes = self._genCacheOpcodes(fusepath)
-      self._validateCache(fusepath, opcodes)
-      realpath = self._generatePath(fusepath, opcodes)
-
-      self._debug('Reading link from %s' % realpath)
-
-      return os.readlink(realpath)
-    finally:
-      self._unlockFile(fusepath)
-
-  def writeFile(self, fusepath, offset, buf, mode):
+  def writeFile(self, fusepath, offset, buf, flags, mode=None):
     '''
     Write a chunk of data to the file referred to by fusepath.
 
@@ -263,10 +360,34 @@ class CacheManager(tsumufs.Debuggable):
       self._debug('Writing to file %s at offset %d with buffer length of %d '
                   'and mode %s' % (realpath, offset, len(buf), mode))
 
-      fp = open(realpath, mode)
+      if mode != None:
+        fd = os.open(realpath, flags, mode)
+      else:
+        fd = os.open(realpath, flags)
+
+      fp = os.fdopen(fd, self._flagsToStdioMode(flags))
       fp.seek(offset)
       fp.write(buf)
       fp.close()
+
+    finally:
+      self._unlockFile(fusepath)
+
+  def readLink(self, fusepath):
+    '''
+    Return the target of a symlink.
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      self._debug('Reading link from %s' % realpath)
+
+      return os.readlink(realpath)
     finally:
       self._unlockFile(fusepath)
 
@@ -291,6 +412,26 @@ class CacheManager(tsumufs.Debuggable):
       self._debug('Checking for access on %s' % realpath)
 
       return os.access(realpath, mode)
+    finally:
+      self._unlockFile(fusepath)
+
+  def truncateFile(self, fusepath, size):
+    '''
+    Truncate the file.
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      fd = os.open(realpath, os.O_RDWR)
+      os.ftruncate(fd, size)
+      os.close(fd)
+
+      return 0
     finally:
       self._unlockFile(fusepath)
 
@@ -554,9 +695,8 @@ class CacheManager(tsumufs.Debuggable):
     # if     cachedFile and     shouldCache
     if self.isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
-        if self._dataChanged(fusepath):
-          # TODO: Make this really check for dirtiness of the file
-          if False: # tsumufs.syncQueue.cachedFileDirty(fusepath):
+        if self._nfsDataChanged(fusepath):
+          if self._cachedFileIsDirty(fusepath):
             self._debug('Merge conflict detected.')
             return ['merge-conflict']
           else:
@@ -571,20 +711,85 @@ class CacheManager(tsumufs.Debuggable):
     self._debug('Using cache by default, as no other cases matched.')
     return ['use-cache']
 
-  def _dataChanged(self, fusepath):
+  def _cachedFileIsDirty(self, fusepath):
+    '''
+    Check to see if the cached copy of a file is dirty.
+
+    Note that this does a shortcut test -- if the file in local cache exists and
+    the file on nfs does not, then we assume the cached copy is
+    dirty. Otherwise, we have to check against the synclog to see what's changed
+    (if at all).
+
+    Returns:
+      Boolean true or false.
+
+    Raises:
+      Any error that might occur during an os.lstat(), aside from ENOENT.
+    '''
+
     self._lockFile(fusepath)
 
     try:
-      cachestat = os.lstat(self._cachePathOf(fusepath))
-      nfsstat   = os.lstat(self._nfsPathOf(fusepath))
+      try:
+        os.lstat(self._cachePathOf(fusepath))
+      except OSError, e:
+        if e.errno == errno.ENOENT:
+          return False
+        else:
+          raise
 
-      if ((cachestat.st_blocks != nfsstat.st_blocks) or
-          (cachestat.st_mtime != nfsstat.st_mtime) or
-          (cachestat.st_size != nfsstat.st_size) or
-          (cachestat.st_ino != nfsstat.st_ino)):
-        return True
+      try:
+        os.lstat(self._nfsPathOf(fusepath))
+      except OSError, e:
+        if e.errno == errno.ENOENT:
+          return True
+        else:
+          raise
       else:
+        # TODO: Do some other checks here against the synclog to verify our
+        # dirtiness.
+        pass
+
+      return True
+
+    finally:
+      self._unlockFile(fusepath)
+
+  def _nfsDataChanged(self, fusepath):
+    '''
+    Check to see if the NFS data has changed since our last stat.
+
+    Returns:
+      Boolean true or false.
+
+    Raises:
+      Any error that might occur during an os.lstat(), aside from ENOENT.
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      try:
+        cachedstat = self._cachedStats[fusepath]['stat']
+        realstat   = os.lstat(self._nfsPathOf(fusepath))
+
+        if ((cachedstat.st_blocks != realstat.st_blocks) or
+            (cachedstat.st_mtime != realstat.st_mtime) or
+            (cachedstat.st_size != realstat.st_size) or
+            (cachedstat.st_ino != realstat.st_ino)):
+          return True
+        else:
+          return False
+
+      except OSError, e:
+        if e.errno == errno.ENOENT:
+          return False
+        else:
+          raise
+
+      except KeyError, e:
         return False
+
     finally:
       self._unlockFile(fusepath)
 
