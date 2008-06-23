@@ -300,22 +300,20 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                 % (path, name, size))
 
     if size == 0:
-      # Caller just wants the size of the value.
-      return 2   # Currently the single 1 or 0 plus the null
+      # Caller just wants the size of the value. All of our values are either 1
+      # or 0 followed by a null, so we return a hardcoded value of 2 here.
+      return 2
 
-    # var  ? true-case  :  false-case
-    # var and true-case or false-case
-    #
-    # Python can be so obtuse and boneheaded sometimes. My kingdom for
-    # a proper switch statement! =o(
-    #
     xattrs = {
-      'in-cache': tsumufs.cacheManager.isCachedToDisk(path) and '1' or '0',
+      'in-cache': '0',
       'dirty': '0'
       }
 
-    # TODO: Make dirty actually reference the dirty state of the file
-    # in cache, as reflected by the synclog.
+    if tsumufs.cacheManager.isCachedToDisk(path):
+      xattrs['in-cache'] = '1'
+
+    if tsumufs.cacheManager.cachedFileIsDirty(path):
+      xattrs['dirty'] = '1'
 
     if path == '/':
       xattrs['force-disconnect'] = (tsumufs.forceDisconnect.isSet() and
