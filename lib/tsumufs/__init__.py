@@ -31,7 +31,7 @@ from fusethread import *
 from syncthread import *
 from inode import *
 
-__version__ = (0, 6)
+__version__ = (0, 8)
 
 debugMode = False
 
