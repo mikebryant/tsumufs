@@ -52,6 +52,6 @@ $(DIST_FILENAME):
 	tar -C /tmp/tsumufs-$(VERSION) -zcvf $(DIST_FILENAME) .
 	rm -rf /tmp/tsumufs-$(VERSION)
 
-build-dist: $(DIST_FILENAME)
+dist: $(DIST_FILENAME)
 
-.PHONY: all test unit-tests functional-tests check fixspaces clean mrclean build-dist tag
+.PHONY: all test unit-tests functional-tests check fixspaces clean mrclean dist tag
