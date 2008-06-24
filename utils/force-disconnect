@@ -1,0 +1,83 @@
+#!/usr/bin/python2.4
+# -*- python -*-
+#
+# Copyright (C) 2008  Google, Inc. All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+# Quick program to make forcing mounting and unmounting of the NFS connection a
+# bit easier on the eyes.
+
+import sys
+import os
+import os.path
+import optparse
+
+import xattr
+
+def findTsumufsRoot():
+  '''
+  Walk the directory tree until we reach the root of the VFS, or until we've
+  found a directory with the xattr 'force-disconnect'.
+  '''
+
+  curdir = os.path.abspath(os.path.curdir)
+
+  while curdir != '/':
+    if xattr.xattr(curdir).has_key('force-disconnect'):
+      return curdir
+
+    curdir = os.path.abspath(os.path.join(curdir, '..'))
+
+  if curdir == '/':
+    print('Unable to find TsumuFS root directory.')
+    sys.exit(1)
+
+if __name__ == '__main__':
+  path = findTsumufsRoot()
+  xattrs = xattr.xattr(path)
+  name = os.path.basename(sys.argv[0])
+
+  if name == 'force-disconnect':
+    if xattrs['force-disconnect'] == '1':
+      xattrs['force-disconnect'] = '0'
+      print 'Forcing reconnect to NFS.'
+    else:
+      print 'Already forced reconnection to NFS.'
+
+  elif name == 'force-reconnect':
+    if xattrs['force-disconnect'] == '0':
+      xattrs['force-disconnect'] = '1'
+      print 'Forcing disconnection from NFS.'
+    else:
+      print 'Already forced disconnection from NFS.'
+
+  elif name == 'is-connected':
+    if xattrs['force-disconnect'] == '0':
+      if xattrs['connected'] == '1':
+        print 'TsumuFS is connected.'
+      else:
+        print 'TsumuFS is disconnected.'
+    else:
+      if xattrs['connected'] == '1':
+        print 'User requested disconnection, but TsumuFS is still connected.'
+      else:
+        print 'User requested disconnection, and TsumuFS is disconnected.'
+
+  else:
+    print 'Usage: [force-disconnect|force-reconnect|is-connected]'
+    sys.exit(1)
+
+  sys.exit(0)

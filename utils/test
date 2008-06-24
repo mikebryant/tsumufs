@@ -37,7 +37,10 @@ eval $cmdline
 
 if [ "$?" == "0" ]; then
 	pushd "$MOUNTPOINT" >/dev/null
+	OLDPATH="$PATH"
+	export PATH="$PATH:../../utils"
 	PS1=$'\e[m\e[31m[TSUMUFS]\e[m \h:\w\$ ' bash -norc
+	export PATH="$OLDPATH"
 	popd >/dev/null
 
 	fusermount -u "$MOUNTPOINT"

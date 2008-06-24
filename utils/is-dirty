@@ -1,0 +1,47 @@
+#!/usr/bin/python2.4
+# -*- python -*-
+#
+# Copyright (C) 2008  Google, Inc. All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+# Quick program to make forcing mounting and unmounting of the NFS connection a
+# bit easier on the eyes.
+
+import sys
+import os
+import os.path
+import optparse
+
+import xattr
+
+if __name__ == '__main__':
+  if len(sys.argv) <= 1:
+    print 'Usage: is-dirty <filename>'
+    sys.exit(1)
+
+  xattrs = xattr.xattr(sys.arv[1])
+
+  try:
+    if xattrs['dirty'] == '1':
+      print 'File %s is dirty.' % sys.argv[1]
+    else:
+      print 'File %s is NOT dirty.' % sys.argv[1]
+
+  except KeyError, e:
+    print 'File %s is not a file in a TsumuFS mount point.'
+    sys.exit(1)
+
+  sys.exit(0)
