@@ -1,8 +1,22 @@
 TsumuFS: an NFS caching layer
 =============================
 
+
+Prerequisites to Running
+------------------------
+
+TsumuFS requires the following:
+  - libfuse2
+  - fuse-utils
+  - python-fuse (version 0.2 at the least)
+  - python 2.4
+
+TsumuFS's utils require the following:
+  - python-xattr  
+
+
 Testing Notes
-=============
+-------------
 
 To actually get tsumufs to test properly with FUSE, you have to add
 the a bit of code similar to the following to /etc/sudoers via visudo:
