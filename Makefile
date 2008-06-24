@@ -1,9 +1,21 @@
-PY_MODULES := $(wildcard lib/tsumufs/*.py)
-PY_SOURCE  := $(wildcard src/*.py)
+PY_MODULES    := $(wildcard lib/tsumufs/*.py)
+PY_SOURCE     := $(wildcard src/*.py)
 PY_UNIT_TESTS := $(wildcard tests/unit/*_test.py)
-PY_FUNC_TESTS := $(wildcard tests/functional/*_test.py)
+PY_FUNC_TESTS := $(wildcard tests/functional/*_test.sh)
 
-PYCHECKER  := /usr/bin/pychecker
+PYCHECKER := /usr/bin/pychecker
+
+ifndef SVN_USER
+SVN_USER = $(shell echo $$USER)
+endif
+
+ifndef VERSION
+VERSION = $(shell cat lib/tsumufs/__init__.py \
+				|grep __version__ \
+				|sed -e 's/.*= (//' -e 's/)//' -e 's/, /./g')
+endif
+
+DIST_FILENAME="tsumufs-$(VERSION).tar.gz"
 
 all: check test
 
@@ -25,8 +37,21 @@ fixspaces:
 
 clean:
 	find -iname \*.pyc -exec rm -f '{}' ';'
+	rm -f $(DIST_FILENAME)
 
 mrclean: clean
 	find -iname \*~ -exec rm -rf '{}' ';' -prune
 
-.PHONY: all test unit-tests functional-tests check fixspaces clean mrclean
+tag:
+	svn cp https://tsumufs.googlecode.com/svn/trunk \
+           https://tsumufs.googlecode.com/svn/tags/$(VERSION) \
+           --username $(SVN_USER)
+
+$(DIST_FILENAME):
+	svn export http://tsumufs.googlecode.com/svn/tags/$(VERSION) /tmp/tsumufs-$(VERSION)
+	tar -C /tmp/tsumufs-$(VERSION) -zcvf $(DIST_FILENAME) .
+	rm -rf /tmp/tsumufs-$(VERSION)
+
+build-dist: $(DIST_FILENAME)
+
+.PHONY: all test unit-tests functional-tests check fixspaces clean mrclean build-dist tag
