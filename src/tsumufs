@@ -25,6 +25,7 @@ class. See that module for more details.
 '''
 
 import os
+import os.path
 import sys
 import syslog
 import traceback
@@ -33,7 +34,9 @@ import fuse
 
 development_mode = True
 if development_mode == True:
-  sys.path.append('../lib')
+  libpath = os.path.abspath(sys.argv[0])
+  libpath = os.path.join(libpath, '../lib')
+  sys.path.append(libpath)
 
 import tsumufs
 
