@@ -30,7 +30,7 @@ functional-tests:
 check:
 	cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
 	$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
-	$(PYCHECKER) -F pycheckerrc $(PY_TESTS)
+	$(PYCHECKER) -F pycheckerrc $(PY_UNIT_TESTS)
 
 fixspaces:
 	sed -i -r 's/^[ ]+$$//' $(PY_MODULES) $(PY_SOURCE) $(PY_TESTS)
