@@ -34,7 +34,7 @@ if __name__ == '__main__':
   xattrs = xattr.xattr(sys.arv[1])
 
   try:
-    if xattrs['in-cache'] == '1':
+    if xattrs['tsumufs.in-cache'] == '1':
       print 'File %s is in the cache.' % sys.argv[1]
     else:
       print 'File %s is NOT in the cache.' % sys.argv[1]

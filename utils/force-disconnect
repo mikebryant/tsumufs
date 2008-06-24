@@ -29,13 +29,13 @@ import xattr
 def findTsumufsRoot():
   '''
   Walk the directory tree until we reach the root of the VFS, or until we've
-  found a directory with the xattr 'force-disconnect'.
+  found a directory with the xattr 'tsumufs.force-disconnect'.
   '''
 
   curdir = os.path.abspath(os.path.curdir)
 
   while curdir != '/':
-    if xattr.xattr(curdir).has_key('force-disconnect'):
+    if xattr.xattr(curdir).has_key('tsumufs.force-disconnect'):
       return curdir
 
     curdir = os.path.abspath(os.path.join(curdir, '..'))
@@ -50,21 +50,21 @@ if __name__ == '__main__':
   name = os.path.basename(sys.argv[0])
 
   if name == 'force-disconnect':
-    if xattrs['force-disconnect'] == '1':
-      xattrs['force-disconnect'] = '0'
+    if xattrs['tsumufs.force-disconnect'] == '1':
+      xattrs['tsumufs.force-disconnect'] = '0'
       print 'Forcing reconnect to NFS.'
     else:
       print 'Already forced reconnection to NFS.'
 
   elif name == 'force-reconnect':
-    if xattrs['force-disconnect'] == '0':
-      xattrs['force-disconnect'] = '1'
+    if xattrs['tsumufs.force-disconnect'] == '0':
+      xattrs['tsumufs.force-disconnect'] = '1'
       print 'Forcing disconnection from NFS.'
     else:
       print 'Already forced disconnection from NFS.'
 
   elif name == 'is-connected':
-    if xattrs['force-disconnect'] == '0':
+    if xattrs['tsumufs.force-disconnect'] == '0':
       if xattrs['connected'] == '1':
         print 'TsumuFS is connected.'
       else:

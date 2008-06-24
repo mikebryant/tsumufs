@@ -271,8 +271,21 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                  'value: %s | size: %d')
                 % (path, name, value, size))
 
+    # TODO: make this get the real xattrs from the file, and allow for setting
+    # other xattrs that aren't ones we control.
+
+    # TODO: make setting read-only tsumufs xattrs return -EOPNOTSUPP.
+
+    # TODO: make this actually change the cached state of the file in question.
+
+    if name == 'tsumufs.in-cache':
+      if value == '0':
+        return
+      elif value == '1':
+        return
+
     if path == '/':
-      if name == 'force-disconnect':
+      if name == 'tsumufs.force-disconnect':
         if value == '0':
           tsumufs.forceDisconnect.clear()
           return
@@ -299,26 +312,30 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: getxattr | path: %s | name: %s | size: %d'
                 % (path, name, size))
 
+    # TODO: make this get the real xattrs from the file, and combine with our
+    # own.
+
     if size == 0:
       # Caller just wants the size of the value. All of our values are either 1
       # or 0 followed by a null, so we return a hardcoded value of 2 here.
       return 2
 
     xattrs = {
-      'in-cache': '0',
-      'dirty': '0'
+      'tsumufs.in-cache': '0',
+      'tsumufs.dirty': '0'
       }
 
     if tsumufs.cacheManager.isCachedToDisk(path):
-      xattrs['in-cache'] = '1'
+      xattrs['tsumufs.in-cache'] = '1'
 
     if tsumufs.cacheManager.cachedFileIsDirty(path):
-      xattrs['dirty'] = '1'
+      xattrs['tsumufs.dirty'] = '1'
 
     if path == '/':
-      xattrs['force-disconnect'] = (tsumufs.forceDisconnect.isSet() and
+      xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
+      xattrs['tsumufs.force-disconnect'] = (tsumufs.forceDisconnect.isSet() and
                                     '1' or '0')
-      xattrs['connected'] = tsumufs.nfsAvailable.isSet() and '1' or '0'
+      xattrs['tsumufs.connected'] = tsumufs.nfsAvailable.isSet() and '1' or '0'
 
     name = name.lower()
 
@@ -340,11 +357,15 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: listxattr | path: %s | size: %d'
                 % (path, size))
 
-    keys = ['in-cache', 'dirty']
+    # TODO: make this get the real xattrs from the file, and combine with our
+    # own.
+
+    keys = ['tsumufs.in-cache', 'tsumufs.dirty']
 
     if path == '/':
-      keys.append('force-disconnect')
-      keys.append('connected')
+      keys.append('tsumufs.force-disconnect')
+      keys.append('tsumufs.connected')
+      keys.append('tsumufs.version')
 
     if size == 0:
       return len(''.join(keys)) + len(keys)
