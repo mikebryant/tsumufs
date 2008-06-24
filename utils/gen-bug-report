@@ -1,0 +1,114 @@
+#!/usr/bin/python2.4
+#
+# Copyright (C) 2008  Google, Inc. All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+'''
+Quick program to gather metrics about a system and assist the user in
+reporting a bug.
+'''
+
+import os
+import os.path
+import sys
+import errno
+import time
+
+
+def findTsumufsVersion():
+  '''
+  Quick method to find the TsumuFS library version number in the source
+  directory.
+  '''
+
+  try:
+    import tsumufs
+  except ImportError:
+    libpath = os.path.abspath(os.path.curdir)
+    libpath = os.path.abspath(os.path.join(libpath, '../lib'))
+    sys.path.append(libpath)
+
+    try:
+      import tsumufs
+    except ImportError:
+      print(('Unable to find TsumuFS library. Are you running this from the '
+             'source tree?'))
+      sys.exit(1)
+
+  return '.'.join(map(str, tsumufs.__version__))
+
+
+def findUname():
+  '''
+  Quick and dirty method to return the uname -a output.
+  '''
+
+  fh = os.popen('/bin/uname -a')
+  result = fh.read().replace('\n', '')
+  fh.close()
+
+  return result
+
+
+def findFusermountVersion():
+  fh = os.popen('/bin/fusermount -V')
+  result = fh.read().replace('\n', '').replace('fusermount version: ', '')
+  fh.close()
+
+  return result
+
+
+def findPythonFuseVersion():
+  '''
+  Quick and dirty method to find the python fuse version.
+  '''
+
+  try:
+    import fuse
+  except ImportError:
+    print('Unable to find the python fuse library. Is it installed?')
+    sys.exit(1)
+
+  if not hasattr(fuse, '__version__'):
+    print(('No version number for your installed copy of the python '
+           'fuse library. TsumuFS needs at least v0.2 to function.\n'
+           'Please install v0.2 at the minimum and try using TsumuFS '
+           'again before reporting a bug.'))
+    sys.exit(1)
+  else:
+    return fuse.__version__
+
+
+if __name__ == '__main__':
+  bug_format = '''---BEGIN-GEN-BUG-REPORT---
+tsumufs-version: %(tsumufs_version)s
+uname: %(uname)s
+python-fuse-version: %(python_fuse_version)s
+fusermount-version: %(fusermount_version)s
+---END-GEN-BUG-REPORT---
+'''
+
+  variables = {
+    'tsumufs_version':     findTsumufsVersion(),
+    'uname':               findUname(),
+    'python_fuse_version': findPythonFuseVersion(),
+    'fusermount_version':  findFusermountVersion()
+    }
+
+  print(bug_format % variables)
+  print('Please paste the above information into the report issue web form at '
+        '<http://code.google.com/p/tsumufs/issues/entry>.')
+  sys.exit(0)

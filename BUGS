@@ -1,0 +1,49 @@
+Reporting Bugs
+==============
+
+If you're interested in helping out with development by testing and
+sending in bug reports, you'll need to do several things.
+
+  - Try running the latest development copy of the code from
+    subversion and see if your issue has been solved there first.
+
+  - Look through the existing issues on
+    <http://code.google.com/p/tsumufs/issues> to see if the bug has
+    already been reported. If so, simply attach your additional
+    information to the end of the bug report.
+
+  - Figure out what it was you expected, and what the actual behavior
+    was.
+
+  - Gather the steps you took to cause the bug, and write them in a
+    clean, concise manner. Without steps, fixing the bug is next to
+    impossible.
+
+  - Run the included utils/gen-bug-report script to generate debug
+    information about your specific system, and include it in the
+    bug report.
+
+  - File the bug at <http://code.google.com/p/tsumufs/issues/entry>.
+
+  - Go grab a can/glass of $BEVERAGE, and enjoy the warm fuzzy feeling
+    you get from participating. =o)
+
+    -or-
+
+    Look into the issue further, find a solution (or workaround),
+    generate a patch in unified diff format against the current
+    development copy in subversion, and attach it to the bug. =o)
+
+Please be aware that bug reports that essentially boil down to "it
+doesn't work" without any supporting evidence or information about how
+to reproduce the issue will be immediately closed and not even looked
+at in any detail.
+
+Please understand that this is not done in arrogance or anger -- these
+kinds of bug reports don't help the development process, and the
+developers don't generally have enough time to walk users through the
+process of submitting a good bug report.
+
+In general, the rule of thumb for bug reports is that if you take time
+to submit a well written bug, the developers will be more inclined to
+take time to see about fixing it.
