@@ -15,7 +15,7 @@ VERSION = $(shell cat lib/tsumufs/__init__.py \
 				|sed -e 's/.*= (//' -e 's/)//' -e 's/, /./g')
 endif
 
-DIST_FILENAME="tsumufs-$(VERSION).tar.gz"
+DIST_FILENAME := tsumufs-$(VERSION).tar.gz
 
 all: check test
 
