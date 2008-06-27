@@ -1,0 +1,158 @@
+YouTube -- 480x320
+recorded at 960x640
+
+* Initial opening
+
+** Show the TsumuFS logo
+
+"As you may know, TsumuFS is a disconnected caching layer on top of
+NFS for *NIX systems. Ultimately, the goal of TsumuFS is to allow
+users to continue working on the data in their home directories even
+when away from the backend NFS server.
+
+This movie is a quick demonstration of TsumuFS's cababilities at
+present, and demos the 0.9 development version."
+
+** Cut to the xterm with split screen session running.
+   - The topmost window contains a prompt at $_PROJECT_DIR/src.
+   - The bottom window seems empty, but is actually already running
+     'clear; sudo tail -f /var/log/messages |grep --color "tsumufs(jtgans)"'
+
+
+* Starting the file system
+
+"Since TsumuFS is still in the early stages of development, we'll use
+the provided testing shell script to start the filesystem. Ordinarily,
+the filesystem would start upon login via automount or some other
+mechanism. Note that I have manually set my NFSHOME and NFSOPTS
+environment variables beforehand."
+
+** Start the filesystem: issue the '../utils/test tmp' command.
+
+"Once the test script has started, you can see in the lower-half of
+the xterm tsumufs logging what it's doing like mad. In production,
+obviously, this excessive amount of logging isn't needed, but for this
+demo, we'll leave it on."
+
+
+* Show the NFS passthrough and simple caching
+
+** Issue an 'ls'
+
+"As you can see, all of the standard filesystem system calls have been
+implemented and, for the most part, pass through to NFS when
+appropriate."
+
+** Issue another 'ls'
+
+"In this case, TsumuFS is doing some additional caching of
+the stat results and the readdir() calls to help make the most common
+system calls happen faster."
+
+** Tab complete 'hello-again.txt'
+
+"Note that this cached data is not stored to disk, but is instead
+stored in a memory cache that is wiped after TsumuFS unmounts."
+
+
+* Show extended attributes
+
+** Issue a 'in-cache example.txt'
+
+"The TsumuFS source code comes with some additional shortcut commands
+to determine file state and control the state of the filesystem
+overall. One such command is in-cache. These commands are really just
+shortcuts to the extended attributes TsumuFS provides."
+
+** Issue an 'xattr example.txt'
+
+** Issue an 'xattr example.txt in-cache'
+
+** Issue an 'xattr .'
+
+** Issue an 'xattr . connected'
+
+"For brevity, we'll use these shortcut commands instead of the xattr
+command from here on out."
+
+
+* Show real caching behavior
+
+"By default, TsumuFS will only cache a file that you've "touched",
+where touch means open, read, or write. For instance, if we cat
+example.txt, TsumuFS will copy the file to the cache and all
+subsequent reads will happen directly there first."
+
+** Issue an 'in-cache example.txt'
+
+** Issue an 'cache example.txt'
+
+** Issue an 'in-cache example.txt'
+
+"Since the cache is actually just a directory in the normal VFS layer,
+we can easily see that the file is, in fact, cached to disk by looking
+in $CACHEDIR."
+
+** Issue an 'ls $CACHEDIR'
+
+
+* Show disconnected support
+
+"Obviously this is only one half of the puzzle. We also need to allow
+users to access the cache if they lose connectivity to the NFS
+server. To simulate this, we can force TsumuFS to go into the
+disconnected state."
+
+** Issue a 'force-disconnect'
+
+"As you can see in the logs, TsumuFS is now no longer speaking to
+NFS. Yet, when we do this:"
+
+** Issue an 'ls'
+
+"We get the contents of the on-disk cache. In fact, we can even cat
+the same file we cached earlier."
+
+** Issue a 'cat example.txt'
+
+
+* Show writeback support
+
+"So what about writing? At the moment, TsumuFS does not sync local
+changes back to the NFS server, but it does preserve any changes made
+to the cache, thus marking a file as "dirty"."
+
+** Issue a 'echo Second example >>example.txt'
+
+"And if we cat the file:"
+
+** Issue a 'cat example.txt'
+
+"Yet, on NFS, the contents of the file are still the same."
+
+** Issue a 'force-reconnect'
+
+** Issue a 'cat $NFSDIR/example.txt'
+
+"Even creating new files works. As you can see, the hello-world.txt
+file does not exist yet"
+
+** Issue a 'ls hello-world.txt'
+
+"But we can create it..."
+
+** Issue a 'echo Hello, world >hello-world.txt'
+
+** Issue a 'cat hello-world.txt'
+
+"...but it still doesn't exist on NFS yet."
+
+** Issue a 'ls $NFSDIR/hello-world.txt'
+
+
+* Conclusion
+
+"TsumuFS also handles cases with special files such as fifos, sockets,
+devices, and so on, but for brevity we'll exclude those from this
+demo. If you'd like more information, please visit the project's
+website, at tsumufs.googlecode.com. Thanks for watching."
