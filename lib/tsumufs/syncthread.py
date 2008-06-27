@@ -122,7 +122,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
           try:
             # Verify that what the synclog contains is actually what is on
-            # the filer.
+            # the file server.
 
             for change in item.preChangeContents():
               if tsumufs.nfsMount.getFileRegion(item.filename,
