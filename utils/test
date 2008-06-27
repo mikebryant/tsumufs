@@ -39,7 +39,7 @@ if [ "$?" == "0" ]; then
 	pushd "$MOUNTPOINT" >/dev/null
 	OLDPATH="$PATH"
 	export PATH="$PATH:../../utils"
-	PS1=$'\e[m\e[31m[TSUMUFS]\e[m \h:\w\$ ' bash -norc
+	PS1=$'\[\e[m\e[1;31m\][TSUMUFS]\[\e[0m\] \h:\w\$ ' bash -norc
 	export PATH="$OLDPATH"
 	popd >/dev/null
 
