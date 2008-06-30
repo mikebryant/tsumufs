@@ -4,21 +4,25 @@
 #+STARTUP: showall
 #+STARTUP: hidestars
 
-* [1/15] v1.0 - Prototype FUSE+Python version
+* [7/18] v1.0 - Prototype FUSE+Python version
   - [ ] Feature parity in terms of syscalls to NFS.
     - [X] Initial NFS passthrough.
-    - [ ] Re-routing of syscalls to the NFSMount object.
+    - [ ] Re-routing of syscalls to the NFSMount and CacheManager objects.
 
   - [ ] Prototypical NFS sanity checking and disconnect/reconnect
         notification.
-    - [ ] NFSMount syscall behavior changing based upon the status of
+    - [X] NFSMount syscall behavior changing based upon the status of
           the NFS backend connection
     - [ ] NFSMount syscall failures triggering a remount.
 
   - [ ] Prototypical caching operation
-    - [ ] Reads cause caching of files to disk. No quota checking.
-    - [ ] No reading or writing of cachespec files yet. Use hardcoded
+    - [X] Reads cause caching of files to disk. No quota checking.
+    - [X] No reading or writing of cachespec files yet. Use hardcoded
           values.
+
+  - [X] Prototypical write functionality
+    - [X] Writes stored in cache directly.
+    - [X] File 'dirtiness' checks.
 
   - [ ] Prototypical synclog operation
     - [ ] Writes going to the synclog and cache directly
