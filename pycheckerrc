@@ -193,7 +193,7 @@ maxLines = 200
 maxBranches = 50
 
 # maximum returns in a function
-maxReturns = 10
+maxReturns = 12
 
 # maximum # of arguments to a function
 maxArgs = 10
