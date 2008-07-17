@@ -1,0 +1,19 @@
+#!/bin/bash
+
+if [ "$NFSHOME" == "" ]; then
+	echo "Set NFSHOME and NFSOPTS before running this command."
+	exit 1
+fi
+
+cmdline="src/tsumufs -d"
+[ "$NFSOPTS" != "" ] && cmdline="$cmdline -O $NFSOPTS"
+cmdline="$cmdline $NFSHOME test"
+
+eval $cmdline
+
+if [ "$?" != "0" ]; then
+    echo "Unable to setup test environment."
+    exit 1
+fi
+
+exit 0

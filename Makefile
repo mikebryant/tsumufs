@@ -1,7 +1,8 @@
 PY_MODULES    := $(wildcard lib/tsumufs/*.py)
 PY_SOURCE     := $(wildcard src/*.py)
 PY_UNIT_TESTS := $(wildcard tests/unit/*_test.py)
-PY_FUNC_TESTS := $(wildcard tests/functional/*_test.sh)
+FUNC_TEST_SRC := $(wildcard tests/functional/*.c)
+FUNC_TESTS    := $(shell echo $(FUNC_TEST_SRC) |sed -e 's/\.c//g')
 
 PYCHECKER := /usr/bin/pychecker
 
@@ -25,7 +26,17 @@ unit-tests:
 	PYTHONPATH="./lib" python $(PY_UNIT_TESTS)
 
 # TODO: Make these exist and idempotent.
-functional-tests:
+functional-tests: $(FUNC_TESTS)
+	-mkdir test
+	for test in $(FUNC_TESTS); do     \
+		echo --- $$test;              \
+		utils/func_setup || break;    \
+		$$test || break;              \
+		utils/func_teardown || break; \
+		echo ok;                      \
+	done
+	utils/func_teardown
+	rmdir test
 
 check:
 	cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
@@ -38,6 +49,7 @@ fixspaces:
 clean:
 	find -iname \*.pyc -exec rm -f '{}' ';'
 	rm -f $(DIST_FILENAME)
+	rm -f $(FUNC_TESTS)
 
 mrclean: clean
 	find -iname \*~ -exec rm -rf '{}' ';' -prune
