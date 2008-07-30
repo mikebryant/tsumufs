@@ -20,13 +20,9 @@
 '''Mock os module.'''
 
 import os
-import sys
 import time
 import errno
 import posixpath
-
-sys.path.append('../lib')
-sys.path.append('lib')
 
 
 ###############################################################################
@@ -46,7 +42,7 @@ class FakeFile(object):
 
   parent  = None
 
-  def __init__(name, mode=0644, uid=0, gid=0,
+  def __init__(self, name, mode=0644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
@@ -66,22 +62,22 @@ class FakeFile(object):
       self.parent.linkChild(self.name, self)
 
 
-class FakeDir(File):
-  def __init__(name, mode=0644, uid=0, gid=0,
+class FakeDir(FakeFile):
+  def __init__(self, name, mode=0644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
                parent=None):
-    File.__init__(name, mode, uid, gid, mtime, atime, ctime, parent)
+    FakeFile.__init__(self, name, mode, uid, gid, mtime, atime, ctime, parent)
 
     self.data = {}
 
   def linkChild(self, name, child):
-    child.refcount++
+    child.refcount += 1
     self.data[name] = child
 
   def unlinkChild(self, name):
-    self.data[name].refcount--
+    self.data[name].refcount -= 1
     del self.data[name]
 
   def getChildren(self):
@@ -91,14 +87,14 @@ class FakeDir(File):
     return self.data[name]
 
 
-class FakeSymlink(File):
-  def __init__(name, path,
+class FakeSymlink(FakeFile):
+  def __init__(self, name, path,
                mode=0644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
                parent=None):
-    File.__init__(name, mode, uid, gid, mtime, atime, ctime, parent)
+    FakeFile.__init__(self, name, mode, uid, gid, mtime, atime, ctime, parent)
 
     self.data = path
 
@@ -110,14 +106,14 @@ class FakeSymlink(File):
       return self.dereference().__getattr__(name)
 
 
-class FakeSpecial(File):
-  def __init__(name, type, major, minor,
+class FakeSpecial(FakeFile):
+  def __init__(self, name, type, major, minor,
                mode=0644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
                parent=None):
-    File.__init__(name, mode, uid, gid, mtime, atime, ctime, parent)
+    FakeFile.__init__(self, name, mode, uid, gid, mtime, atime, ctime, parent)
 
     self.data = {
       'type': type,
@@ -201,7 +197,7 @@ def chown(path, uid, gid):
 def close(fd):
   pass
 
-def fdopen(fd, mode='r', bufsize):
+def fdopen(fd, mode='r', bufsize=None):
   file = _findFileFromPath(path)
 
 def ftruncate(fd, length):
@@ -266,7 +262,7 @@ def mkdir(path, mode=0777):
 
   dir.linkFile(filename, FakeDir(filename, mode=mode))
 
-def mknod(filename, mode=0600, device):
+def mknod(filename, mode=0600, device=None):
   filename = posixpath.basename(path)
   dirname  = posixpath.dirname(path)
   dir      = _findFileFromPath(dirname)
@@ -371,36 +367,3 @@ def utime(path, atime=None, mtime=None):
   else:
     file.atime = time.time()
     file.mtime = time.time()
-
-
-###############################################################################
-# os.path methods
-
-def path_dirname(path):
-  return posixpath.dirname(path)
-
-def path_basename(path):
-  return posixpath.basename(path)
-
-def path_isfile(path):
-  file = _findFileFromPath(path)
-  return isinstance(file, FakeFile)
-
-def path_islink(path):
-  file = _findFileFromPath(path)
-  return isinstance(file, FakeSymlink)
-
-def path_isdir(path):
-  file = _findFileFromPath(path)
-  return isinstance(file, FakeDir)
-
-def path_join(path, *parts):
-  return posixpath.join(path, *parts)
-
-
-import path_dirname  as os.path.dirname
-import path_basename as os.path.basename
-import path_isfile   as os.path.isFile
-import path_islink   as os.path.isLink
-import path_isdir    as os.path.isDir
-import path_join     as os.path.join
