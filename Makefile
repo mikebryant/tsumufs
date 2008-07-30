@@ -23,7 +23,9 @@ all: check test
 test: unit-tests functional-tests
 
 unit-tests:
-	PYTHONPATH="./lib" python $(PY_UNIT_TESTS)
+	for i in $(PY_UNIT_TESTS); do \
+		PYTHONPATH="./lib" python $$i || break; \
+	done
 
 # TODO: Make these exist and idempotent.
 functional-tests: $(FUNC_TESTS)
