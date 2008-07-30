@@ -4,7 +4,9 @@ PY_UNIT_TESTS := $(wildcard tests/unit/*_test.py)
 FUNC_TEST_SRC := $(wildcard tests/functional/*.c)
 FUNC_TESTS    := $(shell echo $(FUNC_TEST_SRC) |sed -e 's/\.c//g')
 
-PYCHECKER := /usr/bin/pychecker
+ifndef PYCHECKER
+PYCHECKER = /usr/bin/pychecker
+endif
 
 ifndef SVN_USER
 SVN_USER = $(shell echo $$USER)
