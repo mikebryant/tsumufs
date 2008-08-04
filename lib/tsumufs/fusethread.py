@@ -144,23 +144,28 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     # Add in the named options we care about.
     self.parser.add_option(mountopt='nfsbasedir',
+                           dest='nfsBaseDir',
                            default='/var/lib/tsumufs/nfs',
                            help=('Set the NFS mount base directory [default: '
                                  '%default]'))
     self.parser.add_option(mountopt='nfsmountpoint',
+                           dest='nfsMountPoint',
                            default=None,
                            help=('Set the directory name of the nfs mount '
                                  'point [default: calculated based upon the '
                                  'source]'))
     self.parser.add_option(mountopt='cachebasedir',
+                           dest='cacheBaseDir',
                            default='/var/cache/tsumufs',
                            help=('Set the base directory for cache storage '
                                  '[default: %default]'))
     self.parser.add_option(mountopt='cachespecdir',
+                           dest='cacheSpecDir',
                            default='/var/lib/tsumufs/cachespec',
                            help=('Set the base directory for cachespec '
                                  'storage [default: %default]'))
     self.parser.add_option(mountopt='cachepoint',
+                           dest='cachePoint',
                            default=None,
                            help=('Set the directory name for cache storage '
                                  '[default: calculated]'))
@@ -220,11 +225,17 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     # Shove the proper mountPoint into FUSE's mouth.
     self.fuse_args.mountpoint = tsumufs.mountPoint
 
-    # Finally, calculate the runtime paths.
-    tsumufs.nfsMountPoint = (tsumufs.nfsBaseDir + '/' +
-                             tsumufs.mountPoint.replace('/', '-'))
-    tsumufs.cachePoint = (tsumufs.cacheBaseDir + '/' +
-                          tsumufs.mountPoint.replace('/', '-'))
+    self._debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
+    self._debug('cachePoint is %s' % tsumufs.cachePoint)
+
+    # Finally, calculate the runtime paths if they weren't specified already.
+    if tsumufs.nfsMountPoint == None:
+      tsumufs.nfsMountPoint = (tsumufs.nfsBaseDir + '/' +
+                               tsumufs.mountPoint.replace('/', '-'))
+
+    if tsumufs.cachePoint == None:
+      tsumufs.cachePoint = (tsumufs.cacheBaseDir + '/' +
+                            tsumufs.mountPoint.replace('/', '-'))
 
     self._debug('mountPoint is %s' % tsumufs.mountPoint)
     self._debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
