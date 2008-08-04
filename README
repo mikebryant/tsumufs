@@ -11,12 +11,12 @@ TsumuFS requires the following:
   - python-fuse (version 0.2 at the least)
   - python 2.4
 
-TsumuFS's utils require the following:
+TsumuFS's attached xattr utility script requires the following:
   - python-xattr  
 
 
-Testing Notes
--------------
+Setup Notes
+-----------
 
 To actually get tsumufs to test properly with FUSE, you have to add
 the a bit of code similar to the following to /etc/sudoers via visudo:
@@ -26,18 +26,81 @@ the a bit of code similar to the following to /etc/sudoers via visudo:
 
 Replace $HOSTNAME with the FQDN of your machine, or ALL if you don't
 care specifically about machine security. Once this is added, add
-yourself to the fuse group and you should be able to run tsumufs
-without issues.
+yourself to the fuse group (and logout) and you should be able to run
+tsumufs without issues.
 
-Currently this is horribly insecure, but we know of no other secure
-way to get the prototype the root privileges to mount another
-filesystem.
+Currently this is insecure (users who are already members of the fuse
+group, however, can do much the same thing already), but we know of no
+other secure way to get the prototype the root privileges to mount
+another filesystem. Suggestions are more than welcome. =o)
 
-We've provided two additional scripts in the 'utils' directory, one
-called `test' and the other called `xattr'.
 
-test allows you to easily start the test environment. Simply set
-the environmental variable NFSHOME to the path you give the mount
-command as the source, and NFSOPTS to whatever NFS options you usually
-give to mount. Provide the destination mount point on the command line
-and you should be set.
+Testing Notes
+-------------
+
+To actually start a test run, set your NFSHOME and NFSOPTS (used only
+if you need to pass additional options to mount for NFS) environment
+variables and in the root of the source tree run `make test-run'. For
+example:
+
+  foo:~/tsumufs$ export NFSHOME='bar:/home/zorbo'
+  foo:~/tsumufs$ export NFSOPTS='sec=krb5'
+  foo:~/tsumufs$ make test-run
+
+  # ...
+  # ... output from make goes here ...
+  # ...
+
+  [TSUMUFS] foo:/tmp/tsumufs-test$ _
+
+The `test-run' target sets up the environment, mounts tsumufs on a
+newly created directory in /tmp and starts a sub-shell where manual
+tests can be performed. Note that the target exports some useful
+variables as well. See the Makefile test-run target for more
+information on they are. To stop testing and unmount tsumufs, simply
+exit the subshell and make will clean up after itself.
+
+Note that the `test', `test-units', and `test-functionals' targets
+will also require these variables to be set (NFSOPTS is optional,
+however) to run.
+
+WARNING: While the functional tests have been designed to cause little
+to no damage to an existing NFS mount, beware that they actually /do/
+modify the filesystem, so it would be ideal to setup an NFS export for
+testing that contains no data, or data you have no fear of losing.
+
+
+Additional Information
+----------------------
+
+We've provided several scripts in the utils directory to help with
+testing. Currently these are:
+
+  - force-disconnect
+  - force-reconnect
+  - is-connected
+  - in-cache
+  - is-dirty
+
+Most of these are simple scripts that simply call out to xattr to
+determine the state of the underlying files, or alter TsumuFS's
+internal state. Specifically, force-{dis,re}connect simply flip the
+tsumufs.force-disconnect xattr in the root of the mounted tree (while
+is-connected simply reads the value). Unfortunately, as it is next to
+impossible to determine where the root of the mount is in the VFS, so
+these scripts only check the current directory.
+
+in-cache and is-dirty do much the same as is-connected, except work on
+individual files that you specify on the command line.
+
+The other two scripts in the utils directory are gen-bug-report and
+xattr.
+
+xattr is a quick hacked up python script to manipulate and read the
+extended attributes that TsumuFS exports on the files it makes
+visible. It currently requires python-xattr to be installed to
+function.
+
+gen-bug-report gathers a bunch of information about your system
+for inclusion in bug reports and prints it out to stdout. See the file
+BUGS for more information.
