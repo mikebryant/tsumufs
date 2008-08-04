@@ -12,5 +12,6 @@ Please use the following coding style guide:
   - Tabs and indents are two (2) spaces, no tabs whatsoever.
   - Private methods and vars are prefixed with an underscore.
   - Methods are written in camelCaseLikeThis.
+  - Classes are written in PrefixCamelCaseLikeThis.
 
 With that said, happy hacking!
