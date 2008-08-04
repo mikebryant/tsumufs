@@ -72,14 +72,24 @@ functional-tests: $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 		exit 1; \
 	fi
 
-	for test in $(FUNC_TESTS); do     \
-		echo --- $$test;              \
+	for test in $(FUNC_TESTS); do      \
+		echo --- $$test;               \
 		src/tsumufs -d -O $(NFSOPTS) $(NFSHOME) $(TEST_DIR); \
-		$$test || break;              \
-		fusermount -u $(TEST_DIR);    \
-		echo ok;                      \
-		rm -rf $(TEST_CACHE_DIR)/*;   \
+		OLDCWD=$$(pwd);                \
+		cd $(TEST_DIR);                \
+		if ! $$OLDCWD/$$test; then     \
+			cd $$OLDCWD;               \
+			fusermount -u $(TEST_DIR); \
+			echo "!!! $$test Failed."; \
+			exit 1;                    \
+		fi;                            \
+		cd $$OLDCWD                    \
+		fusermount -u $(TEST_DIR);     \
+		echo ok;                       \
+		rm -rf $(TEST_CACHE_DIR)/*;    \
 	done
+
+	-fusermount -u $(TEST_DIR)
 
 force-shutdown:
 	-fusermount -u $(TEST_DIR)
