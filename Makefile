@@ -52,11 +52,13 @@ test-run: clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 		-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
 		$(NFSHOME) $(TEST_DIR)
 
+	cd $(TEST_DIR);             \
 	CACHE_DIR=$(TEST_CACHE_DIR) \
 	NFS_DIR=$(TEST_NFS_DIR)     \
 	TEST_DIR=$(TEST_DIR)        \
 	PS1='\[\e[m\e[1;31m\][TSUMUFS]\[\e[0m\] \h:\w\$$ ' \
-	bash -norc
+	bash -norc;                 \
+	cd $(OLD_PWD)
 
 	fusermount -u $(TEST_DIR)
 
@@ -82,7 +84,7 @@ $(TEST_NFS_DIR):
 	chown $(USER):$(shell id -g) $(TEST_CACHE_DIR)
 
 # TODO: Make these exist and idempotent.
-functional-tests: $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
+functional-tests: clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 	if [ -z $(NFSHOME) ] || [ -z $(NFSOPTS) ]; then \
 		echo "Set NFSHOME and NFSOPTS before running this target."; \
 		exit 1; \
