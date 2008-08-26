@@ -38,7 +38,8 @@ class InstanceCheck(unittest.TestCase):
 
   def testRegionLengthError(self):
     self.assertRaises(dataregion.RegionLengthError,
-                      dataregion.DataRegion(0, 1, self.testData))
+                      dataregion.DataRegion,
+                      0, 1, self.testData)
 
 
 class OverlapCheck(unittest.TestCase):
