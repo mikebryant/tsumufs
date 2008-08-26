@@ -15,6 +15,7 @@
 # 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 
 PY_MODULES     := $(wildcard lib/tsumufs/*.py)
+PY_OS_MOCKS    := $(wildcard lib/*.py)
 PY_SOURCE      := $(wildcard src/*.py)
 PY_UNIT_TESTS  := $(wildcard tests/unit/*_test.py)
 FUNC_TEST_SRC  := $(wildcard tests/functional/*.c)
@@ -117,9 +118,10 @@ force-shutdown:
 	-[ "$(PID)" != "" ] && kill -KILL $(PID)
 
 check:
-	cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
-	$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
-	$(PYCHECKER) -F pycheckerrc $(PY_UNIT_TESTS)
+	-cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
+	-$(PYCHECKER) -F pycheckerrc $(PY_OS_MOCKS)
+	-$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
+	-$(PYCHECKER) -F pycheckerrc $(PY_UNIT_TESTS)
 
 fixspaces:
 	sed -i -r 's/^[ ]+$$//' $(PY_MODULES) $(PY_SOURCE) $(PY_TESTS)
