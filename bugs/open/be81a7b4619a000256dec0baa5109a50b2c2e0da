@@ -1,0 +1,14 @@
+!bug
+assignee: null
+cc: null
+description: !!python/unicode "Essentially, do this:\n\n  $ make test\n  $ make test\n\
+  \nThe first make test will fail, leaving tsumufs mounted. The second test will\n\
+  issue a clean on the mounted tsumufs filesystem."
+duplicate: null
+priority: major
+reporter: !emailaddress '"June Tate-Gans" <jtgans@jtgans-nx.mtv.corp.google.com>'
+summary: test target can sometimes issue an rm -rf on a mounted tsumufs volume without
+  unmounting first
+tags: build-system
+version: null
+worklog: []
