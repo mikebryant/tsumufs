@@ -44,7 +44,7 @@ class AccessTest(unittest.TestCase):
     ]
 
   def setUp(self):
-    os_mock._filesystem = FakeDir('')
+    os_mock._filesystem = os_mock.FakeDir('')
     os_mock._cwd = '/'
     os_mock._euid = 0
     os_mock._egid = 0
@@ -59,14 +59,15 @@ class AccessTest(unittest.TestCase):
 
 class ChmodTest(unittest.TestCase):
   def setUp(self):
-    os_mock._filesystem = FakeDir('')
+    os_mock._filesystem = os_mock.FakeDir('')
     os_mock._cwd = '/'
     os_mock._euid = 0
     os_mock._egid = 0
     os_mock._egroups = [0]
 
   def testEnoent(self):
-    os_mock.chmod
+    #os_mock.chmod
+    pass
 
 class ChownTest(unittest.TestCase):
   def setUp(self):

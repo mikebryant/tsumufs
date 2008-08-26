@@ -55,15 +55,15 @@ class BasenameTest(unittest.TestCase):
 
 class IsfileTest(unittest.TestCase):
   def setUp(self):
-    os_mock._filesystem = FakeDir('')
+    os_mock._filesystem = os_mock.FakeDir('')
 
-    file = os_mock._filesystem.FakeFile('file')
+    f    = os_mock._filesystem.FakeFile('file')
     link = os_mock._filesystem.FakeSymlink('link', '/file')
-    dir  = os_mock._filesystem.FakeDir('dir')
+    d    = os_mock._filesystem.FakeDir('dir')
 
-    os_mock._filesystem.linkChild('file', file)
+    os_mock._filesystem.linkChild('file', f)
     os_mock._filesystem.linkChild('link', link)
-    os_mock._filesystem.linkChild('dir',  dir)
+    os_mock._filesystem.linkChild('dir',  d)
 
   def testIsFile(self):
     self.assertEqual(True, os_path_mock.isfile('/file'))

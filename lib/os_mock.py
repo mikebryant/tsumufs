@@ -105,6 +105,8 @@ class FakeSymlink(FakeFile):
     if name in ('mode', 'mtime', 'atime', 'ctime', 'refcount'):
       return self.dereference().__getattr__(name)
 
+    raise NameError()
+
 
 class FakeSpecial(FakeFile):
   def __init__(self, name, type, major, minor,
@@ -129,6 +131,10 @@ _egid = 0
 _egroups = [0]
 
 
+def _canExecute(dir):
+  pass
+
+
 def _makeAbsPath(path):
   if not posixpath.isabs(path):
     path = posixpath.join(_cwd, path)
@@ -144,18 +150,18 @@ def _findFileFromPath(path, follow_symlinks=True):
       cwd = _filesystem
 
     elif not isinstance(cwd, FakeDir):
-      raise OSError('', errno.ENOTDIR)
+      raise OSError(errno.ENOTDIR, 'Not a directory' % path)
 
     elif element in cwd.getChildren():
       cwd = cwd.getChild(element)
 
       if not _canExecute(cwd.getChild(element)):
-        raise OSError('', errno.EPERM)
+        raise OSError(errno.EPERM, 'Permission denied')
 
       if isinstance(cwd, FakeSymlink):
         cwd = cwd.dereference()
     else:
-      raise OSError('', errno.ENOENT)
+      raise OSError(errno.ENOENT, 'File not found')
 
   if isinstance(cwd, FakeSymlink):
     if follow_symlinks:
@@ -168,124 +174,129 @@ def _findFileFromPath(path, follow_symlinks=True):
 # os methods
 
 def access(path, mode):
-  file  = _findFileFromPath(path)
-  other = file.mode & 7
-  group = (file.mode >> 4) & 7
-  user  = (file.mode >> 8) & 7
+  f     = _findFileFromPath(path)
+  other = f.mode & 7
+  group = (f.mode >> 4) & 7
+  user  = (f.mode >> 8) & 7
 
   bits_to_check = other
 
-  if file.uid == _euid:
+  if f.uid == _euid:
     bits_to_check |= user
 
-  if file.gid in _egroups:
+  if f.gid in _egroups:
     bits_to_check |= group
 
   if bits_to_check & mode:
     return True
 
-  raise OSError('', errno.EPERM)
+  raise OSError(errno.EPERM, '')
 
 def chmod(path, mode):
-  file = _findFileFromPath(path)
+  f = _findFileFromPath(path)
 
 def chown(path, uid, gid):
-  file = _findFileFromPath(path)
-  file.uid = uid
-  file.gid = gid
+  f = _findFileFromPath(path)
+  f.uid = uid
+  f.gid = gid
 
 def close(fd):
   pass
 
 def fdopen(fd, mode='r', bufsize=None):
-  file = _findFileFromPath(path)
+  # f = _findFileFromPath(fd)
+  pass
 
 def ftruncate(fd, length):
-  file = _findFileFromPath(path)
+#   f = _findFileFromPath(path)
 
-  if not isinstance(file, FakeFile):
-    raise OSError('', errno.EINVAL)
+#   if not isinstance(f, FakeFile):
+#     raise OSError(errno.EINVAL, '')
 
-  file.data = file.data[0:length]
+#   f.data = f.data[0:length]
+  pass
 
 def getcwd():
   return _cwd
 
 def lchown(path, uid, gid):
-  file = _findFileFromPath(path, follow_symlinks=False)
-  file.uid = uid
-  file.gid = gid
+  f = _findFileFromPath(path, follow_symlinks=False)
+  f.uid = uid
+  f.gid = gid
 
 def link(src, dst):
-  srcfile = _findFileFromPath(path)
+  srcfile = _findFileFromPath(src)
 
   if isinstance(srcfile, FakeDir):
-    raise OSError('', errno.EINVAL)
+    raise OSError(errno.EINVAL, '')
 
   try:
-    dstfile = _findFileFromPath(path)
+    dstfile = _findFileFromPath(dst)
 
     if isinstance(dstfile, FakeDir):
       dstfile.linkChild(srcfile.name, srcfile)
     else:
-      raise OSError('', errno.ENOTDIR)
+      raise OSError(errno.ENOTDIR, '')
 
   except OSError, e:
     if e.errno == errno.ENOENT:
       dstfile = _findFileFromPath(posixpath.dirname(dst))
 
 def listdir(path):
-  file = _findFileFromPath(path)
+  f = _findFileFromPath(path)
 
-  if not isinstance(file, FakeDir):
-    raise OSError('', errno.ENODIR)
+  if not isinstance(f, FakeDir):
+    raise OSError(errno.ENOTDIR, '')
 
-  return file.getChildren()
+  return f.getChildren()
 
 def lstat(path):
-  file = _findFileFromPath(path)
-  return file.getStat()
+  f = _findFileFromPath(path)
+  return f.getStat()
 
 def mkdir(path, mode=0777):
   filename = posixpath.basename(path)
   dirname  = posixpath.dirname(path)
-  dir      = _findFileFromPath(dirname)
+  f        = _findFileFromPath(dirname)
 
-  if not access(path, mode):
-    raise OSError('', errno.EPERM)
+  try:
+    access(path, mode)
+  except OSError, e:
+    if e.errno != errno.ENOENT:
+      raise
 
-  if not isinstance(file, FakeDir):
-    raise OSError('', errno.ENOTDIR)
+  if not isinstance(f, FakeDir):
+    raise OSError(errno.ENOTDIR, '')
 
-  if file.name() in file.getChildren():
-    raise OSError('', errno.EEXIST)
+  if f.name in f.getChildren():
+    raise OSError(errno.EEXIST, '')
 
-  dir.linkFile(filename, FakeDir(filename, mode=mode))
+  f.linkChild(filename, FakeDir(filename, mode=mode))
 
-def mknod(filename, mode=0600, device=None):
+def mknod(path, mode=0600, device=None):
   filename = posixpath.basename(path)
   dirname  = posixpath.dirname(path)
-  dir      = _findFileFromPath(dirname)
+  f        = _findFileFromPath(dirname)
 
   if not access(path, mode):
-    raise OSError('', errno.EPERM)
+    raise OSError(errno.EPERM, '')
 
-  if not isinstance(file, FakeDir):
-    raise OSError('', errno.ENOTDIR)
+  if not isinstance(f, FakeDir):
+    raise OSError(errno.ENOTDIR, '')
 
-  if file.name() in file.getChildren():
-    raise OSError('', errno.EEXIST)
+  if f.name in f.getChildren():
+    raise OSError(errno.EEXIST, '')
 
 def open(filename, flag, mode=0777):
   pass
 
 def readlink(path):
-  file = _findFileFromPath(path)
+  f = _findFileFromPath(path)
 
-  if not isinstance(file, FakeSymlink):
-    raise OSError('', errno.EINVAL)
+  if not isinstance(f, FakeSymlink):
+    raise OSError(errno.EINVAL, '')
 
-  return file.data
+  return f.data
 
 def rename(old, new):
   old = _makeAbsPath(old)
@@ -307,28 +318,28 @@ def rename(old, new):
       newname = posixpath.basename(old)
 
   if not isinstance(newdir, FakeDir):
-    raise OSError('', errno.ENOTDIR)
+    raise OSError(errno.ENOTDIR, '')
 
   if newdir.getChildren(newname):
-    raise OSError('', errno.EEXIST)
+    raise OSError(errno.EEXIST, '')
 
-  oldfile.parent.unlinkFile(oldfile.name)
-  newdir.linkFile(newname, oldfile)
+  oldfile.parent.unlinkChild(oldfile.name)
+  newdir.linkChild(newname, oldfile)
 
 def rmdir(path):
-  file = _findFileFromPath(path)
+  f = _findFileFromPath(path)
 
-  if not isinstance(file, FakeDir):
-    raise OSError('', errno.ENOTDIR)
+  if not isinstance(f, FakeDir):
+    raise OSError(errno.ENOTDIR, '')
 
-  if not len(file.getChildren()) == 0:
-    raise OSError('', errno.ENOTEMPTY)
+  if not len(f.getChildren()) == 0:
+    raise OSError(errno.ENOTEMPTY, '')
 
-  file.parent.unlinkFile(file.name)
+  f.parent.unlinkChild(f.name)
 
 def stat(path):
-  file = _findFileFrompath(path)
-  return file.genStat()
+  f = _findFileFromPath(path)
+  return f.genStat()
 
 def statvfs(path):
   pass
@@ -339,31 +350,31 @@ def strerror(code):
 def symlink(src, dst):
   filename = posixpath.basename(dst)
   dirname = posixpath.dirname(dst)
-  dir = _findFileFrompath(dirname)
+  f = _findFileFromPath(dirname)
 
-  if not isinstance(file, FakeDir):
-    raise OSError('', errno.ENOTDIR)
+  if not isinstance(f, FakeDir):
+    raise OSError(errno.ENOTDIR, '')
 
-  dir.linkFile(filename, FakeSymlink(filename, src))
+  f.linkChild(filename, FakeSymlink(filename, src))
 
 def system(command):
   return os.system(command)
 
 def unlink(path):
-  file = _findFileFromPath(path)
+  f = _findFileFromPath(path)
 
-  if isinstance(file, FakeDir):
-    raise OSError('', errno.EISDIR)
+  if isinstance(f, FakeDir):
+    raise OSError(errno.EISDIR, '')
 
-  file.parent.unlinkFile(file.name)
+  f.parent.unlinkChild(f.name)
 
 def utime(path, atime=None, mtime=None):
-  file = _findFileFromPath(dir)
+  f = _findFileFromPath(dir)
 
   if atime:
-    file.atime = atime
-    file.mtime = mtime
+    f.atime = atime
+    f.mtime = mtime
 
   else:
-    file.atime = time.time()
-    file.mtime = time.time()
+    f.atime = time.time()
+    f.mtime = time.time()

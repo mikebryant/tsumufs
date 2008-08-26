@@ -32,18 +32,18 @@ def basename(path):
 
 
 def isfile(path):
-  file = os_mock._findFileFromPath(path)
-  return isinstance(file, os_mock.FakeFile)
+  f = os_mock._findFileFromPath(path)
+  return isinstance(f, os_mock.FakeFile)
 
 
 def islink(path):
-  file = os_mock._findFileFromPath(path)
-  return isinstance(file, os_mock.FakeSymlink)
+  f = os_mock._findFileFromPath(path)
+  return isinstance(f, os_mock.FakeSymlink)
 
 
 def isdir(path):
-  file = os_mock._findFileFromPath(path)
-  return isinstance(file, os_mock.FakeDir)
+  f = os_mock._findFileFromPath(path)
+  return isinstance(f, os_mock.FakeDir)
 
 
 def join(path, *parts):
