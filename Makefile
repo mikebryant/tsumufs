@@ -70,7 +70,8 @@ test: unit-tests functional-tests
 
 unit-tests:
 	for i in $(PY_UNIT_TESTS); do \
-		PYTHONPATH="./lib" python $$i || break; \
+		echo PYTHONPATH="./lib" python $$i; \
+		PYTHONPATH="./lib" python $$i; \
 	done
 
 $(TEST_DIR):
