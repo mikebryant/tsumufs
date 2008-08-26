@@ -39,7 +39,7 @@ class DirnameTest(unittest.TestCase):
     self.assertEqual('/foo', os_path_mock.dirname('/foo/bar'))
 
   def testRelativeDirname(self):
-    self.assertEqual('/foo', os_path_mock.dirname('foo/bar'))
+    self.assertEqual('foo', os_path_mock.dirname('foo/bar'))
 
 
 class BasenameTest(unittest.TestCase):
@@ -57,9 +57,9 @@ class IsfileTest(unittest.TestCase):
   def setUp(self):
     os_mock._filesystem = os_mock.FakeDir('')
 
-    f    = os_mock._filesystem.FakeFile('file')
-    link = os_mock._filesystem.FakeSymlink('link', '/file')
-    d    = os_mock._filesystem.FakeDir('dir')
+    f    = os_mock.FakeFile('file')
+    link = os_mock.FakeSymlink('link', '/file')
+    d    = os_mock.FakeDir('dir')
 
     os_mock._filesystem.linkChild('file', f)
     os_mock._filesystem.linkChild('link', link)
