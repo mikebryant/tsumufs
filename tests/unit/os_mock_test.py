@@ -31,8 +31,7 @@ import os_mock
 
 
 class AccessTest(unittest.TestCase):
-  _modes = [
-                                  # R W X
+  _modes = [                      # R W X
     0,                            # 0 0 0
     os.X_OK,                      # 0 0 1
     os.W_OK | os.X_OK,            # 0 1 1
