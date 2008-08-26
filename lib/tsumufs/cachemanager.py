@@ -94,18 +94,20 @@ class CacheManager(tsumufs.Debuggable):
     recache = False
 
     if not self._cachedStats.has_key(realpath):
-      self._debug('Caching stat.')
+      self._debug('Stat never cached.')
       recache = True
 
     elif (time.time() - self._cachedStats[realpath]['time']
           > self._statTimeout):
-      self._debug('Stat cache timeout -- recaching.')
+      self._debug('Stat cache timeout.')
       recache = True
 
     else:
       self._debug('Using cached stat.')
 
     if recache:
+      self._debug('Caching stat.')
+
       self._cachedStats[realpath] = {
         'stat': os.lstat(realpath),
         'time': time.time()
@@ -126,6 +128,19 @@ class CacheManager(tsumufs.Debuggable):
 
     if self._cachedStats.has_key(realpath):
       del self._cachedStats[realpath]
+
+  def _checkForNFSDisconnect(self, exception, opcodes):
+    '''
+    '''
+
+    if 'use-nfs' in opcodes:
+      if exception.errno in (errno.EIO, errno.ESTALE):
+        self._debug(('Caught errno %s; NFS invalid -- entering disconnected '
+                     'mode.') %
+                    errno.errorcode[exception.errno])
+
+        tsumufs.nfsMount.unmount()
+        tsumufs.nfsAvailable.clear()
 
   def statFile(self, fusepath):
     '''
@@ -156,9 +171,14 @@ class CacheManager(tsumufs.Debuggable):
       if 'enoent' in opcodes:
         raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
 
-      # TODO: Don't cache local disk
-      self._debug('Statting %s' % realpath)
-      return self._cacheStat(realpath)
+      try:
+        # TODO: Don't cache local disk
+        self._debug('Statting %s' % realpath)
+        return self._cacheStat(realpath)
+
+      except OSError, e:
+        self._checkForNFSDisconnect(e, opcodes)
+        raise
 
     finally:
       self._unlockFile(fusepath)
@@ -229,10 +249,15 @@ class CacheManager(tsumufs.Debuggable):
           # Invalidate the stat cache if one exists.
           self._invalidateStatCache(realpath)
 
-      if mode:
-        fd = os.open(realpath, flags, mode)
-      else:
-        fd = os.open(realpath, flags)
+      try:
+        if mode:
+          fd = os.open(realpath, flags, mode)
+        else:
+          fd = os.open(realpath, flags)
+
+      except OSError, e:
+        self._checkForNFSDisconnect(e, opcodes)
+        raise
 
       os.close(fd)
 
