@@ -23,6 +23,7 @@ import posixpath
 
 import os_mock
 
+
 def dirname(path):
   return posixpath.dirname(path)
 
@@ -33,17 +34,17 @@ def basename(path):
 
 def isfile(path):
   f = os_mock._findFileFromPath(path)
-  return isinstance(f, os_mock.FakeFile)
+  return type(f) == os_mock.FakeFile
 
 
 def islink(path):
   f = os_mock._findFileFromPath(path)
-  return isinstance(f, os_mock.FakeSymlink)
+  return type(f) == os_mock.FakeSymlink
 
 
 def isdir(path):
   f = os_mock._findFileFromPath(path)
-  return isinstance(f, os_mock.FakeDir)
+  return type(f) == os_mock.FakeDir
 
 
 def join(path, *parts):
