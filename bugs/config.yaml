@@ -1,0 +1,13 @@
+!Config
+add_to_cc: null
+email_on:
+- all
+new_post_scripts: null
+new_pre_scripts: null
+priorities:
+- feature-request
+- minor
+- major
+- severe
+- blocker
+- crash
