@@ -22,9 +22,7 @@ import os
 import errno
 import stat
 import syslog
-
-from threading import Lock
-from threading import Event
+import threading
 
 import tsumufs
 
@@ -60,7 +58,7 @@ class NFSMount(tsumufs.Debuggable):
 
     try:
       self._fileLocks[filename].acquire()
-    except NameError:
+    except KeyError:
       self._fileLocks[filename] = threading.Lock()
       self._fileLocks[filename].acquire()
 
@@ -113,20 +111,28 @@ class NFSMount(tsumufs.Debuggable):
     self.lockFile(filename)
 
     try:
-      fp = open(tsumufs.nfsMountPoint + filename, 'r')
-      fp.seek(start)
-      result = fp.read(end - start)
-      fp.close()
-    except OSError, e:
-      if e.errno in (errno.EIO, errno.ESTALE):
-        tsumufs.nfsAvailable.clear()
-        tsumufs.nfsAvailable.notifyAll()
-        raise tsumufs.NFSMountError()
-      else:
-        raise
+      try:
+        fp = open(filename, 'r')
+        fp.seek(start)
+        result = fp.read(end - start)
+        fp.close()
 
-    self.unlockFile(filename)
-    return result
+        return result
+
+      except OSError, e:
+        if e.errno in (errno.EIO, errno.ESTALE):
+          self._debug('Got %s while reading a region from %s.' %
+                      (str(e), filename))
+          self._debug('Triggering a disconnect.')
+
+          tsumufs.nfsAvailable.clear()
+          tsumufs.nfsAvailable.notifyAll()
+          raise tsumufs.NFSMountError()
+        else:
+          raise
+
+    finally:
+      self.unlockFile(filename)
 
   def writeFileRegion(self, filename, start, end, data):
     '''
@@ -149,19 +155,26 @@ class NFSMount(tsumufs.Debuggable):
     self.lockFile(filename)
 
     try:
-      fp = open(tsumufs.nfsMountPoint + filename, 'w+')
-      fp.seek(start)
-      fp.write(data)
-      fp.close()
-    except OSError, e:
-      if e.errno in (errno.EIO, errno.ESTALE):
-        tsumufs.nfsAvailable.clear()
-        tsumufs.nfsAvailable.notifyAll()
-        raise tsumufs.NFSMountError()
-      else:
-        raise
+      try:
+        fp = open(filename, 'w+')
+        fp.seek(start)
+        fp.write(data)
+        fp.close()
 
-    self.unlockFile(filename)
+      except OSError, e:
+        if e.errno in (errno.EIO, errno.ESTALE):
+          self._debug('Got %s while writing a region to %s.' %
+                      (str(e), filename))
+          self._debug('Triggering a disconnect.')
+
+          tsumufs.nfsAvailable.clear()
+          tsumufs.nfsAvailable.notifyAll()
+          raise tsumufs.NFSMountError()
+        else:
+          raise
+
+    finally:
+      self.unlockFile(filename)
 
   def mount(self):
     '''
