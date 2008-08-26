@@ -23,7 +23,11 @@ import os
 import time
 import errno
 import posixpath
+import stat
 
+# Load in the os module into this namespace so vars defined exist for other code
+# that includes this mock. (ie: O_CREAT)
+from os import *
 
 ###############################################################################
 # Helper objects to create the mock filesystem with
@@ -47,14 +51,16 @@ class FakeFile(object):
                atime=time.time(),
                ctime=time.time(),
                data=None, parent=None):
-    self.name = name
-    self.mode = mode
+
     self.uid = uid
     self.gid = gid
+
     self.mtime = mtime
     self.atime = atime
     self.ctime = ctime
 
+    self.name = name
+    self.mode = mode
     self.data = data
     self.parent = parent
 
@@ -75,6 +81,7 @@ class FakeDir(FakeFile):
   def linkChild(self, name, child):
     child.refcount += 1
     self.data[name] = child
+    child.parent = self
 
   def unlinkChild(self, name):
     self.data[name].refcount -= 1
@@ -108,7 +115,11 @@ class FakeSymlink(FakeFile):
     raise NameError()
 
 
-class FakeSpecial(FakeFile):
+class FakeFifo(FakeFile):
+  pass
+
+
+class FakeDevice(FakeFile):
   def __init__(self, name, type, major, minor,
                mode=0644, uid=0, gid=0,
                mtime=time.time(),
@@ -124,6 +135,15 @@ class FakeSpecial(FakeFile):
       }
 
 
+class FakeFileHandle(object):
+  _filename = None
+  _flags    = None
+  _mode     = None
+
+  def __init__(self, filename, flags, mode):
+    pass
+
+
 _filesystem = FakeDir('')
 _cwd = '/'
 _euid = 0
@@ -131,8 +151,12 @@ _egid = 0
 _egroups = [0]
 
 
-def _canExecute(dir):
-  pass
+def _canExecute(obj):
+  # TODO: fix this to actually look at the permissions bits
+  if isinstance(obj, FakeDir):
+    return True
+  else:
+    return False
 
 
 def _makeAbsPath(path):
@@ -155,7 +179,7 @@ def _findFileFromPath(path, follow_symlinks=True):
     elif element in cwd.getChildren():
       cwd = cwd.getChild(element)
 
-      if not _canExecute(cwd.getChild(element)):
+      if not _canExecute(cwd):
         raise OSError(errno.EPERM, 'Permission denied')
 
       if isinstance(cwd, FakeSymlink):
@@ -242,7 +266,7 @@ def link(src, dst):
     if e.errno == errno.ENOENT:
       dstfile = _findFileFromPath(posixpath.dirname(dst))
 
-def listdir(path):
+def listdir(path=''):
   f = _findFileFromPath(path)
 
   if not isinstance(f, FakeDir):
@@ -260,7 +284,7 @@ def mkdir(path, mode=0777):
   f        = _findFileFromPath(dirname)
 
   try:
-    access(path, mode)
+    access(path, os.R_OK|os.W_OK|os.X_OK)
   except OSError, e:
     if e.errno != errno.ENOENT:
       raise
@@ -273,19 +297,40 @@ def mkdir(path, mode=0777):
 
   f.linkChild(filename, FakeDir(filename, mode=mode))
 
-def mknod(path, mode=0600, device=None):
+def makedev(major, minor):
+  return { 'major': major, 'minor': minor }
+
+def mknod(path, mode=None, device=None):
+  # import stat explicitly here to fix a namespace issue.
+  import stat
+
+  if mode == None:
+    mode = 00600 | stat.S_IFREG
+
   filename = posixpath.basename(path)
   dirname  = posixpath.dirname(path)
-  f        = _findFileFromPath(dirname)
+  destdir  = _findFileFromPath(dirname)
 
-  if not access(path, mode):
-    raise OSError(errno.EPERM, '')
+  access(posixpath.dirname(path), os.W_OK|os.X_OK)
 
-  if not isinstance(f, FakeDir):
+  if not isinstance(destdir, FakeDir):
     raise OSError(errno.ENOTDIR, '')
 
-  if f.name in f.getChildren():
+  if filename in destdir.getChildren():
     raise OSError(errno.EEXIST, '')
+
+  if mode & stat.S_IFREG:
+    node = FakeFile(filename, mode)
+  elif mode & stat.S_IFCHR:
+    node = FakeDevice(filename, 'char', mode, device['major'], device['minor'])
+  elif mode & stat.S_IFBLK:
+    node = FakeDevice(filename, 'block', mode, device['major'], device['minor'])
+  elif mode & stat.S_IFIFO:
+    node = FakeFifo(filename, mode)
+  else:
+    raise OSError(errno.EINVAL, 'Invalid argument')
+
+  destdir.linkChild(filename, node)
 
 def open(filename, flag, mode=0777):
   pass
@@ -302,29 +347,31 @@ def rename(old, new):
   old = _makeAbsPath(old)
   new = _makeAbsPath(new)
 
-  oldfile = _findFileFromPath(old)
-  newdir  = None
-  newname = None
-
-  # foo bar   (explicit newname == bar)
-  # foo bar/  (implicit newname == foo)
-
+  # if the last element of the new path is a directory:
+  #   alter new path to include the old basename
   try:
-    newdir  = _findFileFromPath(new)
-    newname = posixpath.basename(new)
+    if isinstance(_findFileFromPath(new), FakeDir):
+      new = _makeAbsPath(new +'/'+ posixpath.basename(old))
   except OSError, e:
-    if e.errno == errno.ENOENT:
-      newdir  = _findFileFromPath(posixpath.dirname(new))
-      newname = posixpath.basename(old)
+    if e.errno != errno.ENOENT:
+      raise
 
-  if not isinstance(newdir, FakeDir):
-    raise OSError(errno.ENOTDIR, '')
+  # if the last element of the new path is a file, unlink it and relink the old
+  # path to the new.
+  try:
+    newfile = _findFileFromPath(new)
 
-  if newdir.getChildren(newname):
-    raise OSError(errno.EEXIST, '')
+    if isinstance(newfile, FakeFile):
+      newfile.parent.unlinkChild(newfile.name)
+  except OSError, e:
+    if e.errno != errno.ENOENT:
+      raise
+
+  oldfile = _findFileFromPath(old)
+  newdir  = _findFileFromPath(posixpath.dirname(new))
 
   oldfile.parent.unlinkChild(oldfile.name)
-  newdir.linkChild(newname, oldfile)
+  newdir.linkChild(posixpath.basename(new), oldfile)
 
 def rmdir(path):
   f = _findFileFromPath(path)
