@@ -120,7 +120,7 @@ class DataRegion(object):
     '''
 
     return('<DataRegion [%d:%d] (%d): "%s">'
-           % (self.start, self.end, self.length, self.data))
+           % (self._start, self._end, self._length, self._data))
 
   def __init__(self, start, end, data):
     '''

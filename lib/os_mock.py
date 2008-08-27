@@ -46,7 +46,7 @@ class FakeFile(object):
 
   parent  = None
 
-  def __init__(self, name, mode=00644, uid=0, gid=0,
+  def __init__(self, filename, mode=00644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
@@ -59,7 +59,7 @@ class FakeFile(object):
     self.atime = atime
     self.ctime = ctime
 
-    self.name = name
+    self.name = filename
     self.mode = mode
     self.data = data
     self.parent = parent
@@ -69,48 +69,48 @@ class FakeFile(object):
 
 
 class FakeDir(FakeFile):
-  def __init__(self, name, mode=00755, uid=0, gid=0,
+  def __init__(self, filename, mode=00755, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
                parent=None):
-    FakeFile.__init__(self, name, mode, uid, gid, mtime, atime, ctime, parent)
+    FakeFile.__init__(self, filename, mode, uid, gid, mtime, atime, ctime, parent)
 
     self.data = {}
 
-  def linkChild(self, name, child):
+  def linkChild(self, filename, child):
     child.refcount += 1
-    self.data[name] = child
+    self.data[filename] = child
     child.parent = self
 
-  def unlinkChild(self, name):
-    self.data[name].refcount -= 1
-    del self.data[name]
+  def unlinkChild(self, filename):
+    self.data[filename].refcount -= 1
+    del self.data[filename]
 
   def getChildren(self):
     return self.data.keys()
 
-  def getChild(self, name):
-    return self.data[name]
+  def getChild(self, filename):
+    return self.data[filename]
 
 
 class FakeSymlink(FakeFile):
-  def __init__(self, name, path,
+  def __init__(self, filename, path,
                mode=00644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
                parent=None):
-    FakeFile.__init__(self, name, mode, uid, gid, mtime, atime, ctime, parent)
+    FakeFile.__init__(self, filename, mode, uid, gid, mtime, atime, ctime, parent)
 
     self.data = path
 
   def dereference(self):
     return _findFileFromPath(self.data)
 
-  def __getattr__(self, name):
-    if name in ('mode', 'mtime', 'atime', 'ctime', 'refcount'):
-      return self.dereference().__getattr__(name)
+  def __getattr__(self, key):
+    if key in ('mode', 'mtime', 'atime', 'ctime', 'refcount'):
+      return self.dereference().__getattr__(key)
 
     raise NameError()
 
@@ -120,18 +120,18 @@ class FakeFifo(FakeFile):
 
 
 class FakeDevice(FakeFile):
-  def __init__(self, name, type, major, minor,
+  def __init__(self, filename, type, majornum, minornum,
                mode=00644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
                parent=None):
-    FakeFile.__init__(self, name, mode, uid, gid, mtime, atime, ctime, parent)
+    FakeFile.__init__(self, filename, mode, uid, gid, mtime, atime, ctime, parent)
 
     self.data = {
       'type': type,
-      'major': major,
-      'minor': minor,
+      'major': majornum,
+      'minor': minornum,
       }
 
 
@@ -192,7 +192,8 @@ def _findFileFromPath(path, follow_symlinks=True):
     # Dereference path elements only -- the last element should remain a symlink
     # if it is one.
     if (isinstance(cwd, FakeSymlink)
-        and element != path.split('/')[-1]):
+        and element != path.split('/')[-1]
+        and follow_symlinks):
       cwd = cwd.dereference()
 
   return cwd
@@ -222,6 +223,7 @@ def access(path, mode):
 
 def chmod(path, mode):
   f = _findFileFromPath(path)
+  # TODO(jtg): Implement this
 
 def chown(path, uid, gid):
   f = _findFileFromPath(path)
@@ -229,9 +231,11 @@ def chown(path, uid, gid):
   f.gid = gid
 
 def close(fd):
+  # TODO(jtg): Implement this
   pass
 
 def fdopen(fd, mode='r', bufsize=None):
+  # TODO(jtg): Implement this
   # f = _findFileFromPath(fd)
   pass
 
@@ -301,8 +305,8 @@ def mkdir(path, mode=0777):
 
   f.linkChild(filename, FakeDir(filename, mode=mode))
 
-def makedev(major, minor):
-  return { 'major': major, 'minor': minor }
+def makedev(majornum, minornum):
+  return { 'major': majornum, 'minor': minornum }
 
 def mknod(path, mode=None, device=None):
   # import stat explicitly here to fix a namespace issue.
@@ -420,7 +424,7 @@ def unlink(path):
   f.parent.unlinkChild(f.name)
 
 def utime(path, atime=None, mtime=None):
-  f = _findFileFromPath(dir)
+  f = _findFileFromPath(path)
 
   if atime:
     f.atime = atime
