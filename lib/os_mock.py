@@ -144,7 +144,7 @@ class FakeFileHandle(object):
     pass
 
 
-_filesystem = FakeDir('', mode=00755, )
+_filesystem = FakeDir('', mode=00755)
 _cwd = '/'
 _euid = 0
 _egid = 0
