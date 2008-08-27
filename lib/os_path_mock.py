@@ -36,7 +36,6 @@ def isfile(path):
   f = os_mock._findFileFromPath(path)
   return type(f) == os_mock.FakeFile
 
-
 def islink(path):
   f = os_mock._findFileFromPath(path)
   return type(f) == os_mock.FakeSymlink

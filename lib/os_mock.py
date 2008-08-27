@@ -46,7 +46,7 @@ class FakeFile(object):
 
   parent  = None
 
-  def __init__(self, name, mode=0644, uid=0, gid=0,
+  def __init__(self, name, mode=00644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
@@ -69,7 +69,7 @@ class FakeFile(object):
 
 
 class FakeDir(FakeFile):
-  def __init__(self, name, mode=0644, uid=0, gid=0,
+  def __init__(self, name, mode=00755, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
@@ -96,7 +96,7 @@ class FakeDir(FakeFile):
 
 class FakeSymlink(FakeFile):
   def __init__(self, name, path,
-               mode=0644, uid=0, gid=0,
+               mode=00644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
@@ -121,7 +121,7 @@ class FakeFifo(FakeFile):
 
 class FakeDevice(FakeFile):
   def __init__(self, name, type, major, minor,
-               mode=0644, uid=0, gid=0,
+               mode=00644, uid=0, gid=0,
                mtime=time.time(),
                atime=time.time(),
                ctime=time.time(),
@@ -144,7 +144,7 @@ class FakeFileHandle(object):
     pass
 
 
-_filesystem = FakeDir('')
+_filesystem = FakeDir('', mode=00755, )
 _cwd = '/'
 _euid = 0
 _egid = 0
@@ -168,27 +168,31 @@ def _makeAbsPath(path):
 
 def _findFileFromPath(path, follow_symlinks=True):
   path = _makeAbsPath(path)
+  cwd  = _filesystem
 
+  # Walk the path to find the final element
   for element in path.split('/'):
+
+    # Catch the root case and set our local cwd to the root.
     if element == '':
       cwd = _filesystem
+      continue
 
-    elif not isinstance(cwd, FakeDir):
+    if not isinstance(cwd, FakeDir):
       raise OSError(errno.ENOTDIR, 'Not a directory' % path)
 
-    elif element in cwd.getChildren():
-      cwd = cwd.getChild(element)
+    if not _canExecute(cwd):
+      raise OSError(errno.EPERM, 'Permission denied')
 
-      if not _canExecute(cwd):
-        raise OSError(errno.EPERM, 'Permission denied')
-
-      if isinstance(cwd, FakeSymlink):
-        cwd = cwd.dereference()
-    else:
+    if not element in cwd.getChildren():
       raise OSError(errno.ENOENT, 'File not found')
 
-  if isinstance(cwd, FakeSymlink):
-    if follow_symlinks:
+    cwd = cwd.getChild(element)
+
+    # Dereference path elements only -- the last element should remain a symlink
+    # if it is one.
+    if (isinstance(cwd, FakeSymlink)
+        and element != path.split('/')[-1]):
       cwd = cwd.dereference()
 
   return cwd
