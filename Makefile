@@ -87,29 +87,34 @@ $(TEST_NFS_DIR):
 
 # TODO: Make these exist and idempotent.
 functional-tests: clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
-	if [ -z $(NFSHOME) ] || [ -z $(NFSOPTS) ]; then \
+	@if [ -z $(NFSHOME) ] || [ -z $(NFSOPTS) ]; then \
 		echo "Set NFSHOME and NFSOPTS before running this target."; \
 		exit 1; \
 	fi
-
-	-for test in $(FUNC_TESTS); do     \
+	for test in $(FUNC_TESTS); do      \
+		echo;                          \
 		echo --- $$test;               \
-		src/tsumufs -d -O $(NFSOPTS) $(NFSHOME) $(TEST_DIR); \
+		src/tsumufs -d -O $(NFSOPTS)   \
+			-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
+			$(NFSHOME) $(TEST_DIR);    \
 		OLDCWD=$$(pwd);                \
 		cd $(TEST_DIR);                \
 		if ! $$OLDCWD/$$test; then     \
 			cd $$OLDCWD;               \
 			fusermount -u $(TEST_DIR); \
+			sleep 1;                   \
 			echo "!!! $$test Failed."; \
-			exit 1;                    \
+            continue;                  \
 		fi;                            \
-		cd $$OLDCWD                    \
-		fusermount -u $(TEST_DIR);     \
+		cd $$OLDCWD;                   \
+        while ! mount |grep -qe '^tsumufs on'; do \
+			sleep 10;                  \
+			fusermount -u $(TEST_DIR); \
+			sleep 10;                  \
+		done;                          \
 		echo ok;                       \
 		rm -rf $(TEST_CACHE_DIR)/*;    \
 	done
-
-	-fusermount -u $(TEST_DIR)
 
 force-shutdown:
 	-fusermount -u $(TEST_DIR)
@@ -127,7 +132,13 @@ check:
 fixspaces:
 	sed -i -r 's/^[ ]+$$//' $(PY_MODULES) $(PY_SOURCE) $(PY_TESTS)
 
-clean:
+not-mounted:
+	@if mount |grep -qe '^tsumufs on'; then                          \
+		echo 'make[1]: *** TsumuFS is currently mounted. Aborting.'; \
+		exit 1;                                                      \
+	fi
+
+clean: not-mounted
 	find -iname \*.pyc -exec rm -f '{}' ';'
 	rm -f $(DIST_FILENAME)
 	rm -f $(FUNC_TESTS)

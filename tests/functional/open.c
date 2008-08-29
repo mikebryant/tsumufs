@@ -26,6 +26,8 @@
 #include <errno.h>
 #include <string.h>
 
+#include "testhelpers.h"
+
 
 const char *g_testfilename = "this.file.shouldnt.exist";
 
@@ -33,6 +35,7 @@ struct test_matrix {
     mode_t mode;
     int    errno_result;
 };
+
 
 int test_open_enoent_failures()
 {
@@ -50,8 +53,7 @@ int test_open_enoent_failures()
         {-1,                -1}
     };
 
-    printf("%s [", __func__);
-    fflush(stdout);
+    TEST_START();
 
     for (idx = 0; tests[idx].mode != -1; idx++) {
         fd = open(g_testfilename, tests[idx].mode);
@@ -59,22 +61,19 @@ int test_open_enoent_failures()
 
         if (fd < 0) {
             if (errno == tests[idx].errno_result) {
-                printf(".");
-                fflush(stdout);
+                TEST_OK();
                 continue;
             }
         }
 
-        printf("] fail!\n");
-        fprintf(stderr, "Test index %d in %s failed.\n", idx, __func__);
-        fprintf(stderr, "Errno %d: %s\n", old_errno, strerror(old_errno));
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("Test index %d in %s failed.\nErrno %d: %s\n",
+                           idx, __func__, old_errno, strerror(old_errno));
 
         return 0;
     }
 
-    printf("] ok!\n");
-    fflush(stdout);
-    return 1;
+    TEST_COMPLETE_OK();
 }
 
 int test_open_exist()
@@ -93,47 +92,39 @@ int test_open_exist()
         {-1,              -1}
     };
 
-    printf("%s [", __func__);
-    fflush(stdout);
+    TEST_START();
 
     fd = open(g_testfilename, O_RDWR|O_CREAT, 0644);
 
     if (fd < 0) {
-        printf("] fail!\n");
-        fprintf(stderr, "Test preparation in %s failed.\n", __func__);
-        fprintf(stderr, "Errno %d: %s\n", errno, strerror(errno));
-        return 0;
+        TEST_COMPLETE_FAIL("Test preparation in %s fialed.\n"
+                           "Errno %d: %s\n",
+                           __func__, errno, strerror(errno));
     }
 
     if (close(fd) < 0) {
-        printf("] fail!\n");
-        fprintf(stderr, "Test preparation in %s failed.\n", __func__);
-        fprintf(stderr, "Errno %d: %s\n", errno, strerror(errno));
-        return 0;
+        TEST_COMPLETE_FAIL("Test preparation in %s fialed.\n"
+                           "Errno %d: %s\n",
+                           __func__, errno, strerror(errno));
     }
 
     for (idx = 0; tests[idx].mode != -1; idx++) {
-        fd = open(g_testfilename, tests[idx].mode);
+        fd = open(g_testfilename, tests[idx].mode, 0644);
         old_errno = errno;
 
         if (fd > 0) {
-            printf(".");
-            fflush(stdout);
-
+            TEST_OK();
             close(fd);
             continue;
         }
 
-        printf("] fail!\n");
-        fprintf(stderr, "Test index %d in %s failed.\n", idx, __func__);
-        fprintf(stderr, "Errno %d: %s\n", old_errno, strerror(old_errno));
-
-        return 0;
+        TEST_FAIL()
+        TEST_COMPLETE_FAIL("Test index %d in %s failed.\n"
+                           "Errno %d: %s\n",
+                           idx, __func__, old_errno, strerror(old_errno));
     }
 
-    printf("] ok!\n");
-    fflush(stdout);
-    return 1;
+    TEST_COMPLETE_OK();
 }
 
 int test_open_create()
@@ -152,32 +143,29 @@ int test_open_create()
         {-1,                      -1}
     };
 
-    printf("%s [", __func__);
-    fflush(stdout);
+    TEST_START();
 
     for (idx = 0; tests[idx].mode != -1; idx++) {
         fd = open(g_testfilename, tests[idx].mode);
         old_errno = errno;
 
         if (fd > 0) {
-            printf(".");
-            fflush(stdout);
+            TEST_OK();
 
             close(fd);
             unlink(g_testfilename);
             continue;
         }
 
-        printf("] fail!\n");
-        fprintf(stderr, "Test index %d in %s failed.\n", idx, __func__);
-        fprintf(stderr, "Errno %d: %s\n", old_errno, strerror(old_errno));
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("Test index %d in %s failed.\n"
+                           "Errno %d: %s\n",
+                           idx, __func__, old_errno, strerror(old_errno));
 
         return 0;
     }
 
-    printf("] ok!\n");
-    fflush(stdout);
-    return 1;
+    TEST_COMPLETE_OK();
 }
 
 int test_create_already_exists()
@@ -185,37 +173,41 @@ int test_create_already_exists()
     int fd  = open(g_testfilename, O_CREAT | O_RDWR, 0644);
     int fd2 = open(g_testfilename, O_CREAT | O_EXCL | O_RDWR, 0644);
 
-    printf("%s [.", __func__);
-    fflush(stdout);
+    TEST_START();
 
     if (fd < 0) {
-        printf("] fail!\n");
-        perror("Unable to open testme.txt for writing");
-        return 0;
+        TEST_COMPLETE_FAIL("Unable to open testme.txt for writing.\n"
+                           "Errno %d: %s\n",
+                           __func__, errno, strerror(errno));
     }
+    TEST_OK();
 
     if (fd2 > 0) {
-        printf("] fail!\n");
-        perror("Second open did not return an error");
-        return 0;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("Unable to open testme.txt for writing.\n"
+                           "Second open did not return an error"
+                           "Errno %d: %s\n",
+                           __func__, errno, strerror(errno));
     }
+    TEST_OK();
 
     if (errno != EEXIST) {
-        printf("] fail!\n");
-        perror("Second open did not return EEXIST");
-        return 0;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("Second open did not return EEXIST"
+                           "Errno %d: %s\n",
+                           __func__, errno, strerror(errno));
     }
+    TEST_OK();
 
     if (close(fd) < 0) {
-        printf("] fail!\n");
-        perror("Unable to close fd");
-        return 0;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("Unable to close fd"
+                           "Errno %d: %s\n",
+                           __func__, errno, strerror(errno));
     }
+    TEST_OK();
 
-    printf("] ok!\n");
-    fflush(stdout);
-
-    return 1;
+    TEST_COMPLETE_OK();
 }
 
 int connected(void)
