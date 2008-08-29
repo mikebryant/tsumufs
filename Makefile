@@ -92,7 +92,7 @@ functional-tests: clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_D
 		exit 1; \
 	fi
 
-	for test in $(FUNC_TESTS); do      \
+	-for test in $(FUNC_TESTS); do     \
 		echo --- $$test;               \
 		src/tsumufs -d -O $(NFSOPTS) $(NFSHOME) $(TEST_DIR); \
 		OLDCWD=$$(pwd);                \
