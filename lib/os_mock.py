@@ -29,6 +29,7 @@ import stat
 # that includes this mock. (ie: O_CREAT)
 from os import *
 
+
 ###############################################################################
 # Helper objects to create the mock filesystem with
 
