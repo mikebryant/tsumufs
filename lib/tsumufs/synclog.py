@@ -20,9 +20,9 @@
 
 import cPickle
 
-from inode import *
+from inodechange import *
 from dataregion import *
-from syncqueueitem import *
+from syncitem import *
 
 class SyncConflictError(Exception):
   '''

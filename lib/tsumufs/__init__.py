@@ -25,11 +25,11 @@ from triumvirate import *
 from cachemanager import *
 from nfsmount import *
 from synclog import *
-from syncqueue import *
 from fusefile import *
 from fusethread import *
 from syncthread import *
 from inode import *
+
 
 __version__ = (0, 9)
 
@@ -51,7 +51,9 @@ cacheSpecDir = '/var/lib/tsumufs/cachespec'
 cachePoint   = None
 cacheManager = None
 
-socketDir    = '/var/run/tsumufs'
+syncLog = None
+
+socketDir = '/var/run/tsumufs'
 
 unmounted       = threading.Event()
 nfsAvailable    = threading.Event()

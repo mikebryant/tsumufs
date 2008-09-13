@@ -20,7 +20,7 @@
 
 import cPickle
 
-from inode import *
+from inodechange import *
 from dataregion import *
 
 class SyncQueueItem:
