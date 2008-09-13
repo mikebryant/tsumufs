@@ -28,7 +28,8 @@ from synclog import *
 from fusefile import *
 from fusethread import *
 from syncthread import *
-from inode import *
+from inodechange import *
+from nametoinodemap import *
 
 
 __version__ = (0, 9)
