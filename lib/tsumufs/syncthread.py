@@ -38,8 +38,6 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
   Thread to handle cache and NFS mount management.
   '''
 
-  _syncQueue = None
-
   def __init__(self):
     self._debug('Initializing.')
 
@@ -48,9 +46,8 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
     sys.excepthook = tsumufs.syslogExceptHook
 
     self._debug('Loading SyncQueue.')
-    self._syncQueue = tsumufs.SyncQueue()
-    self._syncQueue.loadFromDisk()
-    self._syncQueue.validate()
+    tsumufs.syncLog = tsumufs.SyncLog(tsumufs.cachePoint)
+    tsumufs.syncLog.loadFromDisk()
 
     self._debug('Setting up thread state.')
     threading.Thread.__init__(self, name='SyncThread')
@@ -112,10 +109,9 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
           try:
             # excludes conflicted changes
             self._debug('Checking for items to sync.')
-            item = self._syncQueue.peek()
+            item = tsumufs.syncLog.getChange()
           except Queue.Empty:
             self._debug('Nothing to sync. Sleeping.')
-            time.sleep(5)
             continue
           else:
             self._debug('Got one.')
@@ -162,8 +158,8 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             item.copyToNFS()
             tsumufs.nfsMount.unlockFile(item.filename)
 
-            self._syncQueue.remove(item)
-            self._syncQueue.flushToDisk()
+            tsumufs.syncQueue.remove(item)
+            tsumufs.syncQueue.flushToDisk()
 
           except IOError, e:
             tsumufs.nfsAvailable.clear()
@@ -182,7 +178,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
       self._debug('Saving synclog to disk.')
 
       try:
-        self._syncQueue.flushToDisk()
+        tsumufs.syncLog.flushToDisk()
       except:
         self._debug('Unable to save synclog: %s' %
                     traceback.format_exc())

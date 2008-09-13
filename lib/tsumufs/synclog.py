@@ -18,17 +18,21 @@
 
 '''TsumuFS, a NFS-based caching filesystem.'''
 
+import os
+import errno
 import cPickle
 
 from inodechange import *
 from dataregion import *
 from syncitem import *
 
+
 class SyncConflictError(Exception):
   '''
   Class to represent a syncronization conflict.
   '''
   pass
+
 
 class QueueValidationError(Exception):
   '''
@@ -54,6 +58,7 @@ class QueueValidationError(Exception):
 #      old_fname: "...",
 #      new_fname: "..." },
 #    ... )
+
 
 class SyncLog:
   '''
@@ -85,15 +90,27 @@ class SyncLog:
         data structures used internally.
     '''
     try:
-      self._lock.acquire()
-      filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
-      fp = open(filename, 'rb')
-      data = cPickle.load(fp)
-      self._inodeChanges = data['inodeChanges']
-      self._syncQueue = data['syncQueue']
-      self._inodeMap = data['inodeMap']
+      try:
+        self._lock.acquire()
+        filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
+
+        fp = open(filename, 'rb')
+        try:
+          data = cPickle.load(fp)
+        finally:
+          fp.close()
+
+        self._inodeChanges = data['inodeChanges']
+        self._syncQueue = data['syncQueue']
+        self._inodeMap = data['inodeMap']
+      except (IOError, OSError), e:
+        if e.errno != errno.ENOENT:
+          raise
+        else:
+          self._debug(('Unable to load synclog from disk -- %s/%s does not '
+                       'exist.')
+                      % (self._syncLogDir, self._syncLogFilename))
     finally:
-      fp.close()
       self._lock.release()
 
   def flushToDisk(self):
