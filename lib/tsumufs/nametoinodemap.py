@@ -49,7 +49,9 @@ class NameToInodeMap(tsumufs.Debuggable):
 
     if cls._iname.has_key(inode):
       if not pathname in cls._iname[inode]:
-        cls._iname[inode] += pathname
+        cls._iname[inode] += [ pathname ]
+    else:
+      cls._iname[inode] = [ pathname ]
 
   @classmethod
   def setNameToInode(cls, pathname, inode):
