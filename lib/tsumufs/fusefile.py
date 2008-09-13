@@ -60,6 +60,17 @@ class FuseFile(tsumufs.Debuggable):
 
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode)
 
+    # Rip out any O_TRUNC options after we do the initial open -- that's
+    # dangerous to do in this case, because if we get multiple write calls, we
+    # just pass in the _fdMode raw, which causing multiple O_TRUNC calls to the
+    # underlying file, resulting in data loss. We do the same for O_CREAT, as it
+    # can also cause problems later on.
+
+    # TODO(jtg): We should make sure these actually do what we expect instead of
+    # taking it on faith.
+    self._fdMode = self._fdMode & (~os.O_EXCL)
+    self._fdMode = self._fdMode & (~os.O_CREAT)
+
   def read(self, length, offset):
     self._debug('opcode: read | path: %s | len: %d | offset: %d'
                 % (self._path, length, offset))
@@ -83,6 +94,11 @@ class FuseFile(tsumufs.Debuggable):
     # synclog with the new data region entry on bottom of the synclog
     # queue.
 
+    # Three cases here:
+    #   - The file didn't exist prior to our write.
+    #   - The file existed, but was extended.
+    #   - The file existed, and an existing block was overwritten.
+
     try:
       tsumufs.cacheManager.writeFile(self._path, offset, buf,
                                      self._fdFlags, self._fdMode)
@@ -95,6 +111,14 @@ class FuseFile(tsumufs.Debuggable):
       return -e.errno
     except IOError, e:
       self._debug('IOError caught: %s' % str(e))
+
+      # TODO(jtg): Make this stop the NFS Mount condition on error, rather than
+      # raising errno.
+      return -e.errno
+
+#     tsumufs.syncLog.writeFile(self._path, offset, buf,
+#                               self._fdFlags, self._fdMode)
+#     self._debug('Wrote %d bytes to the synclog.' % len(buf))
 
   def release(self, flags):
     self._debug('opcode: release | flags: %s' % flags)
