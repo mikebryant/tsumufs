@@ -251,9 +251,11 @@ class CacheManager(tsumufs.Debuggable):
 
         if flags & os.O_TRUNC:
           # Invalidate the stat cache if one exists.
+          self._debug('Invalidating stat cache')
           self._invalidateStatCache(realpath)
 
       try:
+        self._debug('Opening file')
         if mode:
           fd = os.open(realpath, flags, mode)
         else:
@@ -263,10 +265,13 @@ class CacheManager(tsumufs.Debuggable):
         self._checkForNFSDisconnect(e, opcodes)
         raise
 
+      self._debug('Closing file.')
       os.close(fd)
 
     finally:
+      self._debug('Unlocking file.')
       self._unlockFile(fusepath)
+      self._debug('Method complete.')
 
   def getDirents(self, fusepath):
     '''
