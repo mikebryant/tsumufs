@@ -27,6 +27,7 @@ import stat
 import syslog
 import threading
 import time
+import random
 
 import tsumufs
 
@@ -39,7 +40,10 @@ class CacheManager(tsumufs.Debuggable):
 
   _statTimeout = 60        # The number of seconds we use the cached
                            # copy's stat information for before we
-                           # attempt to update it from the nfs mount.
+                           # attempt to update it from the nfs mount. This is
+                           # altered by fuzzing the value plus/minus 10
+                           # seconds, to help reduce entire directory stat
+                           # timeouts.
 
   _cachedStats = {}        # A hash of paths to stat entires and last stat
                            # times. This is used to reduce the number of stats
@@ -110,7 +114,7 @@ class CacheManager(tsumufs.Debuggable):
 
       self._cachedStats[realpath] = {
         'stat': os.lstat(realpath),
-        'time': time.time()
+        'time': time.time() + (random.random() * 20 - 10)
         }
 
     return self._cachedStats[realpath]['stat']
