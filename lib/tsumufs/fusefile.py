@@ -68,8 +68,8 @@ class FuseFile(tsumufs.Debuggable):
 
     # TODO(jtg): We should make sure these actually do what we expect instead of
     # taking it on faith.
-    self._fdMode = self._fdMode & (~os.O_EXCL)
-    self._fdMode = self._fdMode & (~os.O_CREAT)
+    self._fdFlags = self._fdFlags & (~os.O_EXCL)
+    self._fdFlags = self._fdFlags & (~os.O_CREAT)
 
   def read(self, length, offset):
     self._debug('opcode: read | path: %s | len: %d | offset: %d'
@@ -124,7 +124,6 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: release | flags: %s' % flags)
 
     # Noop since on NFS close doesn't do much
-    self._debug('Returning: 0')
     return 0
 
   def fsync(self, isfsyncfile):
