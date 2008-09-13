@@ -35,7 +35,7 @@ const char *g_testfilename = "this.file.shouldnt.exist";
 
 int test_single_write(void)
 {
-    char *output = "Zorba!\n";
+    const char *output = "Zorba!\n";
     int fd = open(g_testfilename, O_CREAT|O_RDWR, 0644);
     int total = 0;
     int result = 0;
@@ -46,28 +46,25 @@ int test_single_write(void)
     if (fd < 0) {
         TEST_FAIL();
         TEST_COMPLETE_FAIL("Unable to open %s in %s\n"
-                           "Errno %d: %s\n"
-                           "Current pwd is: %s\n",
+                           "Errno %d: %s\n",
                            g_testfilename, __func__,
-                           old_errno, strerror(old_errno),
-                           getcwd(NULL, 0));
+                           old_errno, strerror(old_errno));
     }
     TEST_OK();
 
     while (total < strlen(output)) {
-        result = write(fd, output + result, strlen(output));
-        old_errno = errno;
+        result = write(fd, output + total, strlen(output));
 
         if (result < 0) {
+            old_errno = errno;
             TEST_FAIL();
             TEST_COMPLETE_FAIL("Unable to write to %s in %s\n"
-                               "Errno %d: %s\n"
-                               "Current pwd is: %s\n",
+                               "Errno %d: %s\n",
                                g_testfilename, __func__,
-                               old_errno, strerror(old_errno),
-                               getcwd(NULL, 0));
+                               old_errno, strerror(old_errno));
 
-            result = close(fd);
+            // Don't care about this output -- we're going to die soon, anyway.
+            close(fd);
         }
 
         total += result;
@@ -79,11 +76,9 @@ int test_single_write(void)
 
         TEST_FAIL();
         TEST_COMPLETE_FAIL("Unable to close %s in %s\n"
-                           "Errno %d: %s\n"
-                           "Current pwd is: %s\n",
+                           "Errno %d: %s\n",
                            g_testfilename, __func__,
-                           old_errno, strerror(old_errno),
-                           getcwd(NULL, 0));
+                           old_errno, strerror(old_errno));
     }
     TEST_OK();
 
@@ -92,7 +87,7 @@ int test_single_write(void)
 
 int test_multiple_writes(void)
 {
-    char *output = "Zorba!\n";
+    const char *output = "Zorba!\n";
     int maxcount = 5;
     int fd = open(g_testfilename, O_CREAT|O_RDWR, 0644);
     int i = 0;
@@ -115,7 +110,7 @@ int test_multiple_writes(void)
         result = 0;
 
         while (total < strlen(output)) {
-            result = write(fd, output + result, strlen(output));
+            result = write(fd, output + total, strlen(output));
             old_errno = errno;
 
             if (result < 0) {
@@ -165,6 +160,8 @@ int connected(void)
 
 int main(void)
 {
+    int result = 0;
+
     while (!connected()) {
         printf("Waiting for tsumufs to mount.\n");
         sleep(1);
@@ -172,8 +169,8 @@ int main(void)
     printf("Mounted.\n");
     sleep(1);
 
-    if (!test_single_write()) return 1;
-    if (!test_multiple_writes()) return 1;
+    if (!test_single_write()) result = 1;
+    if (!test_multiple_writes()) result = 1;
 
-    return 0;
+    return result;
 }

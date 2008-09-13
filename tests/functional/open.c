@@ -97,13 +97,13 @@ int test_open_exist()
     fd = open(g_testfilename, O_RDWR|O_CREAT, 0644);
 
     if (fd < 0) {
-        TEST_COMPLETE_FAIL("Test preparation in %s fialed.\n"
+        TEST_COMPLETE_FAIL("Test preparation in %s failed.\n"
                            "Errno %d: %s\n",
                            __func__, errno, strerror(errno));
     }
 
     if (close(fd) < 0) {
-        TEST_COMPLETE_FAIL("Test preparation in %s fialed.\n"
+        TEST_COMPLETE_FAIL("Test preparation in %s failed.\n"
                            "Errno %d: %s\n",
                            __func__, errno, strerror(errno));
     }
@@ -147,22 +147,38 @@ int test_open_create()
 
     for (idx = 0; tests[idx].mode != -1; idx++) {
         fd = open(g_testfilename, tests[idx].mode);
-        old_errno = errno;
 
-        if (fd > 0) {
-            TEST_OK();
-
-            close(fd);
-            unlink(g_testfilename);
-            continue;
+        if (fd < 0) {
+            old_errno = errno;
+            TEST_FAIL();
+            TEST_COMPLETE_FAIL("Test index %d in %s failed.\n"
+                               "Errno %d: %s\n",
+                               idx, __func__, old_errno, strerror(old_errno));
         }
+        TEST_OK();
 
-        TEST_FAIL();
-        TEST_COMPLETE_FAIL("Test index %d in %s failed.\n"
-                           "Errno %d: %s\n",
-                           idx, __func__, old_errno, strerror(old_errno));
+        if (close(fd) < 0) {
+            old_errno = errno;
+            TEST_FAIL();
+            TEST_COMPLETE_FAIL("Unable to close %d.\n"
+                               "Test index %d in %s failed.\n"
+                               "Errno %d: %s\n",
+                               fd, idx, __func__,
+                               old_errno, strerror(old_errno));
+        }
+        TEST_OK();
 
-        return 0;
+        if (unlink(g_testfilename) < 0) {
+            old_errno = errno;
+            TEST_FAIL();
+            TEST_COMPLETE_FAIL("Unable to unlink %s.\n"
+                               "Test index %d in %s failed.\n"
+                               "Errno %d: %s\n",
+                               g_testfilename,
+                               idx, __func__,
+                               old_errno, strerror(old_errno));
+        }
+        TEST_OK();
     }
 
     TEST_COMPLETE_OK();
@@ -232,6 +248,8 @@ int connected(void)
 
 int main(void)
 {
+    int result = 0;
+
     while (!connected()) {
         printf("Waiting for tsumufs to mount.\n");
         sleep(1);
@@ -239,10 +257,10 @@ int main(void)
     printf("Mounted.\n");
     sleep(1);
 
-    if (!test_open_enoent_failures()) return 1;
-    if (!test_open_create()) return 1;
-    if (!test_open_exist()) return 1;
-    if (!test_create_already_exists()) return 1;
+    if (!test_open_enoent_failures()) result = 1;
+    if (!test_open_create()) result = 1;
+    if (!test_open_exist()) result = 1;
+    if (!test_create_already_exists()) result = 1;
 
-    return 0;
+    return result;
 }
