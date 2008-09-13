@@ -77,7 +77,17 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     try:
       tsumufs.nfsMount = tsumufs.NFSMount()
     except:
-      self._debug('Exception: %s' % traceback.format_exc())
+      # TODO(jtg): Erm... WHY can't we call tsumufs.syslogExceptHook here? O.o
+      exc_info = sys.exc_info()
+
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
+
       return False
 
     # Initialize our threads
@@ -85,7 +95,17 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     try:
       self._syncThread = tsumufs.SyncThread()
     except:
-      self._debug('Exception: %s' % traceback.format_exc())
+      # TODO(jtg): Same as above... We should really fix this.
+      exc_info = sys.exc_info()
+
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
+
       return False
 
     # Start the threads
@@ -537,7 +557,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
 
     try:
-      return os.chmod(tsumufs.nfsMountPoint + path, mode)
+      # TODO(jtg): Make this actually chmod the files on NFS.
+      return 0
     except OSError, e:
       self._debug('chmod: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
