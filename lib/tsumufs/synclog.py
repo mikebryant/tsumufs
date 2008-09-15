@@ -59,7 +59,7 @@ class QueueValidationError(Exception):
 #    ... )
 
 
-class SyncLog:
+class SyncLog(tsumufs.Debuggable):
   '''
   Class that implements a queue for storing synclog entries in. Used
   primarily by the SyncThread class.
@@ -74,7 +74,6 @@ class SyncLog:
   def __init__(self, logdir, logfilename='sync.log'):
     self._syncLogDir = logdir
     self._syncLogFilename = logfilename
-    self.loadFromDisk()
 
   def loadFromDisk(self):
     '''
