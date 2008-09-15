@@ -47,7 +47,11 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
     self._debug('Loading SyncQueue.')
     tsumufs.syncLog = tsumufs.SyncLog(tsumufs.cachePoint)
-    tsumufs.syncLog.loadFromDisk()
+
+    try:
+      tsumufs.syncLog.loadFromDisk()
+    except (EOFError), e:
+      self._debug('Unable to load synclog. Aborting.')
 
     self._debug('Setting up thread state.')
     threading.Thread.__init__(self, name='SyncThread')
@@ -109,9 +113,13 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
           try:
             # excludes conflicted changes
             self._debug('Checking for items to sync.')
-            item = tsumufs.syncLog.getChange()
+
+            # TODO(jtg): Fix this.
+            #item = tsumufs.syncLog.getChange()
+            raise Queue.Empty()
           except Queue.Empty:
             self._debug('Nothing to sync. Sleeping.')
+            time.sleep(5)
             continue
           else:
             self._debug('Got one.')
@@ -136,7 +144,11 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             # mount. Unset the connected event to trigger a remount if
             # possible.
 
+            self._debug('Caught an IOError: %s' % str(e))
+            self._debug('Disconnecting from NFS.')
+
             tsumufs.nfsAvailable.clear()
+            tsumufs.nfsMount.unmount()
             continue
 
           except tsumufs.SyncConflictError, e:
@@ -162,7 +174,11 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             tsumufs.syncQueue.flushToDisk()
 
           except IOError, e:
+            self._debug('Caught an IOError: %s' % str(e))
+            self._debug('Disconnecting from NFS.')
+
             tsumufs.nfsAvailable.clear()
+            tsumufs.nfsMount.unmount()
 
       self._debug('Shutdown requested.')
       self._debug('Unmounting NFS.')
@@ -170,8 +186,8 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
       try:
         tsumufs.nfsMount.unmount()
       except:
-        self._debug('Unable to unmount NFS: %s' %
-                    traceback.format_exc())
+        self._debug('Unable to unmount NFS -- caught an exception.')
+        tsumufs.syslogCurrentException()
       else:
         self._debug('NFS unmount complete.')
 
@@ -179,13 +195,13 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
       try:
         tsumufs.syncLog.flushToDisk()
-      except:
-        self._debug('Unable to save synclog: %s' %
-                    traceback.format_exc())
+      except Exception, e:
+        self._debug('Unable to save synclog -- caught an exception.')
+        tsumufs.syslogCurrentException()
       else:
         self._debug('Synclog saved.')
 
       self._debug('SyncThread shutdown complete.')
 
-    except:
-      self._debug('Exception: %s' % traceback.format_exc())
+    except Exception, e:
+      tsumufs.syslogCurrentException()
