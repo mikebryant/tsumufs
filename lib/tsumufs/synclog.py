@@ -21,6 +21,7 @@
 import os
 import errno
 import cPickle
+import threading
 
 import tsumufs
 
@@ -68,7 +69,7 @@ class SyncLog:
   _syncLogFilename = None
   _inodeChanges    = {}
   _syncQueue       = []
-  _lock            = Lock()
+  _lock            = threading.Lock()
 
   def __init__(self, logdir, logfilename='sync.log'):
     self._syncLogDir = logdir
