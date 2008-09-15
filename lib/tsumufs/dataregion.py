@@ -18,6 +18,7 @@
 
 '''TsumuFS, a NFS-based caching filesystem.'''
 
+
 class RangeError(Exception):
   '''
   Exception for representing a range error.
@@ -25,12 +26,14 @@ class RangeError(Exception):
 
   pass
 
+
 class RegionError(Exception):
   '''
   Exception to signal when a general region error has occured.
   '''
 
   pass
+
 
 class RegionLengthError(RegionError):
   '''
@@ -40,6 +43,7 @@ class RegionLengthError(RegionError):
 
   pass
 
+
 class RegionOverlapError(RegionError):
   '''
   Exception to signal when a region overlap error has
@@ -48,6 +52,7 @@ class RegionOverlapError(RegionError):
   '''
 
   pass
+
 
 class DataRegion(object):
   '''
