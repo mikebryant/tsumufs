@@ -99,7 +99,6 @@ class SyncLog(tsumufs.Debuggable):
 
         self._inodeChanges = data['inodeChanges']
         self._syncQueue = data['syncQueue']
-        self._inodeMap = data['inodeMap']
       except (IOError, OSError), e:
         if e.errno != errno.ENOENT:
           raise
@@ -135,8 +134,7 @@ class SyncLog(tsumufs.Debuggable):
       filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
       fp = open(filename, 'wb')
       cPickle.dump({ 'inodeChanges': self._inodeChanges,
-                     'syncQueue': self._syncQueue,
-                     'inodeMap': self._inodeMap}, fp)
+                     'syncQueue': self._syncQueue}, fp)
     finally:
       fp.close()
       self._lock.release()
