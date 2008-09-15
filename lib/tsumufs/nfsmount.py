@@ -236,3 +236,6 @@ class NFSMount(tsumufs.Debuggable):
     else:
       self._debug('Unmount of NFS succeeded.')
       return True
+
+    self._debug('Invalidating name to inode map')
+    tsumufs.NameToInodeMap.invalidate()

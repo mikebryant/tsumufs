@@ -112,10 +112,15 @@ class CacheManager(tsumufs.Debuggable):
     if recache:
       self._debug('Caching stat.')
 
+      # TODO(jtg): detect mount failures here
+      stat_result = os.lstat(realpath)
+
       self._cachedStats[realpath] = {
-        'stat': os.lstat(realpath),
+        'stat': stat_result,
         'time': time.time() + (random.random() * 20 - 10)
         }
+
+      tsumufs.NameToInodeMap.setNameToInode(realpath, stat_result.st_ino)
 
     return self._cachedStats[realpath]['stat']
 
