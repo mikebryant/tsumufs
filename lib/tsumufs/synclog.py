@@ -22,9 +22,7 @@ import os
 import errno
 import cPickle
 
-from inodechange import *
-from dataregion import *
-from syncitem import *
+import tsumufs
 
 
 class SyncConflictError(Exception):
@@ -70,7 +68,6 @@ class SyncLog:
   _syncLogFilename = None
   _inodeChanges    = {}
   _syncQueue       = []
-  _inodeMap        = InodeMap()
   _lock            = Lock()
 
   def __init__(self, logdir, logfilename='sync.log'):
