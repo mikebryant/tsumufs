@@ -61,6 +61,14 @@ nfsAvailable    = threading.Event()
 forceDisconnect = threading.Event()
 
 
+def syslogCurrentException():
+  '''
+  Shortcut to the below idiom.
+  '''
+
+  syslogExceptHook(*sys.exc_info())
+
+
 def syslogExceptHook(type, value, tb):
   '''
   Quick exception handler to log exceptions to syslog rather than
