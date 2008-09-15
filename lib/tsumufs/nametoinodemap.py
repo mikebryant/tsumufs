@@ -24,6 +24,7 @@ import sys
 
 import tsumufs
 
+
 class NameToInodeMap(tsumufs.Debuggable):
   '''
   Class to help map pathnames to inode numbers and vise-versa.
