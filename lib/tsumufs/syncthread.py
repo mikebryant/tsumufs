@@ -109,7 +109,9 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
                          'Not attempting mount.'))
             time.sleep(5)
 
-        while tsumufs.nfsAvailable.isSet() and not tsumufs.unmounted.isSet():
+        while (tsumufs.nfsAvailable.isSet()
+               and not tsumufs.unmounted.isSet()
+               and not tsumufs.syncPause.isSet()):
           try:
             # excludes conflicted changes
             self._debug('Checking for items to sync.')

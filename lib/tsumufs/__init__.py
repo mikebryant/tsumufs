@@ -59,6 +59,7 @@ socketDir = '/var/run/tsumufs'
 unmounted       = threading.Event()
 nfsAvailable    = threading.Event()
 forceDisconnect = threading.Event()
+syncPause       = threading.Event()
 
 
 def syslogCurrentException():

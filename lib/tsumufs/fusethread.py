@@ -326,6 +326,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
           tsumufs.nfsAvailable.clear()
           return
 
+    if path == '/':
+      if name == 'tsumufs.pause-sync':
+        if value == '0':
+          tsumufs.syncPause.set()
+        else:
+          tsumufs.syncPause.clear()
+
     return -errno.EOPNOTSUPP
 
   def getxattr(self, path, name, size):
@@ -354,6 +361,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     xattrs = {
       'tsumufs.in-cache': '0',
       'tsumufs.dirty': '0'
+      'tsumufs.pause-sync': '0',
       }
 
     if tsumufs.cacheManager.isCachedToDisk(path):
@@ -363,10 +371,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       xattrs['tsumufs.dirty'] = '1'
 
     if path == '/':
+      if tsumufs.syncPause.isSet():
+        xattrs['tsumufs.pause-sync'] = '1'
+
       xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
       xattrs['tsumufs.force-disconnect'] = (tsumufs.forceDisconnect.isSet() and
                                     '1' or '0')
       xattrs['tsumufs.connected'] = tsumufs.nfsAvailable.isSet() and '1' or '0'
+      xattrs['tsumufs.synclog-contents'] = repr(tsumufs.syncLog)
 
     name = name.lower()
 
@@ -397,6 +409,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       keys.append('tsumufs.force-disconnect')
       keys.append('tsumufs.connected')
       keys.append('tsumufs.version')
+      keys.append('tsumufs.synclog-contents')
+      keys.append('tsumufs.pause-sync')
 
     if size == 0:
       return len(''.join(keys)) + len(keys)
