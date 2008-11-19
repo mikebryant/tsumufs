@@ -99,12 +99,14 @@ class FuseFile(tsumufs.Debuggable):
     #   - The file existed, but was extended.
     #   - The file existed, and an existing block was overwritten.
 
+    bytes_written = 0
+
     try:
       tsumufs.cacheManager.writeFile(self._path, offset, buf,
                                      self._fdFlags, self._fdMode)
       self._debug('Wrote %d bytes.' % len(buf))
 
-      return len(buf)
+      bytes_written = len(buf)
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -116,9 +118,39 @@ class FuseFile(tsumufs.Debuggable):
       # raising errno.
       return -e.errno
 
-#     tsumufs.syncLog.writeFile(self._path, offset, buf,
-#                               self._fdFlags, self._fdMode)
-#     self._debug('Wrote %d bytes to the synclog.' % len(buf))
+    if self._fdFlags & os.O_CREAT:
+      self._debug('Adding new file to the synclog...')
+      tsumufs.syncLog.addNew('file',
+                             filename=self._path,
+                             data=buf,
+                             start=offset,
+                             end=offset+len(buf),
+                             length=len(buf))
+      self._debug('Done.')
+    else:
+      # TODO(jtg): make addChange handle sparse inode numbers and update them
+      # later.
+      nfspath = tsumufs.nfsPathOf(self._path)
+
+      try:
+        inode = tsumufs.NameToInodeMap.nameToInode(nfspath)
+      except KeyError, e:
+        try:
+          inode = tsumufs.cacheManager.statFile(self._path).st_ino
+        except (IOError, OSError), e:
+          inode = -1
+
+      self._debug('Adding change to synclog...')
+      tsumufs.syncLog.addChange(self._path,
+                                inode,
+                                offset,
+                                offset+len(buf),
+                                buf)
+      self._debug('Done.')
+
+    self._debug('Wrote %d bytes to the synclog.' % len(buf))
+
+    return bytes_written
 
   def release(self, flags):
     self._debug('opcode: release | flags: %s' % flags)

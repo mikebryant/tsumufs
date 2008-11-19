@@ -62,6 +62,9 @@ class NameToInodeMap(tsumufs.Debuggable):
   def setInodeToName(cls, inode, pathname):
     cls._updateMap(pathname, inode)
 
+  # TODO(jtg): Need a way to unassociate an inode number from a name and
+  # vice-versa.
+
   @classmethod
   def invalidate(cls):
     cls._namei = {}
