@@ -160,8 +160,8 @@ class FuseFile(tsumufs.Debuggable):
       return -e.errno
 
   def lock(self, cmd, owner, **kw):
-    self._debug('opcode: lock | cmd: %o | owner: %d'
-                % (cmd, owner))
+    self._debug('opcode: lock | cmd: %o | owner: %d | kw: %s'
+                % (cmd, owner, str(kw)))
 
     err = -errno.ENOSYS
     self._debug('returning: %d' % err)
