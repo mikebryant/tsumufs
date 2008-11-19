@@ -30,6 +30,7 @@ from fusethread import *
 from syncthread import *
 from inodechange import *
 from nametoinodemap import *
+from syncitem import *
 
 
 __version__ = (0, 9)
@@ -84,3 +85,51 @@ def syslogExceptHook(type, value, tb):
   for line in traceback.extract_tb(tb):
     syslog.syslog('***    %s(%d) in %s: %s'
                   % line)
+
+
+def nfsPathOf(fusepath):
+  '''
+  Quick one-off method to help with translating FUSE-side pathnames
+  to VFS pathnames.
+
+  Returns:
+  A string containing the absolute path to the file on the NFS
+  mount.
+
+  Raises:
+  Nothing
+  '''
+
+  # Catch the case that the fusepath is absolute (which it should be)
+  if fusepath[0] == '/':
+    rhs = fusepath[1:]
+  else:
+    rhs = fusepath
+
+  transpath = os.path.join(tsumufs.nfsMountPoint, rhs)
+  return transpath
+
+def cachePathOf(fusepath):
+  '''
+  Quick one-off method to help with translating FUSE-side pathnames
+  to VFS pathnames.
+
+  This method returns the cache-side VFS pathname for the given
+  fusepath.
+
+  Returns:
+  A string containing the absolute path to the file on the cache
+  point.
+
+  Raises:
+  Nothing
+  '''
+
+  # Catch the case that the fusepath is absolute (which it should be)
+  if fusepath[0] == '/':
+    rhs = fusepath[1:]
+  else:
+    rhs = fusepath
+
+  transpath = os.path.join(tsumufs.cachePoint, rhs)
+  return transpath

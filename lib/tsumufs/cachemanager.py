@@ -165,8 +165,6 @@ class CacheManager(tsumufs.Debuggable):
       OSError if there was a problemg getting the stat.
     '''
 
-    # TODO: Make this update the inode -> file mappings.
-
     self._lockFile(fusepath)
 
     try:
@@ -181,9 +179,15 @@ class CacheManager(tsumufs.Debuggable):
         raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
 
       try:
-        # TODO: Don't cache local disk
         self._debug('Statting %s' % realpath)
-        return self._cacheStat(realpath)
+
+        if 'use-nfs' in opcodes:
+          return self._cacheStat(realpath)
+        else:
+          result = os.lstat(realpath)
+          tsumufs.NameToInodeMap.setNameToInode(realpath, result.st_ino)
+
+          return result
 
       except OSError, e:
         self._checkForNFSDisconnect(e, opcodes)
@@ -297,7 +301,7 @@ class CacheManager(tsumufs.Debuggable):
                     'cached disk.')
 
         nfs_dirents = set(self._cachedDirents[fusepath])
-        cached_dirents = set(os.listdir(self._cachePathOf(fusepath)))
+        cached_dirents = set(os.listdir(tsumufs.cachePathOf(fusepath)))
         final_dirents_list = []
 
         for dirent in nfs_dirents.union(cached_dirents):
@@ -307,7 +311,7 @@ class CacheManager(tsumufs.Debuggable):
 
       else:
         self._debug('NFS is unavailable -- returning cached disk dir stuff.')
-        return os.listdir(self._cachePathOf(fusepath))
+        return os.listdir(tsumufs.cachePathOf(fusepath))
 
     finally:
       self._unlockFile(fusepath)
@@ -409,7 +413,7 @@ class CacheManager(tsumufs.Debuggable):
     try:
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
-      realpath = self._cachePathOf(fusepath)
+      realpath = tsumufs.cachePathOf(fusepath)
 
       self._debug('Writing to file %s at offset %d with buffer length of %d '
                   'and mode %s' % (realpath, offset, len(buf), mode))
@@ -512,8 +516,8 @@ class CacheManager(tsumufs.Debuggable):
     self._lockFile(fusepath)
 
     try:
-      nfspath   = self._nfsPathOf(fusepath)
-      cachepath = self._cachePathOf(fusepath)
+      nfspath   = tsumufs.nfsPathOf(fusepath)
+      cachepath = tsumufs.cachePathOf(fusepath)
       stat      = os.lstat(nfspath)
 
       self._debug('nfspath = %s' % nfspath)
@@ -571,8 +575,8 @@ class CacheManager(tsumufs.Debuggable):
     try:
       self._debug('Caching file %s to disk.' % fusepath)
 
-      nfspath = self._nfsPathOf(fusepath)
-      cachepath = self._cachePathOf(fusepath)
+      nfspath = tsumufs.nfsPathOf(fusepath)
+      cachepath = tsumufs.cachePathOf(fusepath)
 
       curstat = os.lstat(nfspath)
 
@@ -625,7 +629,7 @@ class CacheManager(tsumufs.Debuggable):
     self._lockFile(fusepath)
 
     try:
-      cachefilename = self._cachePathOf(fusepath)
+      cachefilename = tsumufs.cachePathOf(fusepath)
 
       if os.path.isfile(cachefilename) or os.path.islink(cachefilename):
         os.unlink(cachefilename)
@@ -706,10 +710,10 @@ class CacheManager(tsumufs.Debuggable):
         raise OSError(errno.ENOENT, os.strerror(errno.ENOENT))
       if opcode == 'use-nfs':
         self._debug('Returning nfs path for %s' % fusepath)
-        return self._nfsPathOf(fusepath)
+        return tsumufs.nfsPathOf(fusepath)
       if opcode == 'use-cache':
         self._debug('Returning cache path for %s' % fusepath)
-        return self._cachePathOf(fusepath)
+        return tsumufs.cachePathOf(fusepath)
 
   def _genCacheOpcodes(self, fusepath, for_stat=False):
     '''
@@ -812,7 +816,7 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       try:
-        os.lstat(self._cachePathOf(fusepath))
+        os.lstat(tsumufs.cachePathOf(fusepath))
       except OSError, e:
         if e.errno == errno.ENOENT:
           return False
@@ -820,7 +824,7 @@ class CacheManager(tsumufs.Debuggable):
           raise
 
       try:
-        os.lstat(self._nfsPathOf(fusepath))
+        os.lstat(tsumufs.nfsPathOf(fusepath))
       except OSError, e:
         if e.errno == errno.ENOENT:
           return True
@@ -852,7 +856,7 @@ class CacheManager(tsumufs.Debuggable):
     try:
       try:
         cachedstat = self._cachedStats[fusepath]['stat']
-        realstat   = os.lstat(self._nfsPathOf(fusepath))
+        realstat   = os.lstat(tsumufs.nfsPathOf(fusepath))
 
         if ((cachedstat.st_blocks != realstat.st_blocks) or
             (cachedstat.st_mtime != realstat.st_mtime) or
@@ -873,53 +877,6 @@ class CacheManager(tsumufs.Debuggable):
 
     finally:
       self._unlockFile(fusepath)
-
-  def _nfsPathOf(self, fusepath):
-    '''
-    Quick one-off method to help with translating FUSE-side pathnames
-    to VFS pathnames.
-
-    Returns:
-      A string containing the absolute path to the file on the NFS
-      mount.
-
-    Raises:
-      Nothing
-    '''
-
-    # Catch the case that the fusepath is absolute (which it should be)
-    if fusepath[0] == '/':
-      rhs = fusepath[1:]
-    else:
-      rhs = fusepath
-
-    transpath = os.path.join(tsumufs.nfsMountPoint, rhs)
-    return transpath
-
-  def _cachePathOf(self, fusepath):
-    '''
-    Quick one-off method to help with translating FUSE-side pathnames
-    to VFS pathnames.
-
-    This method returns the cache-side VFS pathname for the given
-    fusepath.
-
-    Returns:
-      A string containing the absolute path to the file on the cache
-      point.
-
-    Raises:
-      Nothing
-    '''
-
-    # Catch the case that the fusepath is absolute (which it should be)
-    if fusepath[0] == '/':
-      rhs = fusepath[1:]
-    else:
-      rhs = fusepath
-
-    transpath = os.path.join(tsumufs.cachePoint, rhs)
-    return transpath
 
   def isCachedToDisk(self, fusepath):
     '''
@@ -942,7 +899,7 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       try:
-        statgoo = os.lstat(self._cachePathOf(fusepath))
+        statgoo = os.lstat(tsumufs.cachePathOf(fusepath))
 
         if stat.S_ISDIR(statgoo.st_mode) and tsumufs.nfsAvailable.isSet():
           return self._cachedDirents.has_key(fusepath)
