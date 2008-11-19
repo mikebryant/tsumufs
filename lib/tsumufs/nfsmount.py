@@ -23,6 +23,7 @@ import errno
 import stat
 import syslog
 import threading
+import dataregion
 
 import tsumufs
 
@@ -153,6 +154,10 @@ class NFSMount(tsumufs.Debuggable):
     '''
 
     self.lockFile(filename)
+
+    if end - start > len(data):
+      raise dataregion.RangeError('The length of data specified in start and '
+                                  'end does not match the data length.')
 
     try:
       try:
