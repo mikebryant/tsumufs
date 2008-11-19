@@ -23,20 +23,58 @@ import cPickle
 from inodechange import *
 from dataregion import *
 
-class SyncQueueItem:
+import tsumufs
+
+
+class SyncItem(tsumufs.Debuggable):
+  '''
+  Class that encapsulates a change to the filesystem in the SyncLog. Note that
+  this does /not/ include DataRegions -- specifically that should be in a
+  different list.
+  '''
+
   _type = None        # 'new|'link|'unlink|'change|'rename
+
   _file_type = None   # 'file|'dir|'socket|'fifo|'device
-  _dev_type = None    # 'char|'block
-  _filename = None    # string
+  _dev_type  = None   # 'char|'block
+  _major     = None   # integer
+  _minor     = None   # integer
+
   _old_fname = None   # string
   _new_fname = None   # string
+  _filename  = None   # string
+
   _inum = None        # inode number
 
   _hargs = None
 
-  def __init__(self, type, **hargs):
-    self._type = type
+  _REQUIRED_KEYS = {
+    'new':    [ 'file_type', 'dev_type', 'major', 'minor', 'filename' ],
+    'link':   [ 'filename', 'inum' ],
+    'change': [ 'filename', 'inum' ],
+    'unlink': [ 'filename' ],
+    'rename': [ 'old_fname', 'new_fname', 'inum' ],
+    }
+
+  _VALID_TYPES      = [ 'new', 'link', 'unlink', 'change', 'rename' ]
+  _VALID_FILE_TYPES = [ 'file', 'dir', 'socket', 'fifo', 'device' ]
+  _VALID_DEV_TYPES  = [ 'char', 'block' ]
+
+  def __init__(self, typ, **hargs):
+    # TODO(jtg): Make this do validation against the above _VALID_* variables.
+
+    self._type = typ
     self._hargs = hargs
+
+    if self._type not in self._VALID_TYPES:
+      raise TypeError('Invalid change type %s' % self._type)
+
+    for key in self._REQUIRED_KEYS[self._type]:
+      if key not in hargs.keys():
+        raise TypeError('Missing required key %s' % key)
+
+    for key in hargs.keys():
+      self.__dict__['_' + key] = hargs[key]
 
   def getChanges(self):
     '''
