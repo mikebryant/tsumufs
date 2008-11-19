@@ -18,9 +18,7 @@
 
 '''TsumuFS, a NFS-based caching filesystem.'''
 
-from threading import Lock
-
-import tsumufs
+from dataregion import *
 
 
 class InodeChange:
@@ -80,7 +78,7 @@ class InodeChange:
     can.
     '''
 
-    merged = tsumufs.DataRegion(start, end, data)
+    merged = DataRegion(start, end, data)
     newlist = []
 
     for r in self.dataRegions:
