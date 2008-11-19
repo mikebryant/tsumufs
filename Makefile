@@ -153,6 +153,10 @@ tag:
            https://tsumufs.googlecode.com/svn/tags/$(VERSION) \
            --username $(SVN_USER)
 
+targets:
+	@echo Targets available:
+	@cat Makefile |grep -e '^[a-zA-Z-]*:' |sed 's/:/\t/' |awk '{ print "\t" $$1 }'
+
 $(DIST_FILENAME):
 	svn export http://tsumufs.googlecode.com/svn/tags/$(VERSION) /tmp/tsumufs-$(VERSION)
 	tar -C /tmp/tsumufs-$(VERSION) -zcvf $(DIST_FILENAME) .
