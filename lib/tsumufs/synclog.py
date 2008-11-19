@@ -22,6 +22,7 @@ import os
 import errno
 import cPickle
 import threading
+import heapq
 
 import tsumufs
 
@@ -75,14 +76,30 @@ class SyncLog(tsumufs.Debuggable):
     self._syncLogDir = logdir
     self._syncLogFilename = logfilename
 
+  def __str__(self):
+    inodechange_str = repr(self._inodeChanges)
+    syncqueue_str   = repr(self._syncQueue)
+
+    string = (('<#SyncLog \n'
+              '    _syncLogDir: %s\n'
+              '    _syncLogFilename: %s\n'
+              '    _inodeChanges: %s\n'
+              '    _syncQueue: %s\n'
+              '>') % (self._syncLogDir,
+                      self._syncLogFilename,
+                      inodechange_str,
+                      syncqueue_str))
+
+    return string
+
   def loadFromDisk(self):
     '''
     Load the internal state of the SyncLog from disk and initialize
     the data structures.
 
     Raises:
-      IOError: Some form of IO error while reading from the pickle
-        file.
+      OSError: Some form of OS error while reading from the pickle file.
+      IOError: Some form of IO error while reading from the pickle file.
       PickleError: Error relating to the actual un-pickling of the
         data structures used internally.
     '''
@@ -99,13 +116,15 @@ class SyncLog(tsumufs.Debuggable):
 
         self._inodeChanges = data['inodeChanges']
         self._syncQueue = data['syncQueue']
-      except (IOError, OSError), e:
+      except IOError, e:
         if e.errno != errno.ENOENT:
           raise
         else:
           self._debug(('Unable to load synclog from disk -- %s/%s does not '
                        'exist.')
                       % (self._syncLogDir, self._syncLogFilename))
+      except OSError, e:
+        raise
     finally:
       self._lock.release()
 
@@ -120,7 +139,7 @@ class SyncLog(tsumufs.Debuggable):
     Queue files are stored on disk in the following python format:
 
     { inodeChanges: { <inum>: <InodeChange1>, ... ],
-      syncQueue:   [ <SyncQueueItem1>, <SyncQueueItem2>, ... ] }
+      syncQueue:   [ <tsumufs.SyncItem1>, <tsumufs.SyncItem2>, ... ] }
 
     Raises:
       IOError: An error relating to the attempt to write to a pickle
@@ -148,57 +167,82 @@ class SyncLog(tsumufs.Debuggable):
         'socket', 'fifo', or 'dev'.
       params: A hash of parameters used to complete the data
         structure. If type is set to 'dev', this structure must have
-        the following members: dtype (set to one of 'char' or
+        the following members: dev_type (set to one of 'char' or
         'block'), and major and minor, representing the major and minor
         numbers of the device being created.
 
     Raises:
       TypeError: When data passed in params is invalid or missing.
     '''
-    self._lock.acquire()
-    params['type'] = type
-    syncitem = SyncQueueItem(params)
-    self._syncQueue.unshift(syncitem)
-    self._lock.release()
+    try:
+      self._lock.acquire()
+
+      params['type'] = type
+      syncitem = tsumufs.SyncItem(params)
+      heapq.heappush(self._syncQueue, (1, syncitem))
+    finally:
+      self._lock.release()
 
   def addLink(self, inum, filename):
-    self._lock.acquire()
-    syncitem = SyncQueueItem('link', inum=inum, filename=filename)
-    self._syncQueue.unshift(syncitem)
-    self._lock.release()
+    try:
+      self._lock.acquire()
+
+      syncitem = tsumufs.SyncItem('link', inum=inum, filename=filename)
+      heapq.heappush(self._syncQueue, (1, syncitem))
+
+    finally:
+      self._lock.release()
 
   def addUnlink(self, filename):
-    self._lock.acquire()
-    syncitem = SyncQueueItem('unlink', filename=filename)
-    self._syncQueue.unshift(syncitem)
-    self._lock.release()
+    try:
+      self._lock.acquire()
 
-  def addChange(self, inum, start, end, data):
-    self._lock.acquire()
-    syncitem = SyncQueueItem('change',
-                             inum=inum,
-                             start=start,
-                             end=end,
-                             data=data)
-    self._syncQueue.unshift(syncitem)
-    self._lock.release()
+      # TODO(jtg): Find any other changes relating to this filename and remove
+      # them -- unlink trumps other changes.
+
+      syncitem = tsumufs.SyncItem('unlink', filename=filename)
+      heapq.heappush(self._syncQueue, (0, syncitem))
+
+    finally:
+      self._lock.release()
+
+  def addChange(self, fname, inum, start, end, data):
+    try:
+      self._lock.acquire()
+
+      syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
+      heapq.heappush(self._syncQueue, (1, syncitem))
+
+      # TODO(jtg): Create the inodechange and stuff it in the appropriate area.
+
+    finally:
+      self._lock.release()
 
   def addRename(self, old, new):
-    self._lock.acquire()
-    syncitem = SyncQueueItem('rename', old=old, new=new)
-    self._syncQueue.unshift(syncitem)
-    self._lock.release()
+    try:
+      self._lock.acquire()
+
+      syncitem = tsumufs.SyncItem('rename', old=old, new=new)
+      heapq.heappush(self._syncQueue, (1, syncitem))
+
+    finally:
+      self._lock.release()
 
   def popChange(self):
-    self._lock.acquire()
-    syncitem = self._syncQueue.shift()
-    if syncitem.type == 'change':
-      change = self._inodeChanges[syncitem.inum]
-      del self._inodeChanges[syncitem.inum]
-    else:
-      change = None
+    try:
+      self._lock.acquire()
+
+      # Ignore priority -- we don't care about it.
+      (priority, syncitem) = heapq.heappop(self._syncQueue)
+      if syncitem.type == 'change':
+        change = self._inodeChanges[syncitem.inum]
+        del self._inodeChanges[syncitem.inum]
+      else:
+        change = None
+
+      return (syncitem, change)
+    finally:
       self._lock.release()
-    return (syncitem, change)
 
 # hash of inode changes:
 #   { <inode number>: { data: ( { data: "...",
