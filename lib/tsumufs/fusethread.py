@@ -360,8 +360,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     xattrs = {
       'tsumufs.in-cache': '0',
-      'tsumufs.dirty': '0'
-      'tsumufs.pause-sync': '0',
+      'tsumufs.dirty': '0',
       }
 
     if tsumufs.cacheManager.isCachedToDisk(path):
@@ -371,14 +370,20 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       xattrs['tsumufs.dirty'] = '1'
 
     if path == '/':
+      xattrs['tsumufs.pause-sync'] = '0'
+      xattrs['tsumufs.force-disconnect'] = '0'
+      xattrs['tsumufs.connected'] = '0'
+      xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
+      xattrs['tsumufs.synclog-contents'] = repr(tsumufs.syncLog)
+
       if tsumufs.syncPause.isSet():
         xattrs['tsumufs.pause-sync'] = '1'
 
-      xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
-      xattrs['tsumufs.force-disconnect'] = (tsumufs.forceDisconnect.isSet() and
-                                    '1' or '0')
-      xattrs['tsumufs.connected'] = tsumufs.nfsAvailable.isSet() and '1' or '0'
-      xattrs['tsumufs.synclog-contents'] = repr(tsumufs.syncLog)
+      if tsumufs.forceDisconnect.isSet():
+        xattrs['tsumufs.force-disconnect'] = '1'
+
+      if tsumufs.nfsAvailable.isSet():
+        xattrs['tsumufs.connected'] = '1'
 
     name = name.lower()
 
