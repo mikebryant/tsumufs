@@ -127,6 +127,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('Setting event and condition states.')
     tsumufs.unmounted.set()
     tsumufs.nfsAvailable.clear()
+    tsumufs.syncPause.clear()
 
     self._debug('Waiting for the sync thread to finish.')
     self._syncThread.join()
@@ -326,12 +327,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
           tsumufs.nfsAvailable.clear()
           return
 
-    if path == '/':
       if name == 'tsumufs.pause-sync':
-        if value == '0':
+        if value == '1':
           tsumufs.syncPause.set()
-        else:
+          return
+        elif value == '0':
           tsumufs.syncPause.clear()
+          return
 
     return -errno.EOPNOTSUPP
 
@@ -353,11 +355,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     # TODO: make this get the real xattrs from the file, and combine with our
     # own.
 
-    if size == 0:
-      # Caller just wants the size of the value. All of our values are either 1
-      # or 0 followed by a null, so we return a hardcoded value of 2 here.
-      return 2
-
     xattrs = {
       'tsumufs.in-cache': '0',
       'tsumufs.dirty': '0',
@@ -374,7 +371,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       xattrs['tsumufs.force-disconnect'] = '0'
       xattrs['tsumufs.connected'] = '0'
       xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
-      xattrs['tsumufs.synclog-contents'] = repr(tsumufs.syncLog)
+      xattrs['tsumufs.synclog-contents'] = str(tsumufs.syncLog)
 
       if tsumufs.syncPause.isSet():
         xattrs['tsumufs.pause-sync'] = '1'
@@ -388,7 +385,11 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     name = name.lower()
 
     try:
-      return xattrs[name]
+      if size == 0:
+        # Caller just wants the size of the value.
+        return len(xattrs[name])
+      else:
+        return xattrs[name]
     except KeyError:
       return -errno.EOPNOTSUPP
 
