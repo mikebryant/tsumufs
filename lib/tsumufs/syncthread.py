@@ -109,6 +109,10 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
                          'Not attempting mount.'))
             time.sleep(5)
 
+        while tsumufs.syncPause.isSet():
+          self._debug('User requested sync pause. Sleeping.')
+          time.sleep(5)
+
         while (tsumufs.nfsAvailable.isSet()
                and not tsumufs.unmounted.isSet()
                and not tsumufs.syncPause.isSet()):
