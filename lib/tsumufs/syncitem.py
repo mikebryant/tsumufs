@@ -76,6 +76,18 @@ class SyncItem(tsumufs.Debuggable):
     for key in hargs.keys():
       self.__dict__['_' + key] = hargs[key]
 
+  def __str__(self):
+    return (('<SyncItem:\n'
+             '  type: %s\n'
+             '  filename: %s\n'
+             '  inum: %s\n>')
+            % (self._type,
+               self._filename,
+               str(self._inum)))
+
+  def __repr__(self):
+    return str(self)
+
   def getType(self):
     return self._type
 
