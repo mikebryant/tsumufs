@@ -1,0 +1,5 @@
+Functionality testing should be done using the os_mock and
+os_path_mock modules somehow. Need a way to inject os_mock and
+os_path_mock into the various modules in TsumuFS -- this will allow us
+to move away from the NFS server dependency for testing, and allow us
+to write some decent regression tests.
