@@ -1,0 +1,16 @@
+!bug
+assignee: null
+cc: null
+description: !!python/unicode 'The class names, SyncItem and InodeChange are confusing.
+  Rename them to
+
+  FileChange (which contains metadata) and DataChange (which contains the actual
+
+  data changes made to the data part of the file).'
+duplicate: null
+priority: high
+reporter: !emailaddress '"June Tate-Gans" <jtgans@jtgans-nx.mtv.corp.google.com>'
+summary: Rename syncitem and inodechange
+tags: synclog, syncitem, inodechange
+version: null
+worklog: []

@@ -1,0 +1,24 @@
+!bug
+assignee: null
+cc: null
+description: !!python/unicode 'To make sure that data changes are merged properly,
+  instead of digging through
+
+  the entire synclog queue to find the appropriate change record, or adding a new
+
+  syncitem to the queue, we should instead check the inode changes hash first, and
+
+  if one exists for the same inode, we should add another region to it. Since the
+
+  changes list and the inodechanges list are kept in sync atomically (via locks)
+
+  if a change exists in the inodechanges hash, then we know that there''s a change
+
+  in the queue.'
+duplicate: null
+priority: high
+reporter: !emailaddress '"June Tate-Gans" <jtgans@jtgans-nx.mtv.corp.google.com>'
+summary: Synclog should check inode changes first
+tags: synclog
+version: null
+worklog: []
