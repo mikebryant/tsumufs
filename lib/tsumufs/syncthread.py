@@ -26,7 +26,6 @@ import errno
 import stat
 import traceback
 import Queue
-from pprint import pprint
 
 import fuse
 
