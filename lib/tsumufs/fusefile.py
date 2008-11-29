@@ -94,29 +94,17 @@ class FuseFile(tsumufs.Debuggable):
     # synclog with the new data region entry on bottom of the synclog
     # queue.
 
+    # TODO: Write to synclog FIRST, then to cache to allow for catching the
+    # issue when we crash before we update the synclog.
+
+    # TODO: Append a .N to the conflict.
+
     # Three cases here:
     #   - The file didn't exist prior to our write.
     #   - The file existed, but was extended.
     #   - The file existed, and an existing block was overwritten.
 
     bytes_written = 0
-
-    try:
-      tsumufs.cacheManager.writeFile(self._path, offset, buf,
-                                     self._fdFlags, self._fdMode)
-      self._debug('Wrote %d bytes.' % len(buf))
-
-      bytes_written = len(buf)
-    except OSError, e:
-      self._debug('OSError caught: errno %d: %s'
-                  % (e.errno, e.strerror))
-      return -e.errno
-    except IOError, e:
-      self._debug('IOError caught: %s' % str(e))
-
-      # TODO(jtg): Make this stop the NFS Mount condition on error, rather than
-      # raising errno.
-      return -e.errno
 
     if self._fdFlags & os.O_CREAT:
       self._debug('Adding new file to the synclog...')
@@ -148,9 +136,21 @@ class FuseFile(tsumufs.Debuggable):
                                 buf)
       self._debug('Done.')
 
-    self._debug('Wrote %d bytes to the synclog.' % len(buf))
+    try:
+      tsumufs.cacheManager.writeFile(self._path, offset, buf,
+                                     self._fdFlags, self._fdMode)
+      self._debug('Wrote %d bytes to cache.' % len(buf))
+      return len(buf)
+    except OSError, e:
+      self._debug('OSError caught: errno %d: %s'
+                  % (e.errno, e.strerror))
+      return -e.errno
+    except IOError, e:
+      self._debug('IOError caught: %s' % str(e))
 
-    return bytes_written
+      # TODO(jtg): Make this stop the NFS Mount condition on error, rather than
+      # raising errno.
+      return -e.errno
 
   def release(self, flags):
     self._debug('opcode: release | flags: %s' % flags)
