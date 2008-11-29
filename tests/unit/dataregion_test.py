@@ -33,7 +33,7 @@ class InstanceCheck(unittest.TestCase):
     self.testData = '1' * 10
 
   def testInstanciation(self):
-    r1 = dataregion.DataRegion(0, 9, self.testData)
+    r1 = dataregion.DataRegion(0, 10, self.testData)
     self.assertEqual(len(r1), len(self.testData))
 
   def testRegionLengthError(self):
