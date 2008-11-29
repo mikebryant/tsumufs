@@ -22,7 +22,6 @@ import os
 import errno
 import cPickle
 import threading
-import heapq
 
 import tsumufs
 
@@ -222,12 +221,48 @@ class SyncLog(tsumufs.Debuggable):
     try:
       self._lock.acquire()
 
-      for change in self._syncQueue:
-        if change.filename == filename:
-          del change
+      # TODO(jtg): Make this check the dirty status of a file before doing a
+      # walk of the queue. Walking the entire sync queue every unlink() call is
+      # expensive, even though it's O(n).
 
+      # Walk the queue backwards (newest to oldest) and remove any changes
+      # relating to this filename. We can mutate the list because going
+      # backwards, index numbers don't change after deletion (IOW, we're always
+      # deleting the tail).
+
+      for index, change in reverse(enumerate(self._syncQueue)):
+        if change.type in ('new', 'change', 'link'):
+          if change.filename == filename:
+            # Remove the change
+            del self._syncQueue[index]
+
+            # Remove any inodeChanges associated with this filename.
+            if (change.getInum() != None and
+                self._inodeChanges.has_key(change.getInum())):
+              del self._inodeChanges[change.getInum()]
+
+        if change.type in ('rename'):
+          if change.new_fname == filename:
+            # Okay, follow the rename back to remove previous changes. Leave the
+            # rename in place because the destination filename is a change we
+            # want to keep.
+            filename = change.old_fname
+
+            # TODO(jtg): Do we really need to keep these renames? Unlinking the
+            # final destination filename in the line of renames is akin to just
+            # unlinking the original file in the first place. Ie:
+            #
+            #      file -> file' -> file'' -> unlinked
+            #
+            # After each successive rename, the previous file ceases to
+            # exist. Once the final unlink is called, the previous sucessive
+            # names no longer matter. Technically we could replace all of the
+            # renames with a single unlink of the original filename and achieve
+            # the same result.
+
+      # Now add an additional syncitem to the queue to represent the unlink.
       syncitem = tsumufs.SyncItem('unlink', filename=filename)
-      heapq.heappush(self._syncQueue, (0, syncitem))
+      self._syncQueue.append(syncitem)
 
     finally:
       self._lock.release()
