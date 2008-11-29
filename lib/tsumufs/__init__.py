@@ -62,6 +62,7 @@ nfsAvailable    = threading.Event()
 forceDisconnect = threading.Event()
 syncPause       = threading.Event()
 
+checkpointTimeout = 60 * 1          # one minute
 
 def syslogCurrentException():
   '''
@@ -108,6 +109,7 @@ def nfsPathOf(fusepath):
 
   transpath = os.path.join(tsumufs.nfsMountPoint, rhs)
   return transpath
+
 
 def cachePathOf(fusepath):
   '''

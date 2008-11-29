@@ -71,10 +71,14 @@ class SyncLog(tsumufs.Debuggable):
   _inodeChanges    = {}
   _syncQueue       = []
   _lock            = threading.Lock()
+  _checkpointer    = None
 
   def __init__(self, logdir, logfilename='sync.log'):
     self._syncLogDir = logdir
     self._syncLogFilename = logfilename
+    self._checkpointer = threading.Timer(tsumufs.checkpointTimeout,
+                                         self.checkpoint())
+    self._checkpointer.start()
 
   def __str__(self):
     inodechange_str = repr(self._inodeChanges)
@@ -153,7 +157,7 @@ class SyncLog(tsumufs.Debuggable):
       filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
       fp = open(filename, 'wb')
       cPickle.dump({ 'inodeChanges': self._inodeChanges,
-                     'syncQueue': self._syncQueue}, fp)
+                     'syncQueue': self._syncQueue }, fp)
     finally:
       fp.close()
       self._lock.release()
@@ -183,22 +187,42 @@ class SyncLog(tsumufs.Debuggable):
     finally:
       self._lock.release()
 
+  def checkpoint(self):
+    self._debug('Checkpointing synclog...')
+
+    self.flushToDisk()
+    self._checkpointer.start()
+
+    self._debug('...complete. Next checkpoint in %d seconds.'
+                % tsumufs.checkpointTimeout)
+
   def addLink(self, inum, filename):
     try:
       self._lock.acquire()
 
       syncitem = tsumufs.SyncItem('link', inum=inum, filename=filename)
       heapq.heappush(self._syncQueue, (1, syncitem))
-
     finally:
       self._lock.release()
 
   def addUnlink(self, filename):
+    '''
+    Add a change to unlink a file. Additionally removes all previous changes in
+    the queue for that filename.
+
+    Args:
+      filename: the filename to unlink.
+
+    Raises:
+      Nothing.
+    '''
+
     try:
       self._lock.acquire()
 
-      # TODO(jtg): Find any other changes relating to this filename and remove
-      # them -- unlink trumps other changes.
+      for change in self._syncQueue:
+        if change.filename == filename:
+          del change
 
       syncitem = tsumufs.SyncItem('unlink', filename=filename)
       heapq.heappush(self._syncQueue, (0, syncitem))
@@ -215,6 +239,7 @@ class SyncLog(tsumufs.Debuggable):
 
       # TODO(jtg): Create the inodechange and stuff it in the appropriate area.
 
+
     finally:
       self._lock.release()
 
@@ -224,7 +249,6 @@ class SyncLog(tsumufs.Debuggable):
 
       syncitem = tsumufs.SyncItem('rename', old=old, new=new)
       heapq.heappush(self._syncQueue, (1, syncitem))
-
     finally:
       self._lock.release()
 
