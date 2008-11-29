@@ -137,9 +137,10 @@ class DataRegion(object):
       raise RangeError, ('End of range is before start (%d, %d)'
                          % (start, end))
 
-    if ((end - start + 1) != len(data)):
-      raise RegionLengthError, ('Range specified does not match '
-                                'the length of the data given.')
+    if ((end - start) != len(data)):
+      raise RegionLengthError, (('Range specified (%d-%d) does not match '
+                                 'the length of the data (%d) given.')
+                                % (start, end, len(data)))
 
     self._start = start
     self._end = end
