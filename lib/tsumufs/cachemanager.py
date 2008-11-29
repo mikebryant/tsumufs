@@ -120,8 +120,6 @@ class CacheManager(tsumufs.Debuggable):
         'time': time.time() + (random.random() * 20 - 10)
         }
 
-      tsumufs.NameToInodeMap.setNameToInode(realpath, stat_result.st_ino)
-
     return self._cachedStats[realpath]['stat']
 
   def _invalidateStatCache(self, realpath):
@@ -182,12 +180,12 @@ class CacheManager(tsumufs.Debuggable):
         self._debug('Statting %s' % realpath)
 
         if 'use-nfs' in opcodes:
-          return self._cacheStat(realpath)
-        else:
-          result = os.lstat(realpath)
+          result = self._cacheStat(realpath)
           tsumufs.NameToInodeMap.setNameToInode(realpath, result.st_ino)
 
           return result
+        else:
+          return os.lstat(realpath)
 
       except OSError, e:
         self._checkForNFSDisconnect(e, opcodes)
