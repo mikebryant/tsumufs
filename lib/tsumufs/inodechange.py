@@ -66,6 +66,9 @@ class InodeChange:
 
     return rep
 
+  def __str__(self):
+    return repr(self)
+
   def __init__(self):
     pass
 
