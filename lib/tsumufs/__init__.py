@@ -62,7 +62,7 @@ nfsAvailable    = threading.Event()
 forceDisconnect = threading.Event()
 syncPause       = threading.Event()
 
-checkpointTimeout = 60 * 1          # one minute
+checkpointTimeout = 30          # in seconds
 
 def syslogCurrentException():
   '''

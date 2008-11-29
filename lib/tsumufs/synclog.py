@@ -77,7 +77,7 @@ class SyncLog(tsumufs.Debuggable):
     self._syncLogDir = logdir
     self._syncLogFilename = logfilename
     self._checkpointer = threading.Timer(tsumufs.checkpointTimeout,
-                                         self.checkpoint())
+                                         self.checkpoint)
     self._checkpointer.start()
 
   def __str__(self):
@@ -191,6 +191,8 @@ class SyncLog(tsumufs.Debuggable):
     self._debug('Checkpointing synclog...')
 
     self.flushToDisk()
+    self._checkpointer = threading.Timer(tsumufs.checkpointTimeout,
+                                         self.checkpoint)
     self._checkpointer.start()
 
     self._debug('...complete. Next checkpoint in %d seconds.'
