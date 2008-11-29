@@ -76,10 +76,26 @@ class SyncItem(tsumufs.Debuggable):
     for key in hargs.keys():
       self.__dict__['_' + key] = hargs[key]
 
-  def getChanges(self):
-    '''
-    Calculate the differences in the synclog and the file located in
-    the cache. For each change, generate a SyncChange that it
-    represents, and return a list containing all of these changes.
-    '''
-    pass
+  def getType(self):
+    return self._type
+
+  def getFileType(self):
+    return self._file_type
+
+  def getMajor(self):
+    return self._major
+
+  def getMinor(self):
+    return self._minor
+
+  def getOldFilename(self):
+    return self._old_fname
+
+  def getNewFilename(self):
+    return self._new_fname
+
+  def getFilename(self):
+    return self._filename
+
+  def getInum(self):
+    return self._inum
