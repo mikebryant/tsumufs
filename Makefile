@@ -43,12 +43,18 @@ DIST_FILENAME := tsumufs-$(VERSION).tar.gz
 
 all: check test
 
-test-run: clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
-	if [ -z $(NFSHOME) ] || [ -z $(NFSOPTS) ]; then \
-		echo "Set NFSHOME and NFSOPTS before running this target."; \
+test-environment:
+	@if [ -z $(NFSHOME) ]; then \
+		echo "Set NFSHOME before running this target."; \
 		exit 1; \
 	fi
 
+	@if [ -z $(NFSOPTS) ]; then \
+		echo "Set NFSOPTS before running this target."; \
+		exit 1; \
+	fi
+
+test-run: test-environment clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 	src/tsumufs -d -O $(NFSOPTS) \
 		-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
 		$(NFSHOME) $(TEST_DIR)
@@ -86,12 +92,10 @@ $(TEST_NFS_DIR):
 	chown $(USER):$(shell id -g) $(TEST_CACHE_DIR)
 
 # TODO: Make these exist and idempotent.
-functional-tests: clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
-	@if [ -z $(NFSHOME) ] || [ -z $(NFSOPTS) ]; then \
-		echo "Set NFSHOME and NFSOPTS before running this target."; \
-		exit 1; \
-	fi
+functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 	for test in $(FUNC_TESTS); do      \
+		rm -rf tests/filesystem;       \
+		tar xf tests/filesystem.tar -C tests/; \
 		echo;                          \
 		echo --- $$test;               \
 		src/tsumufs -d -O $(NFSOPTS)   \
@@ -164,6 +168,6 @@ $(DIST_FILENAME):
 
 dist: $(DIST_FILENAME)
 
-.PHONY: all test unit-tests functional-tests \
+.PHONY: all test test-environment unit-tests functional-tests \
 		check fixspaces clean mrclean dist tag \
 		test-run tail-logs force-shutdown
