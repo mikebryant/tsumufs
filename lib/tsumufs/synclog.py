@@ -81,13 +81,9 @@ class SyncLog(tsumufs.Debuggable):
     syncqueue_str   = repr(self._syncQueue)
 
     string = (('<#SyncLog \n'
-              '    _syncLogDir: %s\n'
-              '    _syncLogFilename: %s\n'
               '    _inodeChanges: %s\n'
               '    _syncQueue: %s\n'
-              '>') % (self._syncLogDir,
-                      self._syncLogFilename,
-                      inodechange_str,
+              '>') % (inodechange_str,
                       syncqueue_str))
 
     return string
@@ -270,8 +266,13 @@ class SyncLog(tsumufs.Debuggable):
       self._syncQueue.append(syncitem)
 
       # TODO(jtg): Create the inodechange and stuff it in the appropriate area.
+      if self._inodeChanges.has_key(inum):
+        inodechange = self._inodeChanges[inum]
+      else:
+        inodechange = tsumufs.InodeChange()
+        self._inodeChanges[inum] = inodechange
 
-
+      inodechange.addDataChange(start, end, data)
     finally:
       self._lock.release()
 
