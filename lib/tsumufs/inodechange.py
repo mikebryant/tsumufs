@@ -43,26 +43,29 @@ class InodeChange:
     '''
 
     rep = '<InodeChange ['
+
     if len(self.dataRegions) > 0:
       for r in self.dataRegions:
         rep += '%s' % r
         if r != self.dataRegions[-1]:
           rep += '\n' + (' ' * 14)
-          rep += ']'
 
-      if self.ctime:
-        rep += '\n\tctime: %d' % self.ctime
-      if self.mtime:
-        rep += '\n\tmtime: %d' % self.mtime
-      if self.permissions:
-        rep += '\n\tperms: %d' % self.permissions
-      if self.uid:
-        rep += '\n\tuid: %d' % self.uid
-      if self.gid:
-        rep += '\n\tgid: %d' % self.gid
-      if self.symlinkPath:
-        rep += '\n\tsymlinkPath: %s' % self.symlinkPath
-      rep += '>'
+    rep += ']'
+
+    if self.ctime:
+      rep += '\n\tctime: %d' % self.ctime
+    if self.mtime:
+      rep += '\n\tmtime: %d' % self.mtime
+    if self.permissions:
+      rep += '\n\tperms: %d' % self.permissions
+    if self.uid:
+      rep += '\n\tuid: %d' % self.uid
+    if self.gid:
+      rep += '\n\tgid: %d' % self.gid
+    if self.symlinkPath:
+      rep += '\n\tsymlinkPath: %s' % self.symlinkPath
+
+    rep += '>'
 
     return rep
 
