@@ -54,6 +54,7 @@ cachePoint   = None
 cacheManager = None
 
 syncLog = None
+synclogPath = None
 
 socketDir = '/var/run/tsumufs'
 

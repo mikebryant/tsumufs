@@ -19,6 +19,7 @@
 '''TsumuFS, a NFS-based caching filesystem.'''
 
 import os
+import os.path
 import errno
 import cPickle
 import threading
@@ -65,16 +66,12 @@ class SyncLog(tsumufs.Debuggable):
   primarily by the SyncThread class.
   '''
 
-  _syncLogDir      = None
-  _syncLogFilename = None
   _inodeChanges    = {}
   _syncQueue       = []
   _lock            = threading.Lock()
   _checkpointer    = None
 
-  def __init__(self, logdir, logfilename='sync.log'):
-    self._syncLogDir = logdir
-    self._syncLogFilename = logfilename
+  def __init__(self):
     self._checkpointer = threading.Timer(tsumufs.checkpointTimeout,
                                          self.checkpoint)
     self._checkpointer.start()
@@ -109,9 +106,8 @@ class SyncLog(tsumufs.Debuggable):
     try:
       try:
         self._lock.acquire()
-        filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
 
-        fp = open(filename, 'rb')
+        fp = open(tsumufs.synclogPath, 'rb')
         try:
           data = cPickle.load(fp)
         finally:
@@ -123,9 +119,8 @@ class SyncLog(tsumufs.Debuggable):
         if e.errno != errno.ENOENT:
           raise
         else:
-          self._debug(('Unable to load synclog from disk -- %s/%s does not '
-                       'exist.')
-                      % (self._syncLogDir, self._syncLogFilename))
+          self._debug(('Unable to load synclog from disk -- %s does not '
+                       'exist.') % (tsumufs.synclogPath))
       except OSError, e:
         raise
     finally:
@@ -153,8 +148,8 @@ class SyncLog(tsumufs.Debuggable):
 
     try:
       self._lock.acquire()
-      filename = '%s/%s' % (self._syncLogDir, self._syncLogFilename)
-      fp = open(filename, 'wb')
+
+      fp = open(tsumufs.synclogPath, 'wb')
       cPickle.dump({ 'inodeChanges': self._inodeChanges,
                      'syncQueue': self._syncQueue }, fp)
     finally:
@@ -182,7 +177,7 @@ class SyncLog(tsumufs.Debuggable):
 
       params['type'] = type
       syncitem = tsumufs.SyncItem(params)
-      heapq.heappush(self._syncQueue, (1, syncitem))
+      self._syncQueue.append(syncitem)
     finally:
       self._lock.release()
 
@@ -202,7 +197,7 @@ class SyncLog(tsumufs.Debuggable):
       self._lock.acquire()
 
       syncitem = tsumufs.SyncItem('link', inum=inum, filename=filename)
-      heapq.heappush(self._syncQueue, (1, syncitem))
+      self._syncQueue.append(syncitem)
     finally:
       self._lock.release()
 
@@ -272,7 +267,7 @@ class SyncLog(tsumufs.Debuggable):
       self._lock.acquire()
 
       syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
-      heapq.heappush(self._syncQueue, (1, syncitem))
+      self._syncQueue.append(syncitem)
 
       # TODO(jtg): Create the inodechange and stuff it in the appropriate area.
 
@@ -285,7 +280,7 @@ class SyncLog(tsumufs.Debuggable):
       self._lock.acquire()
 
       syncitem = tsumufs.SyncItem('rename', old=old, new=new)
-      heapq.heappush(self._syncQueue, (1, syncitem))
+      self._syncQueue.append(syncitem)
     finally:
       self._lock.release()
 
@@ -293,8 +288,8 @@ class SyncLog(tsumufs.Debuggable):
     try:
       self._lock.acquire()
 
-      # Ignore priority -- we don't care about it.
-      (priority, syncitem) = heapq.heappop(self._syncQueue)
+      syncitem = self._syncQueue.pop()
+
       if syncitem.type == 'change':
         change = self._inodeChanges[syncitem.inum]
         del self._inodeChanges[syncitem.inum]

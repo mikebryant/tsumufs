@@ -68,7 +68,19 @@ class CacheManager(tsumufs.Debuggable):
                     % tsumufs.cachePoint)
 
         try:
-          os.mkdir(tsumufs.cachePoint)
+          pathparts = tsumufs.cachePoint.split('/')
+          path = ''
+
+          for pathpart in pathparts:
+            if pathpart == '':
+              path = '/'
+              continue
+
+            path = os.path.join(path, pathpart)
+
+            if not os.path.exists(path):
+              self._debug('Path %s doesn\'t exist -- creating.' % path)
+              os.mkdir(path)
         except OSError, e:
           self._debug('Unable to create cache point: %s (exiting)'
                       % os.strerror(e.errno))

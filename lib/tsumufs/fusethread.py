@@ -201,14 +201,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self.parser.add_option('-f',
                            action='callback',
-                           callback=lambda:
-                             self.fuse_args.setmod('foreground'),
+                           callback=lambda: self.fuse_args.setmod('foreground'),
                            help=('Prevents TsumuFS from forking into '
                                  'the background.'))
     self.parser.add_option('-D', '--fuse-debug',
                            action='callback',
-                           callback=lambda:
-                             self.fuse_args.add('debug'),
+                           callback=lambda: self.fuse_args.add('debug'),
                            help=('Turns on fuse-python debugging. '
                                  'Only useful if you also specify '
                                  '-f. Typically only useful to '
@@ -241,26 +239,29 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     # Make sure the mountPoint is a fully qualified pathname.
     if tsumufs.mountPoint[0] != '/':
-      tsumufs.mountPoint = os.getcwd() + '/' + tsumufs.mountPoint
+      tsumufs.mountPoint = os.path.join(os.getcwd(), tsumufs.mountPoint)
 
     # Shove the proper mountPoint into FUSE's mouth.
     self.fuse_args.mountpoint = tsumufs.mountPoint
 
-    self._debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
-    self._debug('cachePoint is %s' % tsumufs.cachePoint)
-
     # Finally, calculate the runtime paths if they weren't specified already.
     if tsumufs.nfsMountPoint == None:
-      tsumufs.nfsMountPoint = (tsumufs.nfsBaseDir + '/' +
-                               tsumufs.mountPoint.replace('/', '-'))
+      tsumufs.nfsMountPoint = os.path.join(tsumufs.nfsBaseDir,
+                                           tsumufs.mountPoint.replace('/', '-'))
 
     if tsumufs.cachePoint == None:
-      tsumufs.cachePoint = (tsumufs.cacheBaseDir + '/' +
-                            tsumufs.mountPoint.replace('/', '-'))
+      tsumufs.cachePoint = os.path.join(tsumufs.cacheBaseDir,
+                                        tsumufs.mountPoint.replace('/', '-'),
+                                        'cache')
+
+    tsumufs.synclogPath = os.path.abspath(os.path.join(tsumufs.cachePoint,
+                                                       '../sync.log'))
 
     self._debug('mountPoint is %s' % tsumufs.mountPoint)
     self._debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
+    self._debug('cacheBaseDir is %s' % tsumufs.cacheBaseDir)
     self._debug('cachePoint is %s' % tsumufs.cachePoint)
+    self._debug('synclogPath is %s' % tsumufs.synclogPath)
     self._debug('mountOptions is %s' % tsumufs.mountOptions)
 
 

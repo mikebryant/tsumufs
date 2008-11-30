@@ -45,7 +45,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
     sys.excepthook = tsumufs.syslogExceptHook
 
     self._debug('Loading SyncQueue.')
-    tsumufs.syncLog = tsumufs.SyncLog(tsumufs.cachePoint)
+    tsumufs.syncLog = tsumufs.SyncLog()
 
     try:
       tsumufs.syncLog.loadFromDisk()
