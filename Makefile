@@ -55,6 +55,9 @@ test-environment:
 	fi
 
 test-run: test-environment clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
+	rm -rf tests/filesystem
+	tar xf tests/filesystem.tar -C tests/
+
 	src/tsumufs -d -O $(NFSOPTS) \
 		-o nfsmountpoint=$(TEST_NFS_DIR),cachebasedir=$(TEST_CACHE_DIR) \
 		$(NFSHOME) $(TEST_DIR)
