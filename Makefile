@@ -56,7 +56,7 @@ test-environment:
 
 test-run: test-environment clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 	src/tsumufs -d -O $(NFSOPTS) \
-		-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
+		-o nfsmountpoint=$(TEST_NFS_DIR),cachebasedir=$(TEST_CACHE_DIR) \
 		$(NFSHOME) $(TEST_DIR)
 
 	cd $(TEST_DIR);             \
