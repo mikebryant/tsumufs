@@ -77,10 +77,10 @@ class SyncItem(tsumufs.Debuggable):
       self.__dict__['_' + key] = hargs[key]
 
   def __str__(self):
-    return (('<SyncItem:\n'
-             '  type: %s\n'
-             '  filename: %s\n'
-             '  inum: %s\n>')
+    return (('<SyncItem:'
+             ' type: %s'
+             ' filename: %s'
+             ' inum: %s>')
             % (self._type,
                self._filename,
                str(self._inum)))
