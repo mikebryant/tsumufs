@@ -124,8 +124,8 @@ class DataRegion(object):
     DataRegion object.
     '''
 
-    return('<DataRegion [%d:%d] (%d): "%s">'
-           % (self._start, self._end, self._length, self._data))
+    return('<DataRegion [%d:%d] (%d): %s>'
+           % (self._start, self._end, self._length, repr(self._data)))
 
   def __init__(self, start, end, data):
     '''
@@ -148,21 +148,21 @@ class DataRegion(object):
     self._length = len(data)
 
   def canMerge(self, dataregion):
-    if ((dataregion.start > self._end) or       #       |-----|
-        (dataregion.end < self._start)):        # |====|
-      if ((self._end + 1 == dataregion.start) or
-          (dataregion.end + 1 == self._start)):
+    if ((dataregion._start > self._end) or       #       |-----|
+        (dataregion._end < self._start)):        # |====|
+      if ((self._end + 1 == dataregion._start) or
+          (dataregion._end + 1 == self._start)):
         return True
       else:
         return False
-    elif ((dataregion.start >= self._start) and #    |-----|
-          (dataregion.start <= self._end)):     #       |=====|
+    elif ((dataregion._start >= self._start) and #    |-----|
+          (dataregion._start <= self._end)):     #       |=====|
       return True
-    elif ((dataregion.end >= self._start) and   #    |-----|
-          (dataregion.end <= self._end)):       # |=====|
+    elif ((dataregion._end >= self._start) and   #    |-----|
+          (dataregion._end <= self._end)):       # |=====|
       return True
-    elif ((dataregion.start < self._start) and  #    |-----|
-          (dataregion.end > self._end)):        # |===========|
+    elif ((dataregion._start < self._start) and  #    |-----|
+          (dataregion._end > self._end)):        # |===========|
       return True
 
   def mergeWith(self, dataregion):
@@ -184,25 +184,25 @@ class DataRegion(object):
     #            |-------|
     #         |=============|
     #            |=======|
-    if ((dataregion.start <= self._start) and
-        (dataregion.end >= self._end)):
-      return DataRegion(dataregion.start,
-                        dataregion.end,
-                        dataregion.data)
+    if ((dataregion._start <= self._start) and
+        (dataregion._end >= self._end)):
+      return DataRegion(dataregion._start,
+                        dataregion._end,
+                        dataregion._data)
 
-    start_offset = dataregion.start - self._start
-    end_offset = dataregion.end + 1 - self._start
+    start_offset = dataregion._start - self._start
+    end_offset = dataregion._end + 1 - self._start
 
     # Case where the dataregion is encapsulated entirely inside
     # this one, exclusive of the end points.
     #            |-------|
     #              |===|
-    if ((dataregion.start > self._start) and
-        (dataregion.end < self._end)):
+    if ((dataregion._start > self._start) and
+        (dataregion._end < self._end)):
       return DataRegion(self._start,
                         self._end,
                         (self._data[:start_offset] +
-                         dataregion.data +
+                         dataregion._data +
                          self._data[end_offset:]))
 
     # Case where the dataregion is offset to the left and only
@@ -212,11 +212,11 @@ class DataRegion(object):
     #         |======|
     #      |=====|
     #     |=====|
-    if ((dataregion.start <= self._start) and
-        (dataregion.end <= self._end)):
-      return DataRegion(dataregion.start,
+    if ((dataregion._start <= self._start) and
+        (dataregion._end <= self._end)):
+      return DataRegion(dataregion._start,
                         self._end,
-                        dataregion.data + self._data[end_offset:])
+                        dataregion._data + self._data[end_offset:])
 
     # Case where the dataregion is offset to the left and only
     # partially overwrites this one, inclusive of the end points.
@@ -224,9 +224,9 @@ class DataRegion(object):
     #                |======|
     #                    |======|
     #                     |======|
-    if ((dataregion.start >= self._start) and
-        (dataregion.end >= self._end)):
+    if ((dataregion._start >= self._start) and
+        (dataregion._end >= self._end)):
       return DataRegion(self._start,
-                        dataregion.end,
-                        self._data[:start_offset] + dataregion.data)
+                        dataregion._end,
+                        self._data[:start_offset] + dataregion._data)
 
