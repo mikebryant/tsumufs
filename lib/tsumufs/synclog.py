@@ -164,10 +164,33 @@ class SyncLog(tsumufs.Debuggable):
     '''
 
     for change in self._syncQueue:
-      if change.getType() == 'new':
+      if ((change.getType() == 'new') and
+          (change.getFilename() == fusepath)):
         return True
 
     return False
+
+  def isUnlinkedFile(self, fusepath):
+    '''
+    Check to see if fusepath is a file that was unlinked previously.
+
+    Returns:
+      Boolean
+
+    Raises:
+      Nothing
+    '''
+
+    is_unlinked = False
+
+    for change in self._syncQueue:
+      if change.getFilename() == fusepath:
+        if change.getType() == 'unlink':
+          is_unlinked = True
+        else:
+          is_unlinked = False
+
+    return is_unlinked
 
   def addNew(self, type_, **params):
     '''
