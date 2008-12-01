@@ -42,28 +42,20 @@ class InodeChange:
     object.
     '''
 
-    rep = '<InodeChange ['
-
-    if len(self.dataRegions) > 0:
-      for r in self.dataRegions:
-        rep += '%s' % r
-        if r != self.dataRegions[-1]:
-          rep += '\n' + (' ' * 14)
-
-    rep += ']'
+    rep = '<InodeChange %s' % repr(self.dataRegions)
 
     if self.ctime:
-      rep += '\n\tctime: %d' % self.ctime
+      rep += ' ctime: %d' % self.ctime
     if self.mtime:
-      rep += '\n\tmtime: %d' % self.mtime
+      rep += ' mtime: %d' % self.mtime
     if self.permissions:
-      rep += '\n\tperms: %d' % self.permissions
+      rep += ' perms: %o' % self.permissions
     if self.uid:
-      rep += '\n\tuid: %d' % self.uid
+      rep += ' uid: %d' % self.uid
     if self.gid:
-      rep += '\n\tgid: %d' % self.gid
+      rep += ' gid: %d' % self.gid
     if self.symlinkPath:
-      rep += '\n\tsymlinkPath: %s' % self.symlinkPath
+      rep += ' symlinkPath: %s' % self.symlinkPath
 
     rep += '>'
 
@@ -87,6 +79,10 @@ class InodeChange:
     merged = DataRegion(start, end, data)
     newlist = []
 
+    if len(self.dataRegions) == 0:
+      self.dataRegions = [ merged ]
+      return
+
     for r in self.dataRegions:
       if r.canMerge(merged):
         merged = r.mergeWith(merged)
@@ -94,7 +90,8 @@ class InodeChange:
         newlist.append(r)
 
       newlist.insert(0, merged)
-      self.dataRegions = newlist
+
+    self.dataRegions = newlist
 
   def getDataChanges(self):
     '''
@@ -103,3 +100,15 @@ class InodeChange:
     '''
 
     return self.dataRegions
+
+  def truncateLength(self, newlength):
+    '''
+    Truncate any DataRegions and set our new dataLength.
+    '''
+    pass
+
+  def setDataLength(self, newlength):
+    '''
+    Set the new data length.
+    '''
+    pass
