@@ -148,6 +148,25 @@ class CacheManager(tsumufs.Debuggable):
     if self._cachedStats.has_key(realpath):
       del self._cachedStats[realpath]
 
+  def _invalidateDirentCache(self, dirname, basename):
+    '''
+    Unconditionally invalidate a dirent for a file.
+
+    Returns:
+      None
+
+    Raises:
+      Nothing
+    '''
+
+    if self._cachedDirents.has_key(dirname):
+      if basename in self._cachedDirents[dirname]:
+        self._debug('Removing %s from the dirent cache.' %
+                    os.path.join(dirname, basename))
+
+        while basename in self._cachedDirents[dirname]:
+          self._cachedDirents[dirname].remove(basename)
+
   def _checkForNFSDisconnect(self, exception, opcodes):
     '''
     '''
@@ -252,7 +271,6 @@ class CacheManager(tsumufs.Debuggable):
           raise
 
       realpath = self._generatePath(fusepath, opcodes)
-
       self._debug('Attempting open of %s.' % realpath)
 
       if 'use-cache' in opcodes:
@@ -316,6 +334,9 @@ class CacheManager(tsumufs.Debuggable):
 
         for dirent in nfs_dirents.union(cached_dirents):
           final_dirents_list.append(dirent)
+
+        self._debug('nfs_dirents = %s' % nfs_dirents);
+        self._debug('cached_dirents = %s' % cached_dirents);
 
         return final_dirents_list
 
@@ -618,7 +639,7 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
-  def _removeCachedFile(self, fusepath):
+  def removeCachedFile(self, fusepath):
     '''
     Remove the cached file referenced by fusepath from the cache.
 
@@ -644,9 +665,14 @@ class CacheManager(tsumufs.Debuggable):
       if os.path.isfile(cachefilename) or os.path.islink(cachefilename):
         os.unlink(cachefilename)
       elif os.path.isdir(cachefilename):
-        # TODO: Recursively descend into the path, removing all of the files and
-        # dirs from the cache as well as this one.
-        pass
+        os.rmdir(cachefilename)
+
+      # Invalidate the stat cache for this file
+      self._invalidateStatCache(cachefilename)
+
+      # Remove this file from the dirent cache if it was put in there.
+      self._invalidateDirentCache(os.path.dirname(fusepath),
+                                  os.path.basename(fusepath))
 
     finally:
       self._unlockFile(fusepath)

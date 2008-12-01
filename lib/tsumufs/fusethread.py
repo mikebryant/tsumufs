@@ -467,8 +467,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
         yield dirent
     except OSError, e:
-      self._debug('readdir: Caught OSError: errno %d: %s'
-                  % (e.errno, e.strerror))
+      self._debug('readdir: Caught OSError on %s: errno %d: %s'
+                  % (filename, e.errno, e.strerror))
       yield -e.errno
 
   def unlink(self, path):
@@ -482,8 +482,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: unlink | path: %s' % path)
 
     try:
-      os.unlink(tsumufs.nfsMountPoint + path)
       tsumufs.cacheManager.removeCachedFile(path)
+      tsumufs.syncLog.addUnlink(path)
 
       return True
     except OSError, e:
@@ -502,8 +502,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: rmdir | path: %s' % path)
 
     try:
-      os.rmdir(tsumufs.nfsMountPoint + path)
       tsumufs.cacheManager.removeCachedFile(path)
+      tsumufs.syncLog.addUnlink(path)
 
       return True
     except OSError, e:
@@ -578,7 +578,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
 
     try:
-      # TODO(jtg): Make this actually chmod the files on NFS.
+      # TODO(jtg): Make this actually chmod the files on the cache.
       return 0
     except OSError, e:
       self._debug('chmod: Caught OSError: errno %d: %s'

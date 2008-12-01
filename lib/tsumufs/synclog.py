@@ -152,7 +152,24 @@ class SyncLog(tsumufs.Debuggable):
       fp.close()
       self._lock.release()
 
-  def addNew(self, type, **params):
+  def isNewFile(self, fusepath):
+    '''
+    Check to see if fusepath is a file the user created locally.
+
+    Returns:
+      Boolean
+
+    Raises:
+      Nothing
+    '''
+
+    for change in self._syncQueue:
+      if change.getType() == 'new':
+        return True
+
+    return False
+
+  def addNew(self, type_, **params):
     '''
     Add a change for a new file to the queue.
 
@@ -171,8 +188,9 @@ class SyncLog(tsumufs.Debuggable):
     try:
       self._lock.acquire()
 
-      params['type'] = type
-      syncitem = tsumufs.SyncItem(params)
+      params['file_type'] = type_
+      syncitem = tsumufs.SyncItem('new', **params)
+
       self._syncQueue.append(syncitem)
     finally:
       self._lock.release()
@@ -221,9 +239,18 @@ class SyncLog(tsumufs.Debuggable):
       # backwards, index numbers don't change after deletion (IOW, we're always
       # deleting the tail).
 
-      for index, change in reverse(enumerate(self._syncQueue)):
-        if change.type in ('new', 'change', 'link'):
-          if change.filename == filename:
+      if self.isNewFile(filename):
+        is_new_file = True
+      else:
+        is_new_file = False
+
+      # Have to offset these by one because range doesn't function the same as
+      # lists. *sigh*
+      for index in range(len(self._syncQueue)-1, -1, -1):
+        change = self._syncQueue[index]
+
+        if change.getType() in ('new', 'change', 'link'):
+          if change.getFilename() == filename:
             # Remove the change
             del self._syncQueue[index]
 
@@ -232,12 +259,12 @@ class SyncLog(tsumufs.Debuggable):
                 self._inodeChanges.has_key(change.getInum())):
               del self._inodeChanges[change.getInum()]
 
-        if change.type in ('rename'):
-          if change.new_fname == filename:
+        if change.getType() in ('rename'):
+          if change.getNewFilename() == filename:
             # Okay, follow the rename back to remove previous changes. Leave the
             # rename in place because the destination filename is a change we
             # want to keep.
-            filename = change.old_fname
+            filename = change.getOldFilename()
 
             # TODO(jtg): Do we really need to keep these renames? Unlinking the
             # final destination filename in the line of renames is akin to just
@@ -251,9 +278,11 @@ class SyncLog(tsumufs.Debuggable):
             # renames with a single unlink of the original filename and achieve
             # the same result.
 
-      # Now add an additional syncitem to the queue to represent the unlink.
-      syncitem = tsumufs.SyncItem('unlink', filename=filename)
-      self._syncQueue.append(syncitem)
+      # Now add an additional syncitem to the queue to represent the unlink if
+      # it wasn't a file that was created on the cache by the user.
+      if not is_new_file:
+        syncitem = tsumufs.SyncItem('unlink', filename=filename)
+        self._syncQueue.append(syncitem)
 
     finally:
       self._lock.release()

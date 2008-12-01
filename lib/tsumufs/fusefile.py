@@ -60,14 +60,22 @@ class FuseFile(tsumufs.Debuggable):
 
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode)
 
+    # If we were a new file, create a new change in the synclog for the new file
+    # entry.
+    if self._fdFlags & os.O_CREAT:
+      self._debug('Adding a new change to the log as user wanted O_CREAT')
+      tsumufs.syncLog.addNew('file',
+                             filename=self._path,
+                             dev_type=None,
+                             major=None,
+                             minor=None)
+
     # Rip out any O_TRUNC options after we do the initial open -- that's
     # dangerous to do in this case, because if we get multiple write calls, we
     # just pass in the _fdMode raw, which causing multiple O_TRUNC calls to the
     # underlying file, resulting in data loss. We do the same for O_CREAT, as it
     # can also cause problems later on.
 
-    # TODO(jtg): We should make sure these actually do what we expect instead of
-    # taking it on faith.
     self._fdFlags = self._fdFlags & (~os.O_EXCL)
     self._fdFlags = self._fdFlags & (~os.O_CREAT)
 
@@ -106,28 +114,17 @@ class FuseFile(tsumufs.Debuggable):
 
     bytes_written = 0
 
-    if self._fdFlags & os.O_CREAT:
-      self._debug('Adding new file to the synclog...')
-      tsumufs.syncLog.addNew('file',
-                             filename=self._path,
-                             data=buf,
-                             start=offset,
-                             end=offset+len(buf),
-                             length=len(buf))
-      self._debug('Done.')
-    else:
-      # TODO(jtg): make addChange handle sparse inode numbers and update them
-      # later.
-      nfspath = tsumufs.nfsPathOf(self._path)
+    nfspath = tsumufs.nfsPathOf(self._path)
 
+    try:
+      inode = tsumufs.NameToInodeMap.nameToInode(nfspath)
+    except KeyError, e:
       try:
-        inode = tsumufs.NameToInodeMap.nameToInode(nfspath)
-      except KeyError, e:
-        try:
-          inode = tsumufs.cacheManager.statFile(self._path).st_ino
-        except (IOError, OSError), e:
-          inode = -1
+        inode = tsumufs.cacheManager.statFile(self._path).st_ino
+      except (IOError, OSError), e:
+        inode = -1
 
+    if not tsumufs.syncLog.isNewFile(self._path):
       self._debug('Adding change to synclog...')
       tsumufs.syncLog.addChange(self._path,
                                 inode,
@@ -135,6 +132,8 @@ class FuseFile(tsumufs.Debuggable):
                                 offset+len(buf),
                                 buf)
       self._debug('Done.')
+    else:
+      self._debug('We\'re a new file -- not adding a change record to log.')
 
     try:
       tsumufs.cacheManager.writeFile(self._path, offset, buf,
