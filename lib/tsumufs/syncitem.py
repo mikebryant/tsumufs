@@ -60,10 +60,10 @@ class SyncItem(tsumufs.Debuggable):
   _VALID_FILE_TYPES = [ 'file', 'dir', 'socket', 'fifo', 'device' ]
   _VALID_DEV_TYPES  = [ 'char', 'block' ]
 
-  def __init__(self, typ, **hargs):
+  def __init__(self, type_, **hargs):
     # TODO(jtg): Make this do validation against the above _VALID_* variables.
 
-    self._type = typ
+    self._type = type_
     self._hargs = hargs
 
     if self._type not in self._VALID_TYPES:
