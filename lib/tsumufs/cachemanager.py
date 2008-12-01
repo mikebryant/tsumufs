@@ -511,12 +511,14 @@ class CacheManager(tsumufs.Debuggable):
     Truncate the file.
     '''
 
-    self._lockFile(fusepath)
-
     try:
+      self._lockFile(fusepath)
+
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
+
+      self._debug('Truncating %s to %d bytes.' % (realpath, size))
 
       fd = os.open(realpath, os.O_RDWR)
       os.ftruncate(fd, size)
@@ -526,6 +528,7 @@ class CacheManager(tsumufs.Debuggable):
       self._invalidateStatCache(realpath)
 
       return 0
+
     finally:
       self._unlockFile(fusepath)
 
@@ -692,8 +695,10 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-    # TODO: Check against the cachespec!
-    return True
+    if tsumufs.syncLog.isUnlinkedFile(fusepath):
+      return False
+    else:
+      return True
 
   def _validateCache(self, fusepath, opcodes=None):
     '''
@@ -785,8 +790,12 @@ class CacheManager(tsumufs.Debuggable):
     # if not cachedFile and not shouldCache
     if not self.isCachedToDisk(fusepath) and not self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
-        self._debug('File not cached, should not cache -- use nfs.')
-        return ['use-nfs']
+        if tsumufs.syncLog.isUnlinkedFile(fusepath):
+          self._debug('File previously unlinked -- returning use cache.')
+          return ['use-cache']
+        else:
+          self._debug('File not cached, should not cache -- use nfs.')
+          return ['use-nfs']
 
     # if not cachedFile and     shouldCache
     if not self.isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
