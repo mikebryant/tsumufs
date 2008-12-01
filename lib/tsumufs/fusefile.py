@@ -55,8 +55,8 @@ class FuseFile(tsumufs.Debuggable):
     # output to the syslog rather than to /dev/null.
     sys.excepthook = tsumufs.syslogExceptHook
 
-    self._debug('opcode: open | flags: %s | mode: %s'
-                % (flags, mode))
+    self._debug('opcode: open | flags: %s | mode: %o'
+                % (self._flagsToString(), mode or 0))
 
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode)
 
@@ -76,8 +76,20 @@ class FuseFile(tsumufs.Debuggable):
     # underlying file, resulting in data loss. We do the same for O_CREAT, as it
     # can also cause problems later on.
 
-    self._fdFlags = self._fdFlags & (~os.O_EXCL)
+    self._fdFlags = self._fdFlags & (~os.O_TRUNC)
     self._fdFlags = self._fdFlags & (~os.O_CREAT)
+
+  def _flagsToString(self):
+    string = ''
+
+    for flag in dir(os):
+      if flag.startswith('O_'):
+        flag_value = eval('os.%s' % flag)
+
+        if self._fdFlags & flag_value:
+          string += '|%s' % flag
+
+    return string[1:]
 
   def read(self, length, offset):
     self._debug('opcode: read | path: %s | len: %d | offset: %d'
