@@ -485,7 +485,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       tsumufs.cacheManager.removeCachedFile(path)
       tsumufs.syncLog.addUnlink(path)
 
-      return True
+      return 0
     except OSError, e:
       self._debug('unlink: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -616,9 +616,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                (path, size))
 
     try:
-      fp = open(tsumufs.nfsMountPoint + path, 'a')
-      fp.truncate(size)
-
+      tsumufs.cacheManager.truncateFile(path, size)
       return 0
     except OSError, e:
       self._debug('truncate: Caught OSError: errno %d: %s'
