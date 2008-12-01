@@ -106,9 +106,9 @@ class FuseFile(tsumufs.Debuggable):
                   % (e.errno, e.strerror))
       return -e.errno
 
-  def write(self, buf, offset):
+  def write(self, new_data, offset):
     self._debug('opcode: write | path: %s | offset: %d | buf: %s'
-                % (self._path, offset, repr(buf)))
+                % (self._path, offset, repr(new_data)))
 
     # TODO: Make this write to the cache first, and then update the
     # synclog with the new data region entry on bottom of the synclog
@@ -127,31 +127,52 @@ class FuseFile(tsumufs.Debuggable):
     bytes_written = 0
 
     nfspath = tsumufs.nfsPathOf(self._path)
+    statgoo = tsumufs.cacheManager.statFile(self._path)
 
     try:
       inode = tsumufs.NameToInodeMap.nameToInode(nfspath)
     except KeyError, e:
       try:
-        inode = tsumufs.cacheManager.statFile(self._path).st_ino
+        inode = statgoo.st_ino
       except (IOError, OSError), e:
         inode = -1
 
     if not tsumufs.syncLog.isNewFile(self._path):
-      self._debug('Adding change to synclog...')
+      self._debug('Reading offset %d, length %d from %s.'
+                  % (offset, len(new_data), self._path))
+      old_data = tsumufs.cacheManager.readFile(self._path,
+                                               offset,
+                                               offset+len(new_data),
+                                               os.O_RDONLY)
+
+      # Pad missing chunks on the old_data stream with NULLs, as NFS
+      # would. Unfortunately during resyncing, we'll have to consider regions
+      # past the end of a file to be NULLs as well. This allows us to merge data
+      # regions cleanly without rehacking the model.
+
+      if len(old_data) < len(new_data):
+        self._debug(('New data is past end of file by %d bytes. '
+                     'Padding with nulls.')
+                    % (len(new_data) - len(old_data)))
+        old_data += '\x00' * (len(new_data) - len(old_data))
+
+      self._debug('Adding change to synclog [ %s | %d | %d | %d | %s ]'
+                  % (self._path, inode, offset, offset+len(new_data),
+                     repr(old_data)))
+
       tsumufs.syncLog.addChange(self._path,
                                 inode,
                                 offset,
-                                offset+len(buf),
-                                buf)
-      self._debug('Done.')
+                                offset+len(new_data),
+                                old_data)
     else:
       self._debug('We\'re a new file -- not adding a change record to log.')
 
     try:
-      tsumufs.cacheManager.writeFile(self._path, offset, buf,
+      tsumufs.cacheManager.writeFile(self._path, offset, new_data,
                                      self._fdFlags, self._fdMode)
-      self._debug('Wrote %d bytes to cache.' % len(buf))
-      return len(buf)
+      self._debug('Wrote %d bytes to cache.' % len(new_data))
+      return len(new_data)
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
