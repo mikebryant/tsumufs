@@ -493,9 +493,9 @@ class CacheManager(tsumufs.Debuggable):
       OSError upon access problems.
     '''
 
-    self._lockFile(fusepath)
-
     try:
+      self._lockFile(fusepath)
+
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
@@ -503,6 +503,17 @@ class CacheManager(tsumufs.Debuggable):
       self._debug('Checking for access on %s' % realpath)
 
       return os.access(realpath, mode)
+    finally:
+      self._unlockFile(fusepath)
+
+  def _truncateChanges(fusepath, size):
+    try:
+      self._lockFile(fusepath)
+
+      for change in self._syncQueue:
+        if change.getFilename() == fusepath:
+          change.truncateLength(size)
+
     finally:
       self._unlockFile(fusepath)
 
@@ -526,6 +537,9 @@ class CacheManager(tsumufs.Debuggable):
 
       # Since we wrote to the file, invalidate the stat cache if it exists.
       self._invalidateStatCache(realpath)
+
+      # Truncate any changes to match
+      self._truncateChanges(fusepath, size)
 
       return 0
 
