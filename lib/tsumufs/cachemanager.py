@@ -400,7 +400,8 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      self._debug('Reading file contents from %s' % realpath)
+      self._debug('Reading file contents from %s [ofs: %d, len: %d]'
+                  % (realpath, offset, length))
 
       if mode != None:
         fd = os.open(realpath, flags, mode)
@@ -411,6 +412,8 @@ class CacheManager(tsumufs.Debuggable):
       fp.seek(offset)
       result = fp.read(length)
       fp.close()
+
+      self._debug('Read %s' % repr(result))
 
       return result
 
@@ -605,6 +608,8 @@ class CacheManager(tsumufs.Debuggable):
       OSError if there was an issue attempting to copy the file
       across to cache.
     '''
+
+    # TODO(jtg): Add support for storing the UID/GID
 
     self._lockFile(fusepath)
 
@@ -828,7 +833,7 @@ class CacheManager(tsumufs.Debuggable):
     if self.isCachedToDisk(fusepath) and self._shouldCacheFile(fusepath):
       if tsumufs.nfsAvailable.isSet():
         if self._nfsDataChanged(fusepath):
-          if self.cachedFileIsDirty(fusepath):
+          if tsumufs.syncLog.isFileDirty(fusepath):
             self._debug('Merge conflict detected.')
             return ['merge-conflict']
           else:
@@ -842,50 +847,6 @@ class CacheManager(tsumufs.Debuggable):
 
     self._debug('Using cache by default, as no other cases matched.')
     return ['use-cache']
-
-  def cachedFileIsDirty(self, fusepath):
-    '''
-    Check to see if the cached copy of a file is dirty.
-
-    Note that this does a shortcut test -- if the file in local cache exists and
-    the file on nfs does not, then we assume the cached copy is
-    dirty. Otherwise, we have to check against the synclog to see what's changed
-    (if at all).
-
-    Returns:
-      Boolean true or false.
-
-    Raises:
-      Any error that might occur during an os.lstat(), aside from ENOENT.
-    '''
-
-    self._lockFile(fusepath)
-
-    try:
-      try:
-        os.lstat(tsumufs.cachePathOf(fusepath))
-      except OSError, e:
-        if e.errno == errno.ENOENT:
-          return False
-        else:
-          raise
-
-      try:
-        os.lstat(tsumufs.nfsPathOf(fusepath))
-      except OSError, e:
-        if e.errno == errno.ENOENT:
-          return True
-        else:
-          raise
-      else:
-        # TODO: Do some other checks here against the synclog to verify our
-        # dirtiness.
-        pass
-
-      return True
-
-    finally:
-      self._unlockFile(fusepath)
 
   def _nfsDataChanged(self, fusepath):
     '''

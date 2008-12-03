@@ -364,7 +364,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     if tsumufs.cacheManager.isCachedToDisk(path):
       xattrs['tsumufs.in-cache'] = '1'
 
-    if tsumufs.cacheManager.cachedFileIsDirty(path):
+    if tsumufs.syncLog.isFileDirty(path):
       xattrs['tsumufs.dirty'] = '1'
 
     if path == '/':

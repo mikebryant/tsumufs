@@ -68,7 +68,7 @@ class SyncLog(tsumufs.Debuggable):
 
   _inodeChanges    = {}
   _syncQueue       = []
-  _lock            = threading.Lock()
+  _lock            = threading.RLock()
   _checkpointer    = None
 
   def __init__(self):
@@ -163,12 +163,18 @@ class SyncLog(tsumufs.Debuggable):
       Nothing
     '''
 
-    for change in self._syncQueue:
-      if ((change.getType() == 'new') and
-          (change.getFilename() == fusepath)):
-        return True
+    try:
+      self._lock.acquire()
 
-    return False
+      for change in self._syncQueue:
+        if ((change.getType() == 'new') and
+            (change.getFilename() == fusepath)):
+          return True
+
+      return False
+
+    finally:
+      self._lock.release()
 
   def isUnlinkedFile(self, fusepath):
     '''
@@ -181,16 +187,49 @@ class SyncLog(tsumufs.Debuggable):
       Nothing
     '''
 
-    is_unlinked = False
+    try:
+      self._lock.acquire()
+      is_unlinked = False
 
-    for change in self._syncQueue:
-      if change.getFilename() == fusepath:
-        if change.getType() == 'unlink':
-          is_unlinked = True
-        else:
-          is_unlinked = False
+      for change in self._syncQueue:
+        if change.getFilename() == fusepath:
+          if change.getType() == 'unlink':
+            is_unlinked = True
+          else:
+            is_unlinked = False
 
-    return is_unlinked
+      return is_unlinked
+
+    finally:
+      self._lock.release()
+
+  def isFileDirty(self, fusepath):
+    '''
+    Check to see if the cached copy of a file is dirty.
+
+    Note that this does a shortcut test -- if the file in local cache exists and
+    the file on nfs does not, then we assume the cached copy is
+    dirty. Otherwise, we have to check against the synclog to see what's changed
+    (if at all).
+
+    Returns:
+      Boolean true or false.
+
+    Raises:
+      Any error that might occur during an os.lstat(), aside from ENOENT.
+    '''
+
+    try:
+      self._lock.acquire()
+
+      for change in self._syncQueue:
+        if change.getFilename() == fusepath:
+          return True
+
+      return False
+
+    finally:
+      self._lock.release()
 
   def addNew(self, type_, **params):
     '''

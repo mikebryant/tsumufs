@@ -145,7 +145,7 @@ class FuseFile(tsumufs.Debuggable):
                   % (offset, len(new_data), self._path))
       old_data = tsumufs.cacheManager.readFile(self._path,
                                                offset,
-                                               offset+len(new_data),
+                                               len(new_data),
                                                os.O_RDONLY)
 
       # Pad missing chunks on the old_data stream with NULLs, as NFS
@@ -235,6 +235,6 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: lock | cmd: %o | owner: %d | kw: %s'
                 % (cmd, owner, str(kw)))
 
-    err = -errno.ENOSYS
-    self._debug('returning: %d' % err)
-    return err
+    # TODO(jtg): Implement this.
+    self._debug('Returning -ENOSYS')
+    return -errno.ENOSYS
