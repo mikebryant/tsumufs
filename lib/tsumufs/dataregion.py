@@ -191,7 +191,7 @@ class DataRegion(object):
                         dataregion._data)
 
     start_offset = dataregion._start - self._start
-    end_offset = dataregion._end + 1 - self._start
+    end_offset = dataregion._end - self._start
 
     # Case where the dataregion is encapsulated entirely inside
     # this one, exclusive of the end points.
