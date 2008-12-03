@@ -49,7 +49,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
     try:
       tsumufs.syncLog.loadFromDisk()
-    except (EOFError), e:
+    except EOFError:
       self._debug('Unable to load synclog. Aborting.')
 
     self._debug('Setting up thread state.')
@@ -175,8 +175,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             item.copyToNFS()
             tsumufs.nfsMount.unlockFile(item.filename)
 
-            tsumufs.syncQueue.remove(item)
-            tsumufs.syncQueue.flushToDisk()
+            tsumufs.syncLog.remove(item)
 
           except IOError, e:
             self._debug('Caught an IOError: %s' % str(e))
