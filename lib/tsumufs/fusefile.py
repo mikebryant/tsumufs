@@ -70,6 +70,11 @@ class FuseFile(tsumufs.Debuggable):
                              major=None,
                              minor=None)
 
+
+    # Make sure we truncate any changes associated with this file as well.
+    if self._fdFlags & os.O_TRUNC:
+      tsumufs.syncLog.truncateChanges(self._path, 0)
+
     # Rip out any O_TRUNC options after we do the initial open -- that's
     # dangerous to do in this case, because if we get multiple write calls, we
     # just pass in the _fdMode raw, which causing multiple O_TRUNC calls to the
@@ -124,8 +129,6 @@ class FuseFile(tsumufs.Debuggable):
     #   - The file existed, but was extended.
     #   - The file existed, and an existing block was overwritten.
 
-    bytes_written = 0
-
     nfspath = tsumufs.nfsPathOf(self._path)
     statgoo = tsumufs.cacheManager.statFile(self._path)
 
@@ -172,6 +175,7 @@ class FuseFile(tsumufs.Debuggable):
       tsumufs.cacheManager.writeFile(self._path, offset, new_data,
                                      self._fdFlags, self._fdMode)
       self._debug('Wrote %d bytes to cache.' % len(new_data))
+
       return len(new_data)
     except OSError, e:
       self._debug('OSError caught: errno %d: %s'
@@ -217,7 +221,11 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: ftruncate | size: %d' % size)
 
     try:
-      return tsumufs.cacheManager.truncateFile(self._path, size)
+      tsumufs.cacheManager.truncateFile(self._path, size)
+
+      # Truncate any changes to match
+      tsumufs.syncLog.truncateChanges(self._path, size)
+
     except OSError, e:
       self._debug('Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))

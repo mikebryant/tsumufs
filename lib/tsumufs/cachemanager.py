@@ -432,7 +432,7 @@ class CacheManager(tsumufs.Debuggable):
     is created.
 
     Returns:
-      None
+      The number of bytes written.
 
     Raises:
       OSError on error writing the data.
@@ -456,11 +456,13 @@ class CacheManager(tsumufs.Debuggable):
 
       fp = os.fdopen(fd, self._flagsToStdioMode(flags))
       fp.seek(offset)
-      fp.write(buf)
+      bytes_written = fp.write(buf)
       fp.close()
 
       # Since we wrote to the file, invalidate the stat cache if it exists.
       self._invalidateStatCache(realpath)
+
+      return bytes_written
     finally:
       self._unlockFile(fusepath)
 
@@ -506,17 +508,6 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
-  def _truncateChanges(fusepath, size):
-    try:
-      self._lockFile(fusepath)
-
-      for change in self._syncQueue:
-        if change.getFilename() == fusepath:
-          change.truncateLength(size)
-
-    finally:
-      self._unlockFile(fusepath)
-
   def truncateFile(self, fusepath, size):
     '''
     Truncate the file.
@@ -537,9 +528,6 @@ class CacheManager(tsumufs.Debuggable):
 
       # Since we wrote to the file, invalidate the stat cache if it exists.
       self._invalidateStatCache(realpath)
-
-      # Truncate any changes to match
-      self._truncateChanges(fusepath, size)
 
       return 0
 
@@ -734,7 +722,7 @@ class CacheManager(tsumufs.Debuggable):
     for opcode in opcodes:
       if opcode == 'remove-cache':
         self._debug('Removing cached file %s' % fusepath)
-        self._removeCachedFile(fusepath)
+        self.removeCachedFile(fusepath)
       if opcode == 'cache-file':
         self._debug('Updating cache of file %s' % fusepath)
         self._cacheFile(fusepath)

@@ -616,7 +616,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                (path, size))
 
     try:
+      # Truncate the file...
       tsumufs.cacheManager.truncateFile(path, size)
+
+      # ...and truncate the changes to match.
+      tsumufs.syncLog.truncateChanges(path, size)
+
       return 0
     except OSError, e:
       self._debug('truncate: Caught OSError: errno %d: %s'

@@ -322,9 +322,29 @@ class SyncLog(tsumufs.Debuggable):
         self._syncQueue.append(syncitem)
 
         inodechange = tsumufs.InodeChange()
+
+        # Grab the data length initially so we can manage truncate calls.
+        datalength = tsumufs.cacheManager.statFile(fname).st_size
+        inodechange.setDataLength(datalength)
+
         self._inodeChanges[inum] = inodechange
 
       inodechange.addDataChange(start, end, data)
+    finally:
+      self._lock.release()
+
+  def truncateChanges(self, fusepath, size):
+    try:
+      self._lock.acquire()
+
+      for change in self._syncQueue:
+        if ((change.getFilename() == fusepath) and
+            (change.getType() == 'change')):
+          if self._inodeChanges.has_key(change.getInum()):
+            self._debug('Truncating data in %s' % repr(change))
+            inodechange = self._inodeChanges[change.getInum()]
+            inodechange.truncateLength(size)
+
     finally:
       self._lock.release()
 

@@ -18,10 +18,13 @@
 
 '''TsumuFS, a NFS-based caching filesystem.'''
 
+import sys
+
+import tsumufs
 from dataregion import *
 
 
-class InodeChange:
+class InodeChange(tsumufs.Debuggable):
   '''
   Class that represents any change to an inode and the data that it
   points to.
@@ -56,6 +59,8 @@ class InodeChange:
       rep += ' gid: %d' % self.gid
     if self.symlinkPath:
       rep += ' symlinkPath: %s' % self.symlinkPath
+    if self.dataLength:
+      rep += ' dataLength: %d' % self.dataLength
 
     rep += '>'
 
@@ -65,7 +70,8 @@ class InodeChange:
     return repr(self)
 
   def __init__(self):
-    pass
+    self._setName('InodeChange')
+    sys.excepthook = tsumufs.syslogExceptHook
 
   def addDataChange(self, start, end, data):
     '''
@@ -105,10 +111,32 @@ class InodeChange:
     '''
     Truncate any DataRegions and set our new dataLength.
     '''
-    pass
+
+    self._debug('Truncating to %d' % newlength)
+    self.dataLength = newlength
+
+    for index in range(len(self.dataRegions)-1, -1, -1):
+      region = self.dataRegions[index]
+
+      if region.getStart() >= newlength:
+        self._debug('Removing %s -- start >= newlength' % region)
+        del self.dataRegions[index]
+
+      elif region.getEnd() > newlength:
+        # Recreate the dataregion with the new data reduced in size to match the
+        # new length
+        self._debug('Truncating %s -- end >= newlength' % region)
+        removal_length = region.getEnd() - newlength
+        newregion = DataRegion(region.getStart(),
+                               newlength,
+                               region.getData()[0:-removal_length])
+        self._debug('Truncated region is %s' % newregion)
+        self.dataRegions[index] = newregion
 
   def setDataLength(self, newlength):
     '''
     Set the new data length.
     '''
-    pass
+
+
+    self.dataLength = newlength
