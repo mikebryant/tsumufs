@@ -64,11 +64,7 @@ class FuseFile(tsumufs.Debuggable):
     # entry.
     if self._fdFlags & os.O_CREAT:
       self._debug('Adding a new change to the log as user wanted O_CREAT')
-      tsumufs.syncLog.addNew('file',
-                             filename=self._path,
-                             dev_type=None,
-                             major=None,
-                             minor=None)
+      tsumufs.syncLog.addNew('file', filename=self._path)
 
 
     # Make sure we truncate any changes associated with this file as well.

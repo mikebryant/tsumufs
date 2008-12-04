@@ -510,6 +510,93 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
+  def makeDir(self, fusepath, mode):
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      return os.mkdir(realpath, mode)
+
+    finally:
+      self._unlockFile(fusepath)
+
+  def chmod(self, fusepath, mode):
+    '''
+    Chmod a file.
+
+    Returns:
+      None
+
+    Raises:
+      OSError, IOError
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      return os.chmod(fusepath, mode)
+    finally:
+      self._unlockFile(fusepath)
+
+  def chown(self, fusepath, uid, gid):
+    '''
+    Chown a file.
+
+    Returns:
+      None
+
+    Raises:
+      OSError, IOError
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      return os.chown(fusepath, uid, gid)
+    finally:
+      self._unlockFile(fusepath)
+
+  def rename(self, fusepath, newpath):
+    '''
+    Rename a file.
+
+    Returns:
+      None
+
+    Raises:
+      OSError, IOError
+    '''
+
+    self._lockFile(fusepath)
+    self._lockFile(newpath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      srcpath = self._generatePath(fusepath, opcodes)
+
+      opcodes = self._genCacheOpcodes(newpath)
+      self._validateCache(newpath, opcodes)
+      destpath = self._generatePath(newpath, opcodes)
+
+      self._debug('Renaming %s (%s) -> %s (%s)' % (fusepath, srcpath,
+                                                   newpath, destpath))
+      return os.rename(srcpath, destpath)
+    finally:
+      self._unlockFile(fusepath)
+      self._unlockFile(newpath)
+
   def access(self, fusepath, mode):
     '''
     Test for access to a path.

@@ -49,7 +49,7 @@ class SyncItem(tsumufs.Debuggable):
   _hargs = None
 
   _REQUIRED_KEYS = {
-    'new':    [ 'file_type', 'dev_type', 'major', 'minor', 'filename' ],
+    'new':    [ 'file_type', 'filename' ],
     'link':   [ 'filename', 'inum' ],
     'change': [ 'filename', 'inum' ],
     'unlink': [ 'filename' ],

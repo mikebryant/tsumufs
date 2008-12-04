@@ -544,8 +544,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: rename | old: %s | new: %s' % (old, new))
 
     try:
-      return os.rename(tsumufs.nfsMountPoint + old,
-               tsumufs.nfsMountPoint + new)
+      tsumufs.cacheManager.rename(old, new)
+      tsumufs.syncLog.addRename(old, new)
+
+      return 0
     except OSError, e:
       self._debug('rename: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -563,8 +565,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: link | src: %s | dest: %s' % (src, dest))
 
     try:
-      return os.link(tsumufs.nfsMountPoint + src,
-                     tsumufs.nfsMountPoint + dest)
+      # TODO(jtg): Implement this!
+      return -errno.EOPNOTSUPP
     except OSError, e:
       self._debug('link: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -581,7 +583,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
 
     try:
-      # TODO(jtg): Make this actually chmod the files on the cache.
+      tsumufs.cacheManager.chmod(path, mode)
+      tsumufs.syncLog.addMetadataChange(path, mode=mode)
+
       return 0
     except OSError, e:
       self._debug('chmod: Caught OSError: errno %d: %s'
@@ -600,7 +604,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                (path, uid, gid))
 
     try:
-      return os.chown(tsumufs.nfsMountPoint + path, uid, gid)
+      tsumufs.cacheManager.chown(path, uid, gid)
+      tsumufs.syncLog.addMetadataChange(path, uid=uid, gid=gid)
+
+      return 0
     except OSError, e:
       self._debug('chown: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -645,7 +652,18 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                (path, mode, dev))
 
     try:
-      return os.mknod(tsumufs.nfsMountPoint + path, mode, dev)
+      tsumufs.cacheManager.makeNode(path, mode, dev)
+
+      if mode & stat.S_IFREG:
+        tsumufs.syncLog.addNew('file', filename=path)
+      elif mode & stat.S_IFCHR:
+        tsumufs.syncLog.addNew('dev', filename=path, dev_type='char')
+      elif mode & stat.S_IFBLK:
+        tsumufs.syncLog.addNew('dev', filename=path, dev_type='block')
+      elif mode & stat.S_IFIFO:
+        tsumufs.syncLog.addNew('fifo', filename=path)
+
+      return 0
     except OSError, e:
       self._debug('mknod: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -663,7 +681,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: mkdir | path: %s | mode: %o' % (path, mode))
 
     try:
-      return os.mkdir(tsumufs.nfsMountPoint + path)
+      tsumufs.cacheManager.makeDir(path, mode)
+      tsumufs.syncLog.addNew('dir', filename=path)
+
+      return 0
     except OSError, e:
       self._debug('mkdir: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -681,7 +702,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: utime | path: %s' % path)
 
     try:
-      return os.utime(tsumufs.nfsMountPoint + path, times)
+      result = tsumufs.cacheManager.stat(path, True)
+
+      tsumufs.cacheManager.utime(path, times)
+      tsumufs.syncLog.addMetadataChange(path, times=times)
+
+      return 0
     except OSError, e:
       self._debug('utime: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))

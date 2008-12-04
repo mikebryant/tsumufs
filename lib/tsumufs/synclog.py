@@ -372,6 +372,9 @@ class SyncLog(tsumufs.Debuggable):
     finally:
       self._lock.release()
 
+  def addMetadataChange(self, fname):
+    pass
+
   def truncateChanges(self, fusepath, size):
     try:
       self._lock.acquire()
