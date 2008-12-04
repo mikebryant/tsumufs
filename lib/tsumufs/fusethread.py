@@ -524,7 +524,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       tsumufs.cacheManager.makeSymlink(dest, src)
-      os.symlink(src, tsumufs.nfsMountPoint + dest)
+      tsumufs.syncLog.addNew('symlink', filename=dest)
+
       return True
     except OSError, e:
       self._debug('symlink: Caught OSError: errno %d: %s'

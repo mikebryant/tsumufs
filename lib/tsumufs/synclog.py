@@ -237,7 +237,7 @@ class SyncLog(tsumufs.Debuggable):
 
     Args:
       type: A string of one one of the following: 'file', 'dir',
-        'socket', 'fifo', or 'dev'.
+        'symlink', 'socket', 'fifo', or 'dev'.
       params: A hash of parameters used to complete the data
         structure. If type is set to 'dev', this structure must have
         the following members: dev_type (set to one of 'char' or

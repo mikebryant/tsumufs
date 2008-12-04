@@ -57,7 +57,7 @@ class SyncItem(tsumufs.Debuggable):
     }
 
   _VALID_TYPES      = [ 'new', 'link', 'unlink', 'change', 'rename' ]
-  _VALID_FILE_TYPES = [ 'file', 'dir', 'socket', 'fifo', 'device' ]
+  _VALID_FILE_TYPES = [ 'file', 'dir', 'symlink', 'socket', 'fifo', 'device' ]
   _VALID_DEV_TYPES  = [ 'char', 'block' ]
 
   def __init__(self, type_, **hargs):
