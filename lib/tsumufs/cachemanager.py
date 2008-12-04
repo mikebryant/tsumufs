@@ -487,6 +487,29 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self._unlockFile(fusepath)
 
+  def makeSymlink(self, fusepath, target):
+    '''
+    Create a new symlink with the target specified.
+
+    Returns:
+      None
+
+    Raises:
+      OSError, IOError
+    '''
+
+    self._lockFile(fusepath)
+
+    try:
+      opcodes = self._genCacheOpcodes(fusepath)
+      self._validateCache(fusepath, opcodes)
+      realpath = self._generatePath(fusepath, opcodes)
+
+      return os.symlink(realpath, target)
+
+    finally:
+      self._unlockFile(fusepath)
+
   def access(self, fusepath, mode):
     '''
     Test for access to a path.

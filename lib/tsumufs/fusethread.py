@@ -313,6 +313,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     if name == 'tsumufs.in-cache':
       if value == '0':
+        tsumufs.cacheManager.removeCachedFile(path)
         return
       elif value == '1':
         return
@@ -437,7 +438,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       retval = tsumufs.cacheManager.readLink(path)
-      self._debug('returning: %s' % retval)
+      self._debug('Returning: %s' % retval)
       return retval
     except OSError, e:
       self._debug('readlink: Caught OSError: errno %d: %s'
@@ -522,6 +523,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: symlink | src: %s | dest:: %s' % (src, dest))
 
     try:
+      tsumufs.cacheManager.makeSymlink(dest, src)
       os.symlink(src, tsumufs.nfsMountPoint + dest)
       return True
     except OSError, e:
