@@ -405,9 +405,9 @@ class SyncLog(tsumufs.Debuggable):
 
       syncitem = self._syncQueue.pop()
 
-      if syncitem.type == 'change':
-        change = self._inodeChanges[syncitem.inum]
-        del self._inodeChanges[syncitem.inum]
+      if syncitem.getType() == 'change':
+        change = self._inodeChanges[syncitem.getInum()]
+        del self._inodeChanges[syncitem.getInum()]
       else:
         change = None
 
