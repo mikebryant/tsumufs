@@ -124,11 +124,12 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 	done
 
 force-shutdown:
+	-sudo umount $(TEST_NFS_DIR)
 	-fusermount -u $(TEST_DIR)
-	PID := $(shell ps ax |grep tsumufs |grep -v grep |awk '{ print $1 }')
-	-[ "$(PID)" != "" ] && sleep 5
-	PID := $(shell ps ax |grep tsumufs |grep -v grep |awk '{ print $1 }')
-	-[ "$(PID)" != "" ] && kill -KILL $(PID)
+	PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
+	[ "$$PID" != "" ] && sleep 5; \
+	PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
+	[ "$$PID" != "" ] && kill -KILL $$PID
 
 check:
 	-cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
