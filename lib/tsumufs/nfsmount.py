@@ -60,7 +60,7 @@ class NFSMount(tsumufs.Debuggable):
     try:
       self._fileLocks[filename].acquire()
     except KeyError:
-      self._fileLocks[filename] = threading.Lock()
+      self._fileLocks[filename] = threading.RLock()
       self._fileLocks[filename].acquire()
 
   def unlockFile(self, filename):
@@ -109,11 +109,13 @@ class NFSMount(tsumufs.Debuggable):
       IOError: Usually relating to permissions issues on the file.
     '''
 
-    self.lockFile(filename)
-
     try:
+      self.lockFile(filename)
+
       try:
-        fp = open(filename, 'r')
+        nfspath = tsumufs.nfsPathOf(filename)
+
+        fp = open(nfspath, 'r')
         fp.seek(start)
         result = fp.read(end - start)
         fp.close()
@@ -153,15 +155,17 @@ class NFSMount(tsumufs.Debuggable):
       OSError: Usually relating to permissions on the file.
     '''
 
-    self.lockFile(filename)
-
     if end - start > len(data):
       raise dataregion.RangeError('The length of data specified in start and '
                                   'end does not match the data length.')
 
     try:
+      self.lockFile(filename)
+
       try:
-        fp = open(filename, 'w+')
+        nfspath = tsumufs.nfsPathOf(filename)
+
+        fp = open(nfspath, 'r+')
         fp.seek(start)
         fp.write(data)
         fp.close()
@@ -174,6 +178,7 @@ class NFSMount(tsumufs.Debuggable):
 
           tsumufs.nfsAvailable.clear()
           tsumufs.nfsAvailable.notifyAll()
+
           raise tsumufs.NFSMountError()
         else:
           raise
