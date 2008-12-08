@@ -194,7 +194,7 @@ class CacheManager(tsumufs.Debuggable):
       OSError if there was a problemg getting the stat.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath, for_stat=True)
@@ -223,7 +223,7 @@ class CacheManager(tsumufs.Debuggable):
         raise
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def fakeOpen(self, fusepath, flags, mode=None):
     '''
@@ -254,7 +254,7 @@ class CacheManager(tsumufs.Debuggable):
     #   O_TRUNC            - Open an existing file, truncate the contents.
     #
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -307,7 +307,7 @@ class CacheManager(tsumufs.Debuggable):
 
     finally:
       self._debug('Unlocking file.')
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
       self._debug('Method complete.')
 
   def getDirents(self, fusepath):
@@ -315,7 +315,7 @@ class CacheManager(tsumufs.Debuggable):
     Return the dirents from a directory's contents if cached.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -345,7 +345,7 @@ class CacheManager(tsumufs.Debuggable):
         return os.listdir(tsumufs.cachePathOf(fusepath))
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def _flagsToStdioMode(self, flags):
     '''
@@ -393,7 +393,7 @@ class CacheManager(tsumufs.Debuggable):
       OSError on error reading the data.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -418,7 +418,7 @@ class CacheManager(tsumufs.Debuggable):
       return result
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def writeFile(self, fusepath, offset, buf, flags, mode=None):
     '''
@@ -442,7 +442,7 @@ class CacheManager(tsumufs.Debuggable):
       IOError on error writing the data.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -467,14 +467,14 @@ class CacheManager(tsumufs.Debuggable):
 
       return bytes_written
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def readLink(self, fusepath):
     '''
     Return the target of a symlink.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -485,7 +485,7 @@ class CacheManager(tsumufs.Debuggable):
 
       return os.readlink(realpath)
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def makeSymlink(self, fusepath, target):
     '''
@@ -498,7 +498,7 @@ class CacheManager(tsumufs.Debuggable):
       OSError, IOError
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -508,10 +508,10 @@ class CacheManager(tsumufs.Debuggable):
       return os.symlink(realpath, target)
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def makeDir(self, fusepath, mode):
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -521,7 +521,7 @@ class CacheManager(tsumufs.Debuggable):
       return os.mkdir(realpath, mode)
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def chmod(self, fusepath, mode):
     '''
@@ -534,7 +534,7 @@ class CacheManager(tsumufs.Debuggable):
       OSError, IOError
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -543,7 +543,7 @@ class CacheManager(tsumufs.Debuggable):
 
       return os.chmod(fusepath, mode)
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def chown(self, fusepath, uid, gid):
     '''
@@ -556,7 +556,7 @@ class CacheManager(tsumufs.Debuggable):
       OSError, IOError
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -565,7 +565,7 @@ class CacheManager(tsumufs.Debuggable):
 
       return os.chown(fusepath, uid, gid)
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def rename(self, fusepath, newpath):
     '''
@@ -578,8 +578,8 @@ class CacheManager(tsumufs.Debuggable):
       OSError, IOError
     '''
 
-    self._lockFile(fusepath)
-    self._lockFile(newpath)
+    self.lockFile(fusepath)
+    self.lockFile(newpath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
@@ -594,8 +594,8 @@ class CacheManager(tsumufs.Debuggable):
                                                    newpath, destpath))
       return os.rename(srcpath, destpath)
     finally:
-      self._unlockFile(fusepath)
-      self._unlockFile(newpath)
+      self.unlockFile(fusepath)
+      self.unlockFile(newpath)
 
   def access(self, fusepath, mode):
     '''
@@ -609,7 +609,7 @@ class CacheManager(tsumufs.Debuggable):
     '''
 
     try:
-      self._lockFile(fusepath)
+      self.lockFile(fusepath)
 
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
@@ -619,7 +619,7 @@ class CacheManager(tsumufs.Debuggable):
 
       return os.access(realpath, mode)
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def truncateFile(self, fusepath, size):
     '''
@@ -627,7 +627,7 @@ class CacheManager(tsumufs.Debuggable):
     '''
 
     try:
-      self._lockFile(fusepath)
+      self.lockFile(fusepath)
 
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
@@ -645,7 +645,7 @@ class CacheManager(tsumufs.Debuggable):
       return 0
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def _cacheDir(self, fusepath):
     '''
@@ -662,7 +662,7 @@ class CacheManager(tsumufs.Debuggable):
       OSError - when an error operating on the filesystem occurs.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       nfspath   = tsumufs.nfsPathOf(fusepath)
@@ -693,7 +693,7 @@ class CacheManager(tsumufs.Debuggable):
       self._cachedDirents[fusepath] = os.listdir(nfspath)
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def _cacheFile(self, fusepath):
     '''
@@ -721,7 +721,7 @@ class CacheManager(tsumufs.Debuggable):
 
     # TODO(jtg): Add support for storing the UID/GID
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       self._debug('Caching file %s to disk.' % fusepath)
@@ -757,7 +757,7 @@ class CacheManager(tsumufs.Debuggable):
         self._cacheDir(fusepath)
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def removeCachedFile(self, fusepath):
     '''
@@ -777,7 +777,7 @@ class CacheManager(tsumufs.Debuggable):
       from cache.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       cachefilename = tsumufs.cachePathOf(fusepath)
@@ -795,7 +795,7 @@ class CacheManager(tsumufs.Debuggable):
                                   os.path.basename(fusepath))
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def _shouldCacheFile(self, fusepath):
     '''
@@ -969,7 +969,7 @@ class CacheManager(tsumufs.Debuggable):
       Any error that might occur during an os.lstat(), aside from ENOENT.
     '''
 
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       try:
@@ -994,7 +994,7 @@ class CacheManager(tsumufs.Debuggable):
         return False
 
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
   def isCachedToDisk(self, fusepath):
     '''
@@ -1013,7 +1013,7 @@ class CacheManager(tsumufs.Debuggable):
     '''
 
     # Lock the file for access
-    self._lockFile(fusepath)
+    self.lockFile(fusepath)
 
     try:
       try:
@@ -1031,9 +1031,9 @@ class CacheManager(tsumufs.Debuggable):
       else:
         return True
     finally:
-      self._unlockFile(fusepath)
+      self.unlockFile(fusepath)
 
-  def _lockFile(self, fusepath):
+  def lockFile(self, fusepath):
     '''
     Lock the file for access exclusively.
 
@@ -1060,7 +1060,7 @@ class CacheManager(tsumufs.Debuggable):
 
       self._fileLocks[fusepath] = lock
 
-  def _unlockFile(self, fusepath):
+  def unlockFile(self, fusepath):
     '''
     Unlock the file for access.
 
