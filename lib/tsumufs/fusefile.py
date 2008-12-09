@@ -111,13 +111,6 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: write | path: %s | offset: %d | buf: %s'
                 % (self._path, offset, repr(new_data)))
 
-    # TODO: Make this write to the cache first, and then update the
-    # synclog with the new data region entry on bottom of the synclog
-    # queue.
-
-    # TODO: Write to synclog FIRST, then to cache to allow for catching the
-    # issue when we crash before we update the synclog.
-
     # TODO: Append a .N to the conflict.
 
     # Three cases here:
