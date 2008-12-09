@@ -182,9 +182,14 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             elif item.getType() == 'change':
               try:
                 fusepath = item.getFilename()
+                statgoo  = tsumufs.cacheManager.statFile(fusepath)
 
                 tsumufs.cacheManager.lockFile(fusepath)
                 tsumufs.nfsMount.lockFile(fusepath)
+
+                # Propogate truncations
+                if (change.dataLength < statgoo.st_size):
+                  tsumufs.nfsMount.truncateFile(fusepath, change.dataLength)
 
                 for region in change.getDataChanges():
                   data = tsumufs.cacheManager.readFile(fusepath,
@@ -205,7 +210,6 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
                 tsumufs.cacheManager.unlockFile(fusepath)
                 tsumufs.nfsMount.unlockFile(fusepath)
 
-             # TODO(jtg): Add in truncation here.
              # TODO(jtg): Add in metadata syncing here.
 
             elif item.getType() == "rename":

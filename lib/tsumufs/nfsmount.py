@@ -186,6 +186,37 @@ class NFSMount(tsumufs.Debuggable):
     finally:
       self.unlockFile(filename)
 
+  def truncateFile(self, fusepath, newsize):
+    '''
+    Truncate a file to newsize.
+    '''
+
+    try:
+      self.lockFile(fusepath)
+
+      try:
+        nfspath = tsumufs.nfsPathOf(fusepath)
+
+        fp = open(nfspath, 'r+')
+        fp.truncate(newsize)
+        fp.close()
+
+      except OSError, e:
+        if e.errno in (errno.EIO, errno.ESTALE):
+          self._debug('Got %s while writing a region to %s.' %
+                      (str(e), nfspath))
+          self._debug('Triggering a disconnect.')
+
+          tsumufs.nfsAvailable.clear()
+          tsumufs.nfsAvailable.notifyAll()
+
+          raise tsumufs.NFSMountError()
+        else:
+          raise
+
+    finally:
+      self.unlockFile(fusepath)
+
   def mount(self):
     '''
     Quick and dirty method to actually mount the real NFS connection
