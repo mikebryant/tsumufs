@@ -4,18 +4,18 @@
 #+STARTUP: showall
 #+STARTUP: hidestars
 
-* [7/18] v1.0 - Prototype FUSE+Python version
-  - [ ] Feature parity in terms of syscalls to NFS.
+* [4/6] v1.0 - Prototype FUSE+Python version
+  - [X] Feature parity in terms of syscalls to NFS.
     - [X] Initial NFS passthrough.
-    - [ ] Re-routing of syscalls to the NFSMount and CacheManager objects.
+    - [X] Re-routing of syscalls to the NFSMount and CacheManager objects.
 
-  - [ ] Prototypical NFS sanity checking and disconnect/reconnect
+  - [X] Prototypical NFS sanity checking and disconnect/reconnect
         notification.
     - [X] NFSMount syscall behavior changing based upon the status of
           the NFS backend connection
-    - [ ] NFSMount syscall failures triggering a remount.
+    - [X] NFSMount syscall failures triggering a remount.
 
-  - [ ] Prototypical caching operation
+  - [X] Prototypical caching operation
     - [X] Reads cause caching of files to disk. No quota checking.
     - [X] No reading or writing of cachespec files yet. Use hardcoded
           values.
@@ -24,16 +24,22 @@
     - [X] Writes stored in cache directly.
     - [X] File 'dirtiness' checks.
 
-  - [ ] Prototypical synclog operation
-    - [ ] Writes going to the synclog and cache directly
-    - [ ] Basic re-integration upstream (no merging functionality --
+  - [-] Prototypical synclog operation
+    - [X] Writes going to the synclog and cache directly
+    - [-] Basic re-integration upstream (no merging functionality --
           conflicts handled entirely by the user)
+      - [X] New file propogation
+      - [ ] Hardlinks
+      - [ ] Symlinks
+      - [X] Unlinks
+      - [X] Data changes
+      - [X] Renames
 
-  - [ ] User space communication
-    - [ ] Basic notifications to userspace, no commands accepted yet.
+  - [-] User space communication
+    - [X] Basic notifications to userspace, no commands accepted yet.
     - [ ] Reference implementation of the notification tool written.
 
-* [0/13] v2.0 - Feature complete FUSE+Python version
+* [0/4] v2.0 - Feature complete FUSE+Python version
   - [ ] Finalized NFS sanity checking and disconnect/reconnect
         notification.
         - [ ] Manual disconnected mode triggerable via the userspace
@@ -55,7 +61,3 @@
           socket.
     - [ ] Full implementation of a userspace control program
           implemented.
-
-* [0/0] v3.0 - Prototype Linux filesystem module
-
-* [0/0] v4.0 - Feature complete Linux filesystem module
