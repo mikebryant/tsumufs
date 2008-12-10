@@ -71,6 +71,22 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       self._debug('Exception: %s' % traceback.format_exc())
       return False
 
+    self._debug('Initializing permissions overlay object.')
+    try:
+      tsumufs.permsOverlay = tsumufs.PermissionsOverlay()
+    except:
+      exc_info = sys.exc_info()
+
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
+
+      return False
+
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
     self._debug('Initializing nfsMount proxy.')
@@ -257,11 +273,15 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     tsumufs.synclogPath = os.path.abspath(os.path.join(tsumufs.cachePoint,
                                                        '../sync.log'))
 
+    tsumufs.permsPath = os.path.abspath(os.path.join(tsumufs.cachePoint,
+                                                     '../permissions.ovr'))
+
     self._debug('mountPoint is %s' % tsumufs.mountPoint)
     self._debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
     self._debug('cacheBaseDir is %s' % tsumufs.cacheBaseDir)
     self._debug('cachePoint is %s' % tsumufs.cachePoint)
     self._debug('synclogPath is %s' % tsumufs.synclogPath)
+    self._debug('permsPath is %s' % tsumufs.permsPath)
     self._debug('mountOptions is %s' % tsumufs.mountOptions)
 
 
@@ -280,7 +300,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       None
     '''
 
-    self._debug('opcode: getattr | path: %s' % path)
+    self._debug('opcode: getattr | self: %s | path: %s' % (repr(self), path))
 
     try:
       return tsumufs.cacheManager.statFile(path)
@@ -374,6 +394,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       xattrs['tsumufs.connected'] = '0'
       xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
       xattrs['tsumufs.synclog-contents'] = str(tsumufs.syncLog)
+      xattrs['tsumufs.perms-overlay'] = str(tsumufs.permsOverlay)
 
       if tsumufs.syncPause.isSet():
         xattrs['tsumufs.pause-sync'] = '1'
@@ -418,6 +439,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       keys.append('tsumufs.connected')
       keys.append('tsumufs.version')
       keys.append('tsumufs.synclog-contents')
+      keys.append('tsumufs.perms-overlay')
       keys.append('tsumufs.pause-sync')
 
     if size == 0:

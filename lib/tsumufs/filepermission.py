@@ -39,12 +39,30 @@ class FilePermission(tsumufs.Debuggable):
   mode = 0
 
   def __init__(self, statresult=None):
-    self.uid = statresult.st_uid
-    self.gid = statresult.st_gid
-    self.mode = statresult.st_mode
+    if statresult != None:
+      self.uid = statresult.st_uid
+      self.gid = statresult.st_gid
+      self.mode = statresult.st_mode
 
-  def constructStat(self, path):
-    result = tsumufs.MutableStat(os.lstat(path))
+  def __str__(self):
+    return '<FilePermission uid:%d gid:%d mode:%o' % (self.uid,
+                                                      self.gid,
+                                                      self.mode)
+
+  def __repr__(self):
+    return str(self)
+
+  def overlayStatFromFile(self, realpath):
+    result = tsumufs.MutableStat(os.lstat(realpath))
+
+    result.st_uid = self.uid
+    result.st_gid = self.gid
+    result.st_mode = self.mode
+
+    return result
+
+  def overlayStatFromStat(self, stat_result):
+    result = tsumufs.MutableStat(stat_result)
 
     result.st_uid = self.uid
     result.st_gid = self.gid

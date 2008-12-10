@@ -38,6 +38,7 @@ from nametoinodemap import *
 from syncitem import *
 from mutablestat import *
 from filepermission import *
+from permissionsoverlay import *
 
 
 __version__ = (0, 9)
@@ -63,12 +64,17 @@ cacheManager = None
 syncLog = None
 synclogPath = None
 
+permsOverlay = None
+permsPath = None
+
 socketDir = '/var/run/tsumufs'
 
 unmounted       = threading.Event()
 nfsAvailable    = threading.Event()
 forceDisconnect = threading.Event()
 syncPause       = threading.Event()
+
+defaultCacheMode = 0600         # readable only by the user
 
 checkpointTimeout = 30          # in seconds
 

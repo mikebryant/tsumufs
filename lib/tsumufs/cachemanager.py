@@ -198,7 +198,6 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       opcodes = self._genCacheOpcodes(fusepath, for_stat=True)
-
       self._debug('Opcodes are: %s' % str(opcodes))
 
       self._validateCache(fusepath, opcodes)
@@ -216,7 +215,14 @@ class CacheManager(tsumufs.Debuggable):
 
           return result
         else:
-          return os.lstat(realpath)
+          # Special case the root of the mount.
+          if fusepath == '/':
+            return os.lstat(realpath)
+
+          perms = tsumufs.permsOverlay.getPerms(fusepath)
+          perms = perms.overlayStatFromFile(realpath)
+
+          return perms
 
       except OSError, e:
         self._checkForNFSDisconnect(e, opcodes)
@@ -286,6 +292,8 @@ class CacheManager(tsumufs.Debuggable):
                           'parent directory.')
               self._cachedDirents[dirname].append(basename)
 
+          # TODO(jtg): Add in the new permissions into the overlay
+
         if flags & os.O_TRUNC:
           # Invalidate the stat cache if one exists.
           self._debug('Invalidating stat cache')
@@ -294,7 +302,7 @@ class CacheManager(tsumufs.Debuggable):
       try:
         self._debug('Opening file')
         if mode:
-          fd = os.open(realpath, flags, mode)
+          fd = os.open(realpath, flags, tsumufs.defaultCacheMode)
         else:
           fd = os.open(realpath, flags)
 
@@ -403,6 +411,8 @@ class CacheManager(tsumufs.Debuggable):
       self._debug('Reading file contents from %s [ofs: %d, len: %d]'
                   % (realpath, offset, length))
 
+      # TODO(jtg): Validate permissions here
+
       if mode != None:
         fd = os.open(realpath, flags, mode)
       else:
@@ -452,6 +462,8 @@ class CacheManager(tsumufs.Debuggable):
       self._debug('Writing to file %s at offset %d with buffer length of %d '
                   'and mode %s' % (realpath, offset, len(buf), mode))
 
+      # TODO(jtg): Validate permissions here, too
+
       if mode != None:
         fd = os.open(realpath, flags, mode)
       else:
@@ -483,6 +495,8 @@ class CacheManager(tsumufs.Debuggable):
 
       self._debug('Reading link from %s' % realpath)
 
+      # TODO(jtg): Validate permissions here
+
       return os.readlink(realpath)
     finally:
       self.unlockFile(fusepath)
@@ -505,6 +519,8 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
+      # TODO(jtg): Validate permissions here
+
       return os.symlink(realpath, target)
 
     finally:
@@ -517,6 +533,8 @@ class CacheManager(tsumufs.Debuggable):
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
+
+      # TODO(jtg): Validate permissions here
 
       return os.mkdir(realpath, mode)
 
@@ -541,6 +559,8 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
+      # TODO(jtg): Validate permissions here
+
       return os.chmod(fusepath, mode)
     finally:
       self.unlockFile(fusepath)
@@ -562,6 +582,8 @@ class CacheManager(tsumufs.Debuggable):
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
+
+      # TODO(jtg): Validate permissions here
 
       return os.chown(fusepath, uid, gid)
     finally:
@@ -592,6 +614,9 @@ class CacheManager(tsumufs.Debuggable):
 
       self._debug('Renaming %s (%s) -> %s (%s)' % (fusepath, srcpath,
                                                    newpath, destpath))
+
+      # TODO(jtg): Validate permissions here
+
       return os.rename(srcpath, destpath)
     finally:
       self.unlockFile(fusepath)
@@ -617,6 +642,8 @@ class CacheManager(tsumufs.Debuggable):
 
       self._debug('Checking for access on %s' % realpath)
 
+      # TODO(jtg): Validate permissions here
+
       return os.access(realpath, mode)
     finally:
       self.unlockFile(fusepath)
@@ -634,6 +661,8 @@ class CacheManager(tsumufs.Debuggable):
       realpath = self._generatePath(fusepath, opcodes)
 
       self._debug('Truncating %s to %d bytes.' % (realpath, size))
+
+      # TODO(jtg): Validate permissions here
 
       fd = os.open(realpath, os.O_RDWR)
       os.ftruncate(fd, size)
@@ -687,7 +716,11 @@ class CacheManager(tsumufs.Debuggable):
             raise
 
         shutil.copystat(nfspath, cachepath)
-        os.chown(cachepath, stat.st_uid, stat.st_gid)
+
+        tsumufs.permsOverlay.setPerms(fusepath,
+                                      stat.st_uid,
+                                      stat.st_gid,
+                                      stat.st_mode)
 
       self._debug('Caching directory %s to disk.' % fusepath)
       self._cachedDirents[fusepath] = os.listdir(nfspath)
@@ -736,9 +769,15 @@ class CacheManager(tsumufs.Debuggable):
           stat.S_ISSOCK(curstat.st_mode) or
           stat.S_ISCHR(curstat.st_mode) or
           stat.S_ISBLK(curstat.st_mode)):
-        shutil.copy2(nfspath, cachepath)
+
+        shutil.copy(nfspath, cachepath)
         shutil.copystat(nfspath, cachepath)
-        os.chown(cachepath, curstat.st_uid, curstat.st_gid)
+
+        tsumufs.permsOverlay.setPerms(fusepath,
+                                      curstat.st_uid,
+                                      curstat.st_gid,
+                                      curstat.st_mode)
+
       elif stat.S_ISLNK(curstat.st_mode):
         dest = os.readlink(nfspath)
 
@@ -781,6 +820,7 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       cachefilename = tsumufs.cachePathOf(fusepath)
+      ino = os.lstat(cachefilename).st_ino
 
       if os.path.isfile(cachefilename) or os.path.islink(cachefilename):
         os.unlink(cachefilename)
@@ -793,6 +833,9 @@ class CacheManager(tsumufs.Debuggable):
       # Remove this file from the dirent cache if it was put in there.
       self._invalidateDirentCache(os.path.dirname(fusepath),
                                   os.path.basename(fusepath))
+
+      # Remove this file from the permsOverlay
+      tsumufs.permsOverlay.removePerms(ino)
 
     finally:
       self.unlockFile(fusepath)
