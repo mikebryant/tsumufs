@@ -20,6 +20,11 @@
 
 import threading
 
+# Not the greatest thing in the world to do, but it makes things
+# organizationally easier to reach. Dumping all of these classes into this file
+# directly would be impractical. In general, we follow the "one class one file"
+# rule.
+
 from debuggable import *
 from triumvirate import *
 from cachemanager import *
@@ -31,6 +36,8 @@ from syncthread import *
 from inodechange import *
 from nametoinodemap import *
 from syncitem import *
+from mutablestat import *
+from filepermission import *
 
 
 __version__ = (0, 9)
