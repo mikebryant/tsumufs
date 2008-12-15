@@ -292,10 +292,6 @@ class SyncLog(tsumufs.Debuggable):
     try:
       self._lock.acquire()
 
-      # TODO(jtg): Make this check the dirty status of a file before doing a
-      # walk of the queue. Walking the entire sync queue every unlink() call is
-      # expensive, even though it's O(n).
-
       # Walk the queue backwards (newest to oldest) and remove any changes
       # relating to this filename. We can mutate the list because going
       # backwards, index numbers don't change after deletion (IOW, we're always
@@ -306,39 +302,40 @@ class SyncLog(tsumufs.Debuggable):
       else:
         is_new_file = False
 
-      # Have to offset these by one because range doesn't function the same as
-      # lists. *sigh*
-      for index in range(len(self._syncQueue)-1, -1, -1):
-        change = self._syncQueue[index]
+      if self.isFileDirty(filename):
+        # Have to offset these by one because range doesn't function the same as
+        # lists. *sigh*
+        for index in range(len(self._syncQueue) - 1, -1, -1):
+          change = self._syncQueue[index]
 
-        if change.getType() in ('new', 'change', 'link'):
-          if change.getFilename() == filename:
-            # Remove the change
-            del self._syncQueue[index]
+          if change.getType() in ('new', 'change', 'link'):
+            if change.getFilename() == filename:
+              # Remove the change
+              del self._syncQueue[index]
 
-            # Remove any inodeChanges associated with this filename.
-            if (change.getInum() != None and
-                self._inodeChanges.has_key(change.getInum())):
-              del self._inodeChanges[change.getInum()]
+              # Remove any inodeChanges associated with this filename.
+              if (change.getInum() != None and
+                  self._inodeChanges.has_key(change.getInum())):
+                del self._inodeChanges[change.getInum()]
 
-        if change.getType() in ('rename'):
-          if change.getNewFilename() == filename:
-            # Okay, follow the rename back to remove previous changes. Leave the
-            # rename in place because the destination filename is a change we
-            # want to keep.
-            filename = change.getOldFilename()
+          if change.getType() in ('rename'):
+            if change.getNewFilename() == filename:
+              # Okay, follow the rename back to remove previous changes. Leave
+              # the rename in place because the destination filename is a change
+              # we want to keep.
+              filename = change.getOldFilename()
 
-            # TODO(jtg): Do we really need to keep these renames? Unlinking the
-            # final destination filename in the line of renames is akin to just
-            # unlinking the original file in the first place. Ie:
-            #
-            #      file -> file' -> file'' -> unlinked
-            #
-            # After each successive rename, the previous file ceases to
-            # exist. Once the final unlink is called, the previous sucessive
-            # names no longer matter. Technically we could replace all of the
-            # renames with a single unlink of the original filename and achieve
-            # the same result.
+              # TODO(jtg): Do we really need to keep these renames? Unlinking
+              # the final destination filename in the line of renames is akin to
+              # just unlinking the original file in the first place. Ie:
+              #
+              #      file -> file' -> file'' -> unlinked
+              #
+              # After each successive rename, the previous file ceases to
+              # exist. Once the final unlink is called, the previous sucessive
+              # names no longer matter. Technically we could replace all of the
+              # renames with a single unlink of the original filename and
+              # achieve the same result.
 
       # Now add an additional syncitem to the queue to represent the unlink if
       # it wasn't a file that was created on the cache by the user.
