@@ -40,23 +40,40 @@ class FuseFile(tsumufs.Debuggable):
   some of the complexity that the FuseThread class has obtained.
   '''
 
-  _path  = None
+  _path    = None
   _fdFlags = None
   _fdMode  = None
+  _uid     = None
+  _gid     = None
+  _pid     = None
 
-  def __init__(self, path, flags, mode=None):
+  def __init__(self, path, flags, mode=None, uid=None, gid=None, pid=None):
     self._path  = path
     self._fdFlags = flags
     self._fdMode  = mode
+    self._uid = uid
+    self._gid = gid
+    self._pid = pid
 
     self._setName('FuseFile <%s> ' % self._path)
+
+    # NOTE: If mode == None, then we were called as a creat(2) system call,
+    # otherwise we were called as an open(2) system call.
 
     # Install our custom exception handler so that any exceptions are
     # output to the syslog rather than to /dev/null.
     sys.excepthook = tsumufs.syslogExceptHook
 
-    self._debug('opcode: open | flags: %s | mode: %o'
-                % (self._flagsToString(), mode or 0))
+    if mode == None:
+      self._debug(('opcode: open | flags: %s | mode: %o | '
+                   'uid: %d | gid: %d | pid: %d')
+                  % (self._flagsToString(), mode or 0,
+                     self._uid, self._gid, self._pid))
+    else:
+      self._debug(('opcode: creat | flags: %s | mode: %o | '
+                   'uid: %d | gid: %d | pid: %d')
+                  % (self._flagsToString(), mode or 0,
+                     self._uid, self._gid, self._pid))
 
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode)
 

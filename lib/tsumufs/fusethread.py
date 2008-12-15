@@ -52,7 +52,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     Fuse.__init__(self, *args, **kw)
 
     self.multithreaded = 1
-    self.file_class    = tsumufs.FuseFile
 
   def fsinit(self):
     '''
@@ -137,7 +136,24 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     after the FUSE event loop has finished.
     '''
 
-    Fuse.main(self, args)
+    class FuseFileWrapper(tsumufs.FuseFile):
+      '''
+      Inner class to wrap the FuseFile class with the reference to this thread,
+      allowing us to get at the GetContext() call. Essentially we're creating a
+      closure here. Ugly, but it's the only way to get the uid and gid into the
+      FuseFile thread.
+
+      Idea borrowed directly from Robie Basak in his email to fuse-dev, which is
+      visible at <http://www.nabble.com/Python%3A-Pass-parameters-to-file_class-to18301066.html#a20066429>.
+      '''
+
+      def __init__(self2, *args, **kwargs):
+        kwargs.update(self.GetContext())
+        tsumufs.FuseFile.__init__(self2, *args, **kwargs)
+
+    self.file_class = FuseFileWrapper
+
+    result = Fuse.main(self, args)
     self._debug('Fuse main event loop exited.')
 
     self._debug('Setting event and condition states.')
@@ -149,6 +165,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._syncThread.join()
 
     self._debug('Shutdown complete.')
+
+    return result
 
   def parseCommandLine(self):
     '''
@@ -327,8 +345,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     # TODO: make this get the real xattrs from the file, and allow for setting
     # other xattrs that aren't ones we control.
 
-    # TODO: make setting read-only tsumufs xattrs return -EOPNOTSUPP.
-
     # TODO: make this actually change the cached state of the file in question.
 
     if name == 'tsumufs.in-cache':
@@ -480,7 +496,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: readdir | path: %s | offset: %d' % (path, offset))
 
     try:
-      for filename in tsumufs.cacheManager.getDirents(path):
+      dirents = [ '.', '..' ]
+      dirents.extend(tsumufs.cacheManager.getDirents(path))
+
+      for filename in dirents:
         pathname = os.path.join(path, filename)
         stat_result = tsumufs.cacheManager.statFile(pathname)
 
