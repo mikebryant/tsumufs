@@ -61,8 +61,6 @@ class SyncItem(tsumufs.Debuggable):
   _VALID_DEV_TYPES  = [ 'char', 'block' ]
 
   def __init__(self, type_, **hargs):
-    # TODO(jtg): Make this do validation against the above _VALID_* variables.
-
     self._type = type_
     self._hargs = hargs
 
