@@ -1,0 +1,81 @@
+Excerpt from "Advanced UNIX Programming" by Marc J. Rochkind:
+
+  The file access tests that the kernel performs ...
+  or, deletes a file depend on the owners of the file (st_uid and
+  st_gid), the effective IDs of the process (effective user ID and
+  effective group ID), and the supplementary group of the process, if
+  supported. The two owner IDs are properties of the file, whereas the
+  two effective IDs and the supplementary group IDs are properties of
+  the process. The tests performed by the kernel are as follows:
+
+    1. If the effective UID of the process is 0 (the superuser), access
+       is allowed. This gives the superuser free rein throughout the
+       entire filesystem.
+
+    2. If the effective user ID of the process equals the owner ID of
+       the file (i.e., the process owns the file), access is allowed if
+       the appropriate user access permission bit is set. Otherwise,
+       permission is denied. By appropriate access permission bit, we
+       mean that if th eprocess is opening the file for reading, the
+       user-read bit must be on. If the process is opening a file for
+       writing, the user-write bit must be on. If the process is
+       executing the file, the user-exectute bit must be on.
+
+    3. If the effective group ID of the process or one of the
+       supplementary group IDs of the process equals the group ID of the
+       file, access is allowed if the appropriate group access
+       permission bit is set. Otherwise, permission is denied.
+
+    4. If the appropriate other access permission bit is set, access is
+       allwed. Otherwise, permission is denied.
+
+  These four steps are tried in sequence. Note that if the process owns
+  the file (s... access is granted or denied based only on the user
+  access permissions; the group or other bits are not checked.
+
+Using this snippet, I came up with this code:
+
+  def getGidsForUid(self, uid):
+    username = pwd.getpwuid(uid).pw_name
+    groups = []
+
+    for group in grp.getgrall():
+      if username in group.gr_mem:
+        groups.append(group.gr_gid)
+
+  def access(self, file, mode):
+    file_stat = os.lstat(file)
+
+    # If root, just return 0 -- root owns everything.
+    if self._uid == 0:
+      return 0
+
+    if file_stat & stat.S_ISREG:
+      # accumulate down the list of path elements, recursively checking
+      # access for each file.
+      pathpart = ''
+    
+      for element in os.path.split(file):
+        pathpart = os.path.join(pathpart, element)
+
+        if pathpart == file:
+          break
+
+        self.access(pathpart)
+
+    if self._uid == file_stat.st_uid:
+      if ((file_stat.st_mode & os.S_IRWXU) >> 6) & mode:
+        return 0
+      raise OSError(errno.ENOENT)
+
+    user_groups = self.getGidsForUid(self._uid)
+
+    if ((file_mode.st_gid in user_groups) or
+        (file_mode.st_gid == self._gid)):
+      if ((file_mode & os.S_IRWXG) >> 3) & mode:
+        return 0
+      raise OSError(errno.ENOENT)
+  
+    if (file_mode & os.S_IRWXO) & mode:
+      return 0
+    raise OSError(errno.ENOENT)
