@@ -153,7 +153,7 @@ def cachePathOf(fusepath):
   return transpath
 
 
-def getGidsForUid(self, uid):
+def getGidsForUid(uid):
   '''
   Return a listing of group IDs that the given uid belongs to. Note that the
   primary group is included in this list.
