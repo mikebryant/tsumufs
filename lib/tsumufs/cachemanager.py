@@ -637,6 +637,7 @@ class CacheManager(tsumufs.Debuggable):
       realpath = self._generatePath(fusepath, opcodes)
 
       if 'use-nfs' in opcodes:
+        self._debug('Using nfs for access')
         return os.access(realpath, mode)
 
       # TODO(cleanup): make the above chunk of code into a decorator for crying
@@ -644,6 +645,7 @@ class CacheManager(tsumufs.Debuggable):
 
       # Root owns everything
       if uid == 0:
+        self._debug('Root -- returning 0')
         return 0
 
       # Recursively go down the path from longest to shortest, checking access
@@ -653,27 +655,47 @@ class CacheManager(tsumufs.Debuggable):
                     os.path.dirname(fusepath),
                     os.X_OK)
 
-      stat = self.statFile(fusepath)
+      file_stat = self.statFile(fusepath)
+
+      mode_string = ''
+      if mode & os.R_OK:
+        mode_string += 'R_OK|'
+      if mode & os.W_OK:
+        mode_string += 'W_OK|'
+      if mode & os.X_OK:
+        mode_string += 'X_OK|'
+      if mode == os.F_OK:
+        mode_string = 'F_OK|'
+      mode_string = mode_string[:-1]
+
+      self._debug('access(%s, %s) -> (uid, gid, mode) = (%d, %d, %o)' %
+                  (repr(fusepath), mode_string,
+                   file_stat.st_uid, file_stat.st_gid, file_stat.st_mode))
 
       # Catch the case where the user only wants to check if the file exists.
       if mode == os.F_OK:
+        self._debug('User just wanted to verify %s existed -- returning 0.' %
+                    fusepath)
         return 0
 
       # Check user bits first
-      if uid == stat.st_uid:
-        if ((stat.st_mode & stat.S_IRWXU) >> 6) & mode:
+      if uid == file_stat.st_uid:
+        if ((file_stat.st_mode & stat.S_IRWXU) >> 6) & mode:
+          self._debug('Allowing for user bits.')
           return 0
-        raise OSError(errno.EACCES)
 
       # Then group bits
-      if stat.st_gid in tsumufs.getGidsForUid(uid):
-        if ((stat.st_mode & stat.S_IRWXG) >> 3) & mode:
+      if file_stat.st_gid in tsumufs.getGidsForUid(uid):
+        if ((file_stat.st_mode & stat.S_IRWXG) >> 3) & mode:
+          self._debug('Allowing for group bits.')
           return 0
-        raise OSError(errno.EACCES)
 
       # Finally assume other bits
-      if (stat.st_mode & stat.S_IRWXO) & mode:
+      if (file_stat.st_mode & file_stat.S_IRWXO) & mode:
+        self._debug('Allowing for other bits.')
         return 0
+
+      self._debug('No access allowed.')
       raise OSError(errno.EACCES)
 
     finally:
