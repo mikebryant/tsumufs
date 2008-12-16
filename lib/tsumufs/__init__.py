@@ -19,6 +19,8 @@
 '''TsumuFS, a NFS-based caching filesystem.'''
 
 import threading
+import pwd
+import grp
 
 # Not the greatest thing in the world to do, but it makes things
 # organizationally easier to reach. Dumping all of these classes into this file
@@ -149,3 +151,26 @@ def cachePathOf(fusepath):
 
   transpath = os.path.join(tsumufs.cachePoint, rhs)
   return transpath
+
+
+def getGidsForUid(self, uid):
+  '''
+  Return a listing of group IDs that the given uid belongs to. Note that the
+  primary group is included in this list.
+
+  Returns:
+    A list of integers.
+
+  Raises:
+    Nothing.
+  '''
+
+  pwent = pwd.getpwuid(uid)
+  username = pwent.pw_name
+  groups = [ pwent.pw_gid ]
+
+  for group in grp.getgrall():
+    if username in group.gr_mem:
+      groups.append(group.gr_gid)
+
+  return groups
