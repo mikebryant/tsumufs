@@ -692,7 +692,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       if newuid != -1:
         raise OSError(errno.EPERM)
 
-      if newgid != -1:
+      if (file_stat.st_uid != uid) and (newgid != -1):
         if gid not in tsumufs.getGidsForUid(uid):
           raise OSError(errno.EPERM)
 
