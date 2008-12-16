@@ -213,8 +213,8 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
              # TODO(jtg): Add in metadata syncing here.
 
             elif item.getType() == "rename":
-              os.rename(nfsPathOf(item.getOldFilename(),
-                                    item.getNewFilename()))
+              os.rename(nfsPathOf(item.getOldFilename()),
+                        item.getNewFilename()))
 
           except IOError, e:
             self._debug('Caught an IOError: %s' % str(e))
