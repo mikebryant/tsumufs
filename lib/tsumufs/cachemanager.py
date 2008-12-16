@@ -636,6 +636,9 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
+      if 'use-nfs' in opcodes:
+        return os.access(realpath, mode)
+
       # TODO(cleanup): make the above chunk of code into a decorator for crying
       # out loud. We do this in every public method and it adds confusion. =o(
 
@@ -658,18 +661,18 @@ class CacheManager(tsumufs.Debuggable):
 
       # Check user bits first
       if uid == stat.st_uid:
-        if ((stat.st_mode & os.S_IRWXU) >> 6) & mode:
+        if ((stat.st_mode & stat.S_IRWXU) >> 6) & mode:
           return 0
         raise OSError(errno.EACCES)
 
       # Then group bits
-      if file_mode.st_gid in tsumufs.getGidsForUid(uid):
-        if ((stat.st_mode & os.S_IRWXG) >> 3) & mode:
+      if stat.st_gid in tsumufs.getGidsForUid(uid):
+        if ((stat.st_mode & stat.S_IRWXG) >> 3) & mode:
           return 0
         raise OSError(errno.EACCES)
 
       # Finally assume other bits
-      if (stat.st_mode & os.S_IRWXO) & mode:
+      if (stat.st_mode & stat.S_IRWXO) & mode:
         return 0
       raise OSError(errno.EACCES)
 
