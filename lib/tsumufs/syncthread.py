@@ -214,7 +214,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
             elif item.getType() == "rename":
               os.rename(nfsPathOf(item.getOldFilename()),
-                        item.getNewFilename()))
+                        item.getNewFilename())
 
           except IOError, e:
             self._debug('Caught an IOError: %s' % str(e))
