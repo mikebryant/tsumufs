@@ -40,12 +40,13 @@ class FuseFile(tsumufs.Debuggable):
   some of the complexity that the FuseThread class has obtained.
   '''
 
-  _path    = None
-  _fdFlags = None
-  _fdMode  = None
-  _uid     = None
-  _gid     = None
-  _pid     = None
+  _path      = None
+  _fdFlags   = None
+  _fdMode    = None
+  _uid       = None
+  _gid       = None
+  _pid       = None
+  _isNewFile = None
 
   def __init__(self, path, flags, mode=None, uid=None, gid=None, pid=None):
     self._path  = path
@@ -75,7 +76,24 @@ class FuseFile(tsumufs.Debuggable):
                   % (self._flagsToString(), mode or 0,
                      self._uid, self._gid, self._pid))
 
-    tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode)
+    access_mode = 0
+
+    if self._fdFlags & (os.O_CREAT | os.O_WRONLY | os.O_TRUNC | os.O_APPEND):
+      access_mode |= os.W_OK
+
+    if self._fdFlags & os.O_RDONLY:
+      access_mode |= os.R_OK
+
+    # Verify access to the directory
+    tsumufs.cacheManager.access(self._uid,
+                                os.path.dirname(path),
+                                access_mode | os.X_OK)
+
+    if not self._fdFlags & os.O_CREAT:
+      tsumufs.cacheManager.access(self._uid, path, access_mode)
+
+    tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode,
+                                  self._uid, self._gid)
 
     # If we were a new file, create a new change in the synclog for the new file
     # entry.
@@ -83,6 +101,10 @@ class FuseFile(tsumufs.Debuggable):
       self._debug('Adding a new change to the log as user wanted O_CREAT')
       tsumufs.syncLog.addNew('file', filename=self._path)
 
+      self._debug('Adding permissions to the PermissionsOverlay.')
+      tsumufs.permsOverlay(self._path, self._uid, self._gid, self._fdMode)
+
+      self._isNewFile = True
 
     # Make sure we truncate any changes associated with this file as well.
     if self._fdFlags & os.O_TRUNC:

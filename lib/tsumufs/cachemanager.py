@@ -231,7 +231,7 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self.unlockFile(fusepath)
 
-  def fakeOpen(self, fusepath, flags, mode=None):
+  def fakeOpen(self, fusepath, flags, uid, gid, mode=None):
     '''
     Attempt to open a file on the local disk.
 
@@ -305,6 +305,9 @@ class CacheManager(tsumufs.Debuggable):
           fd = os.open(realpath, flags, tsumufs.defaultCacheMode)
         else:
           fd = os.open(realpath, flags)
+
+        # TODO(jtg): Store permissions here
+        self._debug('Storing new permissions')
 
       except OSError, e:
         self._checkForNFSDisconnect(e, opcodes)
@@ -495,8 +498,6 @@ class CacheManager(tsumufs.Debuggable):
 
       self._debug('Reading link from %s' % realpath)
 
-      # TODO(jtg): Validate permissions here
-
       return os.readlink(realpath)
     finally:
       self.unlockFile(fusepath)
@@ -519,14 +520,12 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO(jtg): Validate permissions here
-
       return os.symlink(realpath, target)
 
     finally:
       self.unlockFile(fusepath)
 
-  def makeDir(self, fusepath, mode):
+  def makeDir(self, uid, fusepath, mode):
     self.lockFile(fusepath)
 
     try:
@@ -534,10 +533,8 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO(jtg): Validate permissions here
-
+      # TODO: make this use the permissions overlay
       return os.mkdir(realpath, mode)
-
     finally:
       self.unlockFile(fusepath)
 
@@ -559,7 +556,7 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO(jtg): Validate permissions here
+      # TODO(jtg): Fix this to use the PermissionsOverlay
 
       return os.chmod(fusepath, mode)
     finally:
@@ -583,13 +580,13 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO(jtg): Validate permissions here
+      # TODO(jtg): Fix this to use the PermissionsOverlay
 
       return os.chown(fusepath, uid, gid)
     finally:
       self.unlockFile(fusepath)
 
-  def rename(self, fusepath, newpath):
+  def rename(self, uid, fusepath, newpath):
     '''
     Rename a file.
 
@@ -615,42 +612,74 @@ class CacheManager(tsumufs.Debuggable):
       self._debug('Renaming %s (%s) -> %s (%s)' % (fusepath, srcpath,
                                                    newpath, destpath))
 
-      # TODO(jtg): Validate permissions here
-
       return os.rename(srcpath, destpath)
     finally:
       self.unlockFile(fusepath)
       self.unlockFile(newpath)
 
-  def access(self, fusepath, mode):
+  def access(self, uid, fusepath, mode):
     '''
     Test for access to a path.
 
     Returns:
-      True upon successful check, otherwise False.
+      True upon successful check, otherwise False. Don't alter _recurse. That's
+      used internally.
 
     Raises:
       OSError upon access problems.
     '''
 
-    try:
-      self.lockFile(fusepath)
+    self.lockFile(fusepath)
 
+    try:
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      self._debug('Checking for access on %s' % realpath)
+      # TODO(cleanup): make the above chunk of code into a decorator for crying
+      # out loud. We do this in every public method and it adds confusion. =o(
 
-      # TODO(jtg): Validate permissions here
+      # Root owns everything
+      if uid == 0:
+        return 0
 
-      return os.access(realpath, mode)
+      # Recursively go down the path from longest to shortest, checking access
+      # perms on each directory as we go down.
+      if fusepath != '/':
+        self.access(uid,
+                    os.path.dirname(fusepath),
+                    os.X_OK)
+
+      stat = self.statFile(fusepath)
+
+      # Catch the case where the user only wants to check if the file exists.
+      if mode == os.F_OK:
+        return 0
+
+      # Check user bits first
+      if uid == stat.st_uid:
+        if ((stat.st_mode & os.S_IRWXU) >> 6) & mode:
+          return 0
+        raise OSError(errno.EACCES)
+
+      # Then group bits
+      if file_mode.st_gid in tsumufs.getGidsForUid(uid):
+        if ((stat.st_mode & os.S_IRWXG) >> 3) & mode:
+          return 0
+        raise OSError(errno.EACCES)
+
+      # Finally assume other bits
+      if (stat.st_mode & os.S_IRWXO) & mode:
+        return 0
+      raise OSError(errno.EACCES)
+
     finally:
       self.unlockFile(fusepath)
 
   def truncateFile(self, fusepath, size):
     '''
-    Truncate the file.
+    Unconditionally truncate the file. Don't check to see if the user has
+    access.
     '''
 
     try:
@@ -661,8 +690,6 @@ class CacheManager(tsumufs.Debuggable):
       realpath = self._generatePath(fusepath, opcodes)
 
       self._debug('Truncating %s to %d bytes.' % (realpath, size))
-
-      # TODO(jtg): Validate permissions here
 
       fd = os.open(realpath, os.O_RDWR)
       os.ftruncate(fd, size)

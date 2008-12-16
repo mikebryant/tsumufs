@@ -321,6 +321,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: getattr | self: %s | path: %s' % (repr(self), path))
 
     try:
+      (uid, gid, pid) = self.GetContext()
+      tsumufs.cacheManager.access(uid, path, os.R_OK)
+
       return tsumufs.cacheManager.statFile(path)
     except OSError, e:
       self._debug('getattr: Caught OSError: errno %d: %s'
@@ -475,6 +478,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: readlink | path: %s' % path)
 
     try:
+      (uid, gid, pid) = self.GetContext()
+      tsumufs.cacheManager.access(uid, path, os.R_OK)
+
       retval = tsumufs.cacheManager.readLink(path)
       self._debug('Returning: %s' % retval)
       return retval
@@ -496,6 +502,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: readdir | path: %s | offset: %d' % (path, offset))
 
     try:
+      (uid, gid, pid) = self.GetContext()
+      tsumufs.cacheManager.access(uid, path, os.R_OK)
+
       dirents = [ '.', '..' ]
       dirents.extend(tsumufs.cacheManager.getDirents(path))
 
@@ -524,6 +533,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: unlink | path: %s' % path)
 
     try:
+      (uid, gid, pid) = self.GetContext()
+      tsumufs.cacheManager.access(uid, path, os.W_OK)
+
       tsumufs.cacheManager.removeCachedFile(path)
       tsumufs.syncLog.addUnlink(path)
 
@@ -544,6 +556,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: rmdir | path: %s' % path)
 
     try:
+      (uid, gid, pid) = self.GetContext()
+      tsumufs.cacheManager.access(uid, path, os.W_OK)
+
       tsumufs.cacheManager.removeCachedFile(path)
       tsumufs.syncLog.addUnlink(path)
 
@@ -564,6 +579,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: symlink | src: %s | dest:: %s' % (src, dest))
 
     try:
+      (uid, gid, pid) = self.GetContext()
+      tsumufs.cacheManager.access(uid, os.path.dirname(dest), os.W_OK | os.X_OK)
+
       tsumufs.cacheManager.makeSymlink(dest, src)
       tsumufs.syncLog.addNew('symlink', filename=dest)
 
@@ -585,6 +603,18 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: rename | old: %s | new: %s' % (old, new))
 
     try:
+      (uid, gid, pid) = self.GetContext()
+
+      tsumufs.cacheManager.access(uid, old, os.R_OK | os.W_OK)
+
+      try:
+        tsumufs.cacheManager.access(uid, new, os.W_OK)
+      except OSError, e:
+        if e.errno != errno.ENOENT:
+          tsumufs.cacheManager.access(uid,
+                                      os.path.dirname(new),
+                                      os.W_OK | os.X_OK)
+
       tsumufs.cacheManager.rename(old, new)
       tsumufs.syncLog.addRename(old, new)
 
@@ -623,6 +653,17 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self._debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
 
+    (uid, gid, pid) = self.GetContext()
+    file_stat = tsumufs.cacheManager.statFile(path)
+
+    if ((file_stat.st_uid != uid) or
+        (uid != 0)):
+      raise OSError(errno.EPERM)
+
+    tsumufs.cacheManager.access(uid,
+                                os.path.dirname(path),
+                                os.F_OK)
+
     try:
       tsumufs.cacheManager.chmod(path, mode)
       tsumufs.syncLog.addMetadataChange(path, mode=mode)
@@ -633,7 +674,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
-  def chown(self, path, uid, gid):
+  def chown(self, path, newuid, newgid):
     '''
     Change the owner and/or group of a file.
 
@@ -642,7 +683,18 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     '''
 
     self._debug('opcode: chown | path: %s | uid: %d | gid: %d' %
-               (path, uid, gid))
+               (path, newuid, newgid))
+
+    (uid, gid, pid) = self.GetContext()
+    file_stat = tsumufs.cacheManager.statFile(path)
+
+    if uid != 0:
+      if newuid != -1:
+        raise OSError(errno.EPERM)
+
+      if newgid != -1:
+        if gid not in tsumufs.getGidsForUid(uid):
+          raise OSError(errno.EPERM)
 
     try:
       tsumufs.cacheManager.chown(path, uid, gid)
@@ -665,6 +717,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self._debug('opcode: truncate | path: %s | size: %d' %
                (path, size))
+
+    (uid, gid, pid) = self.GetContext()
+    tsumufs.cacheManager.access(uid, path, os.W_OK)
 
     try:
       # Truncate the file...
@@ -691,6 +746,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self._debug('opcode: mknod | path: %s | mode: %d | dev: %s' %
                (path, mode, dev))
+
+    (uid, gid, pid) = self.GetContext()
+
+    if mode & (stat.S_IFCHR | stat.S_IFBLK):
+      if uid != 0:
+        raise OSError(errno.EPERM)
+
+    tsumufs.cacheManager.access(uid, os.path.dirname(path), os.W_OK|os.X_OK)
 
     try:
       tsumufs.cacheManager.makeNode(path, mode, dev)
@@ -720,6 +783,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     '''
 
     self._debug('opcode: mkdir | path: %s | mode: %o' % (path, mode))
+
+    (uid, gid, pid) = self.GetContext()
+    tsumufs.cacheManager.access(uid, os.path.dirname(path), os.W_OK|os.X_OK)
 
     try:
       tsumufs.cacheManager.makeDir(path, mode)
@@ -765,8 +831,10 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self._debug('opcode: access | path: %s | mode: %o' % (path, mode))
 
+    (uid, gid, pid) = self.GetContext()
+
     try:
-      if not tsumufs.cacheManager.access(path, mode):
+      if not tsumufs.cacheManager.access(uid, path, mode):
         return -errno.EACCES
     except OSError, e:
       self._debug('access: Caught OSError: errno %d: %s'
