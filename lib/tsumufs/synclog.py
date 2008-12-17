@@ -387,11 +387,13 @@ class SyncLog(tsumufs.Debuggable):
     finally:
       self._lock.release()
 
-  def addRename(self, old, new):
+  def addRename(self, inum, old, new):
     try:
       self._lock.acquire()
 
-      syncitem = tsumufs.SyncItem('rename', old=old, new=new)
+      syncitem = tsumufs.SyncItem('rename', inum=inum,
+                                  old_fname=old, new_fname=new)
+
       self._syncQueue.append(syncitem)
     finally:
       self._lock.release()
