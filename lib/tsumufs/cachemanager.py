@@ -696,7 +696,7 @@ class CacheManager(tsumufs.Debuggable):
         return 0
 
       self._debug('No access allowed.')
-      raise OSError(errno.EACCES)
+      raise OSError(errno.EACCES, os.strerror(errno.EACCES))
 
     finally:
       self.unlockFile(fusepath)

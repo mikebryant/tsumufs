@@ -321,18 +321,15 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: getattr | self: %s | path: %s' % (repr(self), path))
 
     try:
-      context = self.GetContext()
-      tsumufs.cacheManager.access(context['uid'], path, os.R_OK)
-
       result = tsumufs.cacheManager.statFile(path)
       self._debug('Returning (%d, %d, %o)' %
                   (result.st_uid, result.st_gid, result.st_mode))
 
       return result
     except OSError, e:
-      self._debug('getattr: Caught OSError: errno %d: %s'
+      self._debug('getattr: Caught OSError: %d: %s'
                   % (e.errno, e.strerror))
-      return -e.errno
+      raise
 
   def setxattr(self, path, name, value, size):
     '''
@@ -538,7 +535,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       context = self.GetContext()
-      tsumufs.cacheManager.access(context['uid'], path, os.W_OK)
+      tsumufs.cacheManager.access(context['uid'], os.path.dirname(path),
+                                  os.W_OK)
 
       tsumufs.cacheManager.removeCachedFile(path)
       tsumufs.syncLog.addUnlink(path)
