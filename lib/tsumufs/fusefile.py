@@ -85,13 +85,16 @@ class FuseFile(tsumufs.Debuggable):
       access_mode |= os.R_OK
 
     # Verify access to the directory
+    self._debug('Verifying access to directory %s' % os.path.dirname(path))
     tsumufs.cacheManager.access(self._uid,
                                 os.path.dirname(path),
                                 access_mode | os.X_OK)
 
     if not self._fdFlags & os.O_CREAT:
+      self._debug('Checking access on file since we didn\'t create it.')
       tsumufs.cacheManager.access(self._uid, path, access_mode)
 
+    self._debug('Calling fakeopen')
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode,
                                   self._uid, self._gid)
 
@@ -102,7 +105,8 @@ class FuseFile(tsumufs.Debuggable):
       tsumufs.syncLog.addNew('file', filename=self._path)
 
       self._debug('Adding permissions to the PermissionsOverlay.')
-      tsumufs.permsOverlay(self._path, self._uid, self._gid, self._fdMode)
+      tsumufs.permsOverlay.setPerms(self._path, self._uid, self._gid,
+                                    self._fdMode)
 
       self._isNewFile = True
 

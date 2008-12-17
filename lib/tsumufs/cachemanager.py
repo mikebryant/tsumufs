@@ -691,7 +691,7 @@ class CacheManager(tsumufs.Debuggable):
           return 0
 
       # Finally assume other bits
-      if (file_stat.st_mode & file_stat.S_IRWXO) & mode:
+      if (file_stat.st_mode & stat.S_IRWXO) & mode:
         self._debug('Allowing for other bits.')
         return 0
 
@@ -825,11 +825,6 @@ class CacheManager(tsumufs.Debuggable):
         shutil.copy(nfspath, cachepath)
         shutil.copystat(nfspath, cachepath)
 
-        tsumufs.permsOverlay.setPerms(fusepath,
-                                      curstat.st_uid,
-                                      curstat.st_gid,
-                                      curstat.st_mode)
-
       elif stat.S_ISLNK(curstat.st_mode):
         dest = os.readlink(nfspath)
 
@@ -847,6 +842,10 @@ class CacheManager(tsumufs.Debuggable):
         self._debug('Request to cache a directory -- calling _cacheDir')
         self._cacheDir(fusepath)
 
+      tsumufs.permsOverlay.setPerms(fusepath,
+                                    curstat.st_uid,
+                                    curstat.st_gid,
+                                    curstat.st_mode)
     finally:
       self.unlockFile(fusepath)
 
