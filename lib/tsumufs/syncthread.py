@@ -168,24 +168,47 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             # original hasn't changed since we synced it to the cache
             # last.
 
+            # TODO(locks): Maybe make the popItem() call lock the paths
+            # first, and then call out to a secondary finishedWithItem() method
+            # on the SyncLog? This would alleviate race conditions with the
+            # below code.
+
             if item.getType() == 'new':
-              shutil.copy(tsumufs.cachePathOf(item.getFilename()),
-                          tsumufs.nfsPathOf(item.getFilename()))
+              fusepath = item.getFilename()
+              tsumufs.cacheManager.lockFile(fusepath)
+              tsumufs.nfsMount.lockFile(fusepath)
+
+              try:
+                shutil.copy(tsumufs.cachePathOf(fusepath),
+                            tsumufs.nfsPathOf(fusepath))
+
+              finally:
+                tsumufs.cacheManager.unlockFile(fusepath)
+                tsumufs.nfsMount.unlockFile(fusepath)
 
             elif item.getType() == 'link':
               # TODO(jtg): Add in hardlink support
               pass
 
             elif item.getType() == 'unlink':
-              os.unlink(tsumufs.nfsPathOf(item.getFilename()))
+              fusepath = item.getFilename()
+              tsumufs.cacheManager.lockFile(fusepath)
+              tsumufs.nfsMount.lockFile(fusepath)
+
+              try:
+                os.unlink(tsumufs.nfsPathOf(fusepath))
+
+              finally:
+                tsumufs.cacheManager.unlockFile(fusepath)
+                tsumufs.nfsMount.unlockFile(fusepath)
 
             elif item.getType() == 'change':
-              try:
-                fusepath = item.getFilename()
-                statgoo  = tsumufs.cacheManager.statFile(fusepath)
+              fusepath = item.getFilename()
+              tsumufs.cacheManager.lockFile(fusepath)
+              tsumufs.nfsMount.lockFile(fusepath)
 
-                tsumufs.cacheManager.lockFile(fusepath)
-                tsumufs.nfsMount.lockFile(fusepath)
+              try:
+                statgoo  = tsumufs.cacheManager.statFile(fusepath)
 
                 # Propogate truncations
                 if (change.dataLength < statgoo.st_size):
@@ -213,8 +236,23 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
              # TODO(jtg): Add in metadata syncing here.
 
             elif item.getType() == "rename":
-              os.rename(nfsPathOf(item.getOldFilename()),
-                        item.getNewFilename())
+              oldfusepath = item.getOldFilename()
+              newfusepath = item.getNewFilename()
+
+              tsumufs.cacheManager.lockFile(oldfusepath)
+              tsumufs.cacheManager.lockFile(newfusepath)
+              tsumufs.nfsMount.lockFile(oldfusepath)
+              tsumufs.nfsMount.lockFile(newfusepath)
+
+              try:
+                os.rename(tsumufs.nfsPathOf(item.getOldFilename()),
+                          tsumufs.nfsPathOf(item.getNewFilename()))
+
+              finally:
+                tsumufs.cacheManager.unlockFile(oldfusepath)
+                tsumufs.cacheManager.unlockFile(newfusepath)
+                tsumufs.nfsMount.unlockFile(oldfusepath)
+                tsumufs.nfsMount.unlockFile(newfusepath)
 
           except IOError, e:
             self._debug('Caught an IOError: %s' % str(e))
