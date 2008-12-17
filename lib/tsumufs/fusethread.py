@@ -636,8 +636,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
       return 0
     except OSError, e:
-      self._debug('rename: Caught OSError: errno %d: %s (%s:%d)'
-                  % (e.errno, e.strerror, tb[0], tb[1]))
+      self._debug('rename: Caught OSError: errno %d: %s'
+                  % (e.errno, e.strerror))
       return -e.errno
 
   def link(self, src, dest):
