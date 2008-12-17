@@ -324,7 +324,11 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       context = self.GetContext()
       tsumufs.cacheManager.access(context['uid'], path, os.R_OK)
 
-      return tsumufs.cacheManager.statFile(path)
+      result = tsumufs.cacheManager.statFile(path)
+      self._debug('Returning (%d, %d, %o)' %
+                  (result.st_uid, result.st_gid, result.st_mode))
+
+      return result
     except OSError, e:
       self._debug('getattr: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -838,8 +842,8 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                  repr(context['pid'])))
 
     try:
-      if not tsumufs.cacheManager.access(context['uid'], path, mode):
-        return -errno.EACCES
+      tsumufs.cacheManager.access(context['uid'], path, mode)
+      return 0
     except OSError, e:
       self._debug('access: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
