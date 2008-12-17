@@ -98,25 +98,25 @@ class FuseFile(tsumufs.Debuggable):
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode,
                                   self._uid, self._gid)
 
-    # If we were a new file, create a new change in the synclog for the new file
-    # entry.
-    if self._fdFlags & os.O_CREAT:
-      self._debug('Adding a new change to the log as user wanted O_CREAT')
-      tsumufs.syncLog.addNew('file', filename=self._path)
-
-      self._debug('Adding permissions to the PermissionsOverlay.')
-      tsumufs.permsOverlay.setPerms(self._path, self._uid, self._gid,
-                                    self._fdMode)
-
-      self._isNewFile = True
-
     # Make sure we truncate any changes associated with this file as well.
     if self._fdFlags & os.O_TRUNC:
       tsumufs.syncLog.truncateChanges(self._path, 0)
 
-    # Rip out any O_TRUNC options after we do the initial open -- that's
+    # If we were a new file, create a new change in the synclog for the new file
+    # entry.
+    if self._fdFlags & os.O_CREAT:
+      self._debug('Adding permissions to the PermissionsOverlay.')
+      tsumufs.permsOverlay.setPerms(self._path, self._uid, self._gid,
+                                    self._fdMode)
+
+      self._debug('Adding a new change to the log as user wanted O_CREAT')
+      tsumufs.syncLog.addNew('file', filename=self._path)
+
+      self._isNewFile = True
+
+    # Rip out any O_TRUNC options after we do the initial open -- O_TRUNC is
     # dangerous to do in this case, because if we get multiple write calls, we
-    # just pass in the _fdMode raw, which causing multiple O_TRUNC calls to the
+    # just pass in the _fdMode raw, which causes multiple O_TRUNC calls to the
     # underlying file, resulting in data loss. We do the same for O_CREAT, as it
     # can also cause problems later on.
 
