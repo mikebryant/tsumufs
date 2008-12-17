@@ -57,6 +57,10 @@ class NFSMount(tsumufs.Debuggable):
       A boolean value.
     '''
 
+#     tb = self._getCaller()
+#     self._debug('Locking file %s (from: %s(%d): in %s).'
+#                 % (fusepath, tb[0], tb[1], tb[2]))
+
     try:
       self._fileLocks[filename].acquire()
     except KeyError:
@@ -73,6 +77,10 @@ class NFSMount(tsumufs.Debuggable):
     Returns:
       A boolean value.
     '''
+
+#     tb = self._getCaller()
+#     self._debug('Unlocking file %s (from: %s(%d): in %s).'
+#                 % (fusepath, tb[0], tb[1], tb[2]))
 
     self._fileLocks[filename].release()
 
