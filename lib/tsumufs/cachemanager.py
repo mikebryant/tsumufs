@@ -216,7 +216,7 @@ class CacheManager(tsumufs.Debuggable):
           return result
         else:
           # Special case the root of the mount.
-          if fusepath == '/':
+          if os.path.abspath(fusepath) == '/':
             return os.lstat(realpath)
 
           perms = tsumufs.permsOverlay.getPerms(fusepath)
@@ -586,7 +586,7 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self.unlockFile(fusepath)
 
-  def rename(self, uid, fusepath, newpath):
+  def rename(self, fusepath, newpath):
     '''
     Rename a file.
 
@@ -603,16 +603,34 @@ class CacheManager(tsumufs.Debuggable):
     try:
       opcodes = self._genCacheOpcodes(fusepath)
       self._validateCache(fusepath, opcodes)
-      srcpath = self._generatePath(fusepath, opcodes)
 
-      opcodes = self._genCacheOpcodes(newpath)
-      self._validateCache(newpath, opcodes)
+      try:
+        opcodes = self._genCacheOpcodes(newpath)
+        self._validateCache(newpath, opcodes)
+
+      except OSError, e:
+        if e.errno == errno.ENOENT:
+          self._debug('Squelching an ENOENT -- this is for rename.')
+        else:
+          raise
+
+      srcpath = self._generatePath(fusepath, opcodes)
       destpath = self._generatePath(newpath, opcodes)
 
       self._debug('Renaming %s (%s) -> %s (%s)' % (fusepath, srcpath,
                                                    newpath, destpath))
 
-      return os.rename(srcpath, destpath)
+      # Don't need to do anything with the perms, because the inode stays the
+      # same during a rename. We're just passing around the reference between
+      # directory hashes.
+
+      result = os.rename(srcpath, destpath)
+
+      # Invalidate the dirent cache for the old pathname
+      self._invalidateDirentCache(os.path.dirname(fusepath),
+                                  os.path.basename(fusepath))
+
+      return result
     finally:
       self.unlockFile(fusepath)
       self.unlockFile(newpath)
@@ -1142,7 +1160,7 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-#    tb = self._getCaller()
+#     tb = self._getCaller()
 #     self._debug('Locking file %s (from: %s(%d): in %s).'
 #                 % (fusepath, tb[0], tb[1], tb[2]))
 
@@ -1168,7 +1186,7 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-#    tb = self._getCaller()
+#     tb = self._getCaller()
 #     self._debug('Unlocking file %s (from: %s(%d): in %s).'
 #                 % (fusepath, tb[0], tb[1], tb[2]))
 

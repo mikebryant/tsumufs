@@ -607,23 +607,37 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     try:
       context = self.GetContext()
 
-      tsumufs.cacheManager.access(context['uid'], old, os.R_OK | os.W_OK)
+      # According to the rename(2) man page, EACCES is raised when:
+      #
+      #   Write permission is denied for the directory containing oldpath or
+      #   newpath, or, search permission is denied for one of the directories in
+      #   the path prefix of oldpath or newpath, or oldpath is a directory and
+      #   does not allow write permission (needed to update the ..  entry).
+      #
+      # Otherwise the rename is allowed. It doesn't care about permissions on
+      # the file itself.
 
-      try:
-        tsumufs.cacheManager.access(context['uid'], new, os.W_OK)
-      except OSError, e:
-        if e.errno != errno.ENOENT:
-          tsumufs.cacheManager.access(context['uid'],
-                                      os.path.dirname(new),
-                                      os.W_OK | os.X_OK)
+      # So, do this:
+      #  1. Stat old. If dir and not W_OK, EACCES
+      #  2. Verify X_OK | W_OK on dirname(old) and dirname(new)
+
+      old_stat = tsumufs.cacheManager.statFile(old)
+
+      if stat.S_ISDIR(old_stat.st_mode):
+        tsumufs.cacheManager.access(context['uid'], old, os.W_OK)
+
+      tsumufs.cacheManager.access(context['uid'], os.path.dirname(old),
+                                  os.X_OK | os.W_OK)
+      tsumufs.cacheManager.access(context['uid'], os.path.dirname(new),
+                                  os.X_OK | os.W_OK)
 
       tsumufs.cacheManager.rename(old, new)
-      tsumufs.syncLog.addRename(old, new)
+      tsumufs.syncLog.addRename(old_stat.st_ino, old, new)
 
       return 0
     except OSError, e:
-      self._debug('rename: Caught OSError: errno %d: %s'
-                  % (e.errno, e.strerror))
+      self._debug('rename: Caught OSError: errno %d: %s (%s:%d)'
+                  % (e.errno, e.strerror, tb[0], tb[1]))
       return -e.errno
 
   def link(self, src, dest):
