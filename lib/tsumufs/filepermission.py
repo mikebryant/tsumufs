@@ -45,9 +45,9 @@ class FilePermission(tsumufs.Debuggable):
       self.mode = statresult.st_mode
 
   def __str__(self):
-    return '<FilePermission uid:%d gid:%d mode:%o' % (self.uid,
-                                                      self.gid,
-                                                      self.mode)
+    return '<FilePermission uid:%d gid:%d mode:%o>' % (self.uid,
+                                                       self.gid,
+                                                       self.mode)
 
   def __repr__(self):
     return str(self)
