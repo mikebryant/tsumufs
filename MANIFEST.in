@@ -1,0 +1,13 @@
+include BUGS
+include COPYING
+include HACKING
+include Makefile
+include README
+include TODO
+include pycheckerrc
+recursive-include doc *
+recursive-include lib *.py
+recursive-include tests *.c *.tar
+recursive-include utils *
+prune bugs
+prune tests/filesystem
