@@ -25,6 +25,11 @@ TEST_DIR       := /tmp/tsumufs-test-dir
 TEST_CACHE_DIR := /tmp/tsumufs-cache-dir
 TEST_NFS_DIR   := /tmp/tsumufs-nfs-dir
 
+PYTHON   := $(shell which python)
+DESTDIR  := /
+BUILDDIR := $(CURDIR)/debian/tsumufs
+PROJECT  := tsumufs
+
 ifndef PYCHECKER
 PYCHECKER := /usr/bin/pychecker
 endif
@@ -41,7 +46,14 @@ endif
 
 DIST_FILENAME := tsumufs-$(VERSION).tar.gz
 
-all: check test
+all: targets
+
+install:
+	$(PYTHON) setup.py install --root $(DESTDIR) $(COMPILE)
+
+builddeb:
+	mkdir -p $(BUILDDIR)
+	DESTDIR=$(BUILDDIR) dpkg-buildpackage -rfakeroot
 
 test-environment:
 	@if [ -z $(NFSHOME) ]; then \
@@ -155,11 +167,13 @@ not-mounted:
 	fi
 
 clean: not-mounted
-	find -iname \*.pyc -exec rm -f '{}' ';'
+	find -iname \*.pyc -delete
 	rm -f $(DIST_FILENAME)
 	rm -f $(FUNC_TESTS)
 	rm -rf $(TEST_DIR) $(TEST_CACHE_DIR)
 	-rmdir $(TEST_NFS_DIR)
+	$(PYTHON) setup.py clean
+	rm -rf build/ MANIFEST
 
 mrclean: clean
 	find -iname \*~ -exec rm -rf '{}' ';' -prune

@@ -1,0 +1,2 @@
+python:Versions=>=2.4
+python:Depends=python (>= 2.4), python-central (>= 0.6.7), python2.4

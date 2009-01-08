@@ -47,7 +47,7 @@ setup(name='TsumuFS',
                'utils/is-dirty',
                'utils/force-reconnect',
                'utils/force-disconnect',
-               'utils/xattr'],
+               'utils/tsumufs-xattr'],
 
-      requires=['fuse>=0.2', 'xattr']
+      requires=['fuse', 'xattr']
       )
