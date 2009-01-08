@@ -25,6 +25,7 @@ import shutil
 import errno
 import stat
 import syslog
+import thread
 import threading
 import time
 import random
@@ -54,6 +55,8 @@ class CacheManager(tsumufs.Debuggable):
 
   _fileLocks = {}          # A hash of paths to locks to serialize
                            # access to files in the cache.
+
+  _lockLock = threading.RLock()  # Lock to control access to _fileLocks
 
   def __init__(self):
     # Install our custom exception handler so that any exceptions are
@@ -1160,17 +1163,25 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-#     tb = self._getCaller()
-#     self._debug('Locking file %s (from: %s(%d): in %s).'
-#                 % (fusepath, tb[0], tb[1], tb[2]))
+    # Force the interpreter to do the following atomically
+    old_interval = sys.getcheckinterval()
+    sys.setcheckinterval(1000)
 
     try:
-      self._fileLocks[fusepath].acquire()
-    except KeyError:
-      lock = threading.RLock()
-      lock.acquire()
+#       tb = self._getCaller()
+#       self._debug('Locking file %s (from: %s(%d): in %s <%d>).'
+#                   % (fusepath, tb[0], tb[1], tb[2], thread.get_ident()))
 
-      self._fileLocks[fusepath] = lock
+      try:
+        self._fileLocks[fusepath].acquire()
+      except KeyError:
+        lock = threading.RLock()
+        lock.acquire()
+
+        self._fileLocks[fusepath] = lock
+
+    finally:
+      sys.setcheckinterval(old_interval)
 
   def unlockFile(self, fusepath):
     '''
@@ -1186,8 +1197,16 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-#     tb = self._getCaller()
-#     self._debug('Unlocking file %s (from: %s(%d): in %s).'
-#                 % (fusepath, tb[0], tb[1], tb[2]))
+    # Force the interpreter to do the following atomically
+    old_interval = sys.getcheckinterval()
+    sys.setcheckinterval(1000)
 
-    self._fileLocks[fusepath].release()
+    try:
+#       tb = self._getCaller()
+#       self._debug('Unlocking file %s (from: %s(%d): in %s <%d>).'
+#                   % (fusepath, tb[0], tb[1], tb[2], thread.get_ident()))
+
+      self._fileLocks[fusepath].release()
+
+    finally:
+      sys.setcheckinterval(old_interval)

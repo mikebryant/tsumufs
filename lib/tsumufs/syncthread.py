@@ -127,7 +127,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
             time.sleep(5)
             continue
           else:
-            self._debug('Got one.')
+            self._debug('Got one: %s' % repr(item))
 
           try:
             # Verify that what the synclog contains is actually what is on
@@ -175,16 +175,9 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
             if item.getType() == 'new':
               fusepath = item.getFilename()
-              tsumufs.cacheManager.lockFile(fusepath)
-              tsumufs.nfsMount.lockFile(fusepath)
 
-              try:
-                shutil.copy(tsumufs.cachePathOf(fusepath),
-                            tsumufs.nfsPathOf(fusepath))
-
-              finally:
-                tsumufs.cacheManager.unlockFile(fusepath)
-                tsumufs.nfsMount.unlockFile(fusepath)
+              shutil.copy(tsumufs.cachePathOf(fusepath),
+                          tsumufs.nfsPathOf(fusepath))
 
             elif item.getType() == 'link':
               # TODO(jtg): Add in hardlink support
@@ -192,46 +185,32 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
             elif item.getType() == 'unlink':
               fusepath = item.getFilename()
-              tsumufs.cacheManager.lockFile(fusepath)
-              tsumufs.nfsMount.lockFile(fusepath)
 
-              try:
-                os.unlink(tsumufs.nfsPathOf(fusepath))
-
-              finally:
-                tsumufs.cacheManager.unlockFile(fusepath)
-                tsumufs.nfsMount.unlockFile(fusepath)
+              os.unlink(tsumufs.nfsPathOf(fusepath))
 
             elif item.getType() == 'change':
               fusepath = item.getFilename()
-              tsumufs.cacheManager.lockFile(fusepath)
-              tsumufs.nfsMount.lockFile(fusepath)
 
-              try:
-                statgoo  = tsumufs.cacheManager.statFile(fusepath)
+              statgoo  = tsumufs.cacheManager.statFile(fusepath)
 
-                # Propogate truncations
-                if (change.dataLength < statgoo.st_size):
-                  tsumufs.nfsMount.truncateFile(fusepath, change.dataLength)
+              # Propogate truncations
+              if (change.dataLength < statgoo.st_size):
+                tsumufs.nfsMount.truncateFile(fusepath, change.dataLength)
 
-                for region in change.getDataChanges():
-                  data = tsumufs.cacheManager.readFile(fusepath,
-                                                       region.getStart(),
-                                                       region.getEnd()-region.getStart(),
-                                                       os.O_RDONLY)
+              for region in change.getDataChanges():
+                data = tsumufs.cacheManager.readFile(fusepath,
+                                                     region.getStart(),
+                                                     region.getEnd()-region.getStart(),
+                                                     os.O_RDONLY)
 
-                  self._debug('Writing to %s at [%d-%d] %s'
-                              % (fusepath, region.getStart(),
-                                 region.getEnd(), repr(data)))
+                self._debug('Writing to %s at [%d-%d] %s'
+                            % (fusepath, region.getStart(),
+                               region.getEnd(), repr(data)))
 
-                  tsumufs.nfsMount.writeFileRegion(fusepath,
-                                                   region.getStart(),
-                                                   region.getEnd(),
-                                                   data)
-
-              finally:
-                tsumufs.cacheManager.unlockFile(fusepath)
-                tsumufs.nfsMount.unlockFile(fusepath)
+                tsumufs.nfsMount.writeFileRegion(fusepath,
+                                                 region.getStart(),
+                                                 region.getEnd(),
+                                                 data)
 
              # TODO(jtg): Add in metadata syncing here.
 
@@ -239,20 +218,12 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
               oldfusepath = item.getOldFilename()
               newfusepath = item.getNewFilename()
 
-              tsumufs.cacheManager.lockFile(oldfusepath)
-              tsumufs.cacheManager.lockFile(newfusepath)
-              tsumufs.nfsMount.lockFile(oldfusepath)
-              tsumufs.nfsMount.lockFile(newfusepath)
+              os.rename(tsumufs.nfsPathOf(item.getOldFilename()),
+                        tsumufs.nfsPathOf(item.getNewFilename()))
 
-              try:
-                os.rename(tsumufs.nfsPathOf(item.getOldFilename()),
-                          tsumufs.nfsPathOf(item.getNewFilename()))
-
-              finally:
-                tsumufs.cacheManager.unlockFile(oldfusepath)
-                tsumufs.cacheManager.unlockFile(newfusepath)
-                tsumufs.nfsMount.unlockFile(oldfusepath)
-                tsumufs.nfsMount.unlockFile(newfusepath)
+            # Mark the change as complete.
+            self._debug('Marking change %s as complete.' % repr(item))
+            tsumufs.syncLog.finishedWithChange(item)
 
           except IOError, e:
             self._debug('Caught an IOError: %s' % str(e))
