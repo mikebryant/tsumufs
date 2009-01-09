@@ -172,8 +172,9 @@ clean: not-mounted
 	rm -f $(FUNC_TESTS)
 	rm -rf $(TEST_DIR) $(TEST_CACHE_DIR)
 	-rmdir $(TEST_NFS_DIR)
+	-fakeroot debian/rules clean
 	$(PYTHON) setup.py clean
-	rm -rf build/ MANIFEST
+	rm -rf build/ dist/ MANIFEST
 
 mrclean: clean
 	find -iname \*~ -exec rm -rf '{}' ';' -prune
