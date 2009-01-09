@@ -1,11 +1,11 @@
-tsumufs (0.9-1) UNRELEASED; urgency=low
+tsumufs (0.9-1) unstable; urgency=low
 
   * Fixing things in the build system to use CDBS rather than python-central.
 
- -- jtgans <jtgans@google.com>  Thu, 08 Jan 2009 15:59:52 -0800
+ -- June Tate-Gans <june.tate@gmail.com>  Thu, 08 Jan 2009 15:59:52 -0800
 
-tsumufs (0.9) UNRELEASED; urgency=low
+tsumufs (0.9) unstable; urgency=low
 
   * Initial release.
 
- -- jtgans <jtgans@google.com>  Thu, 08 Jan 2009 13:47:03 -0800
+ -- June Tate-Gans <june.tate@gmail.com>  Thu, 08 Jan 2009 13:47:03 -0800
