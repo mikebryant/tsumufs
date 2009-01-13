@@ -408,44 +408,37 @@ class SyncLog(tsumufs.Debuggable):
       self._lock.release()
 
   def popChange(self):
-    # Force the interpreter to do the following atomically
-    old_interval = sys.getcheckinterval()
-    sys.setcheckinterval(1000)
-
     self._lock.acquire()
 
     try:
-      syncitem = self._syncQueue[0]
-      change = None
-
-      # Grab the associated inode changes if there are any.
-      if syncitem.getType() == 'change':
-        if self._inodeChanges.has_key(syncitem.getInum()):
-          change = self._inodeChanges[syncitem.getInum()]
-          del self._inodeChanges[syncitem.getInum()]
-
-      # Ensure the appropriate locks are locked
-      if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
-        tsumufs.cacheManager.lockFile(syncitem.getFilename())
-        tsumufs.nfsMount.lockFile(syncitem.getFilename())
-      elif syncitem.getType() in ('rename'):
-        tsumufs.cacheManager.lockFile(syncitem.getNewFilename())
-        tsumufs.nfsMount.lockFile(syncitem.getNewFilename())
-        tsumufs.cacheManager.lockFile(syncitem.getOldFilename())
-        tsumufs.nfsMount.lockFile(syncitem.getOldFilename())
-
-      return (syncitem, change)
+      try:
+        syncitem = self._syncQueue[0]
+      except KeyError, e:
+        raise
     finally:
       self._lock.release()
-      sys.setcheckinterval(old_interval)
+
+    change = None
+
+    # Grab the associated inode changes if there are any.
+    if syncitem.getType() == 'change':
+      if self._inodeChanges.has_key(syncitem.getInum()):
+        change = self._inodeChanges[syncitem.getInum()]
+        del self._inodeChanges[syncitem.getInum()]
+
+    # Ensure the appropriate locks are locked
+    if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
+      tsumufs.cacheManager.lockFile(syncitem.getFilename())
+      tsumufs.nfsMount.lockFile(syncitem.getFilename())
+    elif syncitem.getType() in ('rename'):
+      tsumufs.cacheManager.lockFile(syncitem.getNewFilename())
+      tsumufs.nfsMount.lockFile(syncitem.getNewFilename())
+      tsumufs.cacheManager.lockFile(syncitem.getOldFilename())
+      tsumufs.nfsMount.lockFile(syncitem.getOldFilename())
+
+    return (syncitem, change)
 
   def finishedWithChange(self, syncitem):
-    # Force the interpreter to do the following atomically
-    old_interval = sys.getcheckinterval()
-    sys.setcheckinterval(1000)
-
-    self._lock.acquire()
-
     try:
       # Ensure the appropriate locks are unlocked
       if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
@@ -462,7 +455,6 @@ class SyncLog(tsumufs.Debuggable):
 
     finally:
       self._lock.release()
-      sys.setcheckinterval(old_interval)
 
 # hash of inode changes:
 #   { <inode number>: { data: ( { data: "...",
