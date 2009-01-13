@@ -139,8 +139,8 @@ class DataRegion(object):
 
     if ((end - start) != len(data)):
       raise RegionLengthError, (('Range specified (%d-%d) does not match '
-                                 'the length of the data (%d) given.')
-                                % (start, end, len(data)))
+                                 'the length of the data (%d) given (%s).')
+                                % (start, end, len(data), repr(data)))
 
     self._start = start
     self._end = end
@@ -148,22 +148,38 @@ class DataRegion(object):
     self._length = len(data)
 
   def canMerge(self, dataregion):
-    if ((dataregion._start > self._end) or       #       |-----|
-        (dataregion._end < self._start)):        # |====|
-      if ((self._end + 1 == dataregion._start) or
-          (dataregion._end + 1 == self._start)):
-        return True
-      else:
-        return False
-    elif ((dataregion._start >= self._start) and #    |-----|
-          (dataregion._start <= self._end)):     #       |=====|
-      return True
-    elif ((dataregion._end >= self._start) and   #    |-----|
-          (dataregion._end <= self._end)):       # |=====|
-      return True
+    if ((dataregion._start == self._start) and   # |---|
+        (dataregion._end == self._end)):         # |===|
+      return 'perfect-overlap'
+
+    elif ((dataregion._start < self._start) and  #       |-----|
+          (dataregion._end == self._start)):     # |====|
+      return 'left-adjacent'
+
+    elif ((dataregion._end > self._end) and      # |----|
+          (dataregion._start == self._end)):     #       |=====|
+      return 'right-adjacent'
+
+    elif ((dataregion._start > self._start) and  # |-----------|
+          (dataregion._end < self._end)):        #    |=====|
+      return 'inner-overlap'
+
     elif ((dataregion._start < self._start) and  #    |-----|
           (dataregion._end > self._end)):        # |===========|
-      return True
+      return 'outer-overlap'
+
+    elif ((dataregion._end >= self._start) and   #    |-----|
+          (dataregion._end <= self._end) and     # |=====|
+          (dataregion._start <= self._start)):   # |==|
+      return 'left-overlap'                      # |========|
+
+    elif ((dataregion._start >= self._start) and #    |-----|
+          (dataregion._start <= self._end) and   #       |=====|
+          (dataregion._end >= self._end)):       #          |==|
+      return 'right-overlap'                     #    |========|
+
+    else:
+      return None
 
   def mergeWith(self, dataregion):
     '''
@@ -172,61 +188,61 @@ class DataRegion(object):
     overlap with the self.
     '''
 
-    if (not self.canMerge(dataregion)):
-      # Catch the invalid case where the region doesn't overlap
-      # or is not adjacent.
+    merge_type = self.canMerge(dataregion)
+
+    # Catch the invalid case where the region doesn't overlap
+    # or is not adjacent.
+    if merge_type == None:
       raise RegionOverlapError, (('The DataRegion given does not '
                                   'overlap this instance '
                                   '(%s, %s)') % (self, dataregion))
 
-    # Case where the dataregion given overwrites this one totally,
-    # inclusive of the end points.
-    #            |-------|
-    #         |=============|
-    #            |=======|
-    if ((dataregion._start <= self._start) and
-        (dataregion._end >= self._end)):
-      return DataRegion(dataregion._start,
-                        dataregion._end,
-                        dataregion._data)
+    # |===========|
+    #    |-----|
+    if merge_type in ('outer-overlap', 'perfect-overlap'):
+      return dataregion
 
-    start_offset = dataregion._start - self._start
-    end_offset = dataregion._end - self._start
+    # |-----------|
+    #    |=====|
+    elif merge_type == 'inner-overlap':
+      start_offset = dataregion._start - self._start
+      end_offset = self._length - (self._end - dataregion._end)
 
-    # Case where the dataregion is encapsulated entirely inside
-    # this one, exclusive of the end points.
-    #            |-------|
-    #              |===|
-    if ((dataregion._start > self._start) and
-        (dataregion._end < self._end)):
-      return DataRegion(self._start,
-                        self._end,
+      return DataRegion(self._start, self._end,
                         (self._data[:start_offset] +
                          dataregion._data +
                          self._data[end_offset:]))
 
     # Case where the dataregion is offset to the left and only
-    # partially overwrites this one, inclusive of the end points,
-    # and where it is adjacent.
+    # partially overwrites this one, inclusive of the end points.
     #            |-------|
     #         |======|
     #      |=====|
-    #     |=====|
-    if ((dataregion._start <= self._start) and
-        (dataregion._end <= self._end)):
-      return DataRegion(dataregion._start,
-                        self._end,
-                        dataregion._data + self._data[end_offset:])
+    elif merge_type == 'left-overlap':
+      start_offset = dataregion._end - self._start
+      return DataRegion(dataregion._start, self._end,
+                        dataregion._data + self._data[start_offset:])
 
     # Case where the dataregion is offset to the left and only
     # partially overwrites this one, inclusive of the end points.
     #            |-------|
     #                |======|
     #                    |======|
-    #                     |======|
-    if ((dataregion._start >= self._start) and
-        (dataregion._end >= self._end)):
-      return DataRegion(self._start,
-                        dataregion._end,
-                        self._data[:start_offset] + dataregion._data)
+    elif merge_type in 'right-overlap':
+      end_offset = self._length - (self._end - dataregion._start)
+      return DataRegion(self._start, dataregion._end,
+                        self._data[:end_offset] + dataregion._data)
 
+    # Case where the dataregion is adjacent to the left.
+    #            |-------|
+    #     |=====|
+    elif merge_type == 'left-adjacent':
+      return DataRegion(dataregion._start, self._end,
+                        dataregion._data + self._data)
+
+    # Case where the dataregion is adjacent to the right.
+    #            |-------|
+    #                     |======|
+    elif merge_type == 'right-adjacent':
+      return DataRegion(self._start, dataregion._end,
+                        self._data + dataregion._data)
