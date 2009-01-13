@@ -152,7 +152,7 @@ check:
 find-todos:
 	@printf "%-32s %-3s %s\n" Filename Line Todo
 	@awk 'BEGIN { for(i=0;i<80;i++) { printf "=" }; printf "\n" }'
-	@find -iname *.py -exec grep -nH TODO '{}' ';' \
+	@find -iname \*.py -exec grep -nH TODO '{}' ';' \
 	  | awk '{ match($$0, "([^:]+):([0-9]+):[ ]*#[ ]?(.*)", a); \
                printf("% 32s % -4d %s\n", a[1], a[2], a[3]); }' \
       | grep --color -E 'TODO(.*)?:'
