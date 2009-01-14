@@ -44,7 +44,7 @@ from permissionsoverlay import *
 from extendedattributes import *
 
 
-__version__ = (0, 9)
+__version__ = (0, 10)
 
 debugMode = False
 

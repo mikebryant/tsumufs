@@ -2,6 +2,26 @@ TsumuFS: an NFS caching layer
 =============================
 
 
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+This is an alpha test, and may cause data loss! Currently there is at 
+least one known condition where data loss can occur:
+
+  - Change a file on NFS.
+  - Change the same file in the same place on TsumuFS in disconnected
+    mode. (ie: create a change conflict)
+  - Reconnect TsumuFS.
+
+Currently conflict detection and avoidance is buggy at best and WILL
+LOSE DATA. Be aware of this condition.
+
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING WARNING
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+
+
 Prerequisites to Running
 ------------------------
 

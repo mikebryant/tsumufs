@@ -1,3 +1,10 @@
+tsumufs (0.10-1ubuntu1) unstable; urgency=low
+
+  * Brand new version with deadlocks fixed. SUPER OMEGA INITIAL TEST
+	ENERGIZE NOW!
+
+ -- June Tate-Gans <june@theonelab.com>  Wed, 14 Jan 2009 15:10:57 -0800
+
 tsumufs (0.9-1) unstable; urgency=low
 
   * Fixing things in the build system to use CDBS rather than python-central.
