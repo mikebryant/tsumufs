@@ -89,3 +89,7 @@ class CacheOpcodeCheck(unittest.TestCase):
     tsumufs.mountPoint    = '/tmp/tsumufs-mountpoint'
     tsumufs.nfsMountPoint = '/tmp/tsumufs-nfsmount'
     tsumufs.cachePoint    = '/tmp/tsumufs-cachepoint'
+
+
+if __name__ == '__main__':
+  unittest.main()
