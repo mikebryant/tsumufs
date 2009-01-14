@@ -50,7 +50,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     '''
 
     Fuse.__init__(self, *args, **kw)
-
     self.multithreaded = 1
 
   def fsinit(self):
@@ -830,7 +829,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       tsumufs.cacheManager.utime(path, times)
       tsumufs.syncLog.addMetadataChange(path, times=times)
 
-      return 0
+      return True
     except OSError, e:
       self._debug('utime: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
