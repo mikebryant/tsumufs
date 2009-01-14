@@ -41,6 +41,7 @@ from syncitem import *
 from mutablestat import *
 from filepermission import *
 from permissionsoverlay import *
+from extendedattributes import *
 
 
 __version__ = (0, 9)
