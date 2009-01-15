@@ -175,7 +175,6 @@ clean: not-mounted src/tsumufs
 	-fakeroot debian/rules clean
 	$(PYTHON) setup.py clean
 	rm -rf build/ dist/ MANIFEST
-	perl -i -pe 's/development_mode = False$$/development_mode = True/' src/tsumufs
 
 mrclean: clean
 	find . -iname \*~ -exec rm -rf '{}' ';' -prune
