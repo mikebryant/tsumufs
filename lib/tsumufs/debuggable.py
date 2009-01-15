@@ -80,7 +80,7 @@ class Debuggable(object):
       if len(s) > 252:
         s = s[:252] + '...'
 
-      syslog.syslog(s)
+      syslog.syslog(syslog.LOG_WARNING, s)
 
   def _getCaller(self, backsteps=1):
     '''
