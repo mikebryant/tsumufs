@@ -8,3 +8,5 @@ DEB_ARCH_PACKAGES :=
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
+configure/tsumufs::
+	perl -i -pe 's/development_mode = True$$/development_mode = False/' src/tsumufs

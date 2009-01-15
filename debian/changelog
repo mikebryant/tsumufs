@@ -1,3 +1,11 @@
+tsumufs (0.10-1ubuntu4) unstable; urgency=low
+
+  * REALLY fixing the oddball packaging bug that stripped the shebang line
+    from the primary tsumufs executable. Additionally giving the package
+    the ability to get out of development mode.
+
+ -- June Tate-Gans <june@theonelab.com>  Thu, 15 Jan 2009 13:19:35 -0800
+
 tsumufs (0.10-1ubuntu3) unstable; urgency=low
 
   * Fixing an oddball packaging bug that stripped the shebang line from
