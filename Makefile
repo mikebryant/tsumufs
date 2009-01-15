@@ -166,7 +166,7 @@ not-mounted:
 		exit 1;                                                      \
 	fi
 
-clean: not-mounted
+clean: not-mounted src/tsumufs
 	find . -iname \*.pyc -delete
 	rm -f $(DIST_FILENAME)
 	rm -f $(FUNC_TESTS)
@@ -175,6 +175,7 @@ clean: not-mounted
 	-fakeroot debian/rules clean
 	$(PYTHON) setup.py clean
 	rm -rf build/ dist/ MANIFEST
+	perl -i -pe 's/development_mode = False$$/development_mode = True/' src/tsumufs
 
 mrclean: clean
 	find . -iname \*~ -exec rm -rf '{}' ';' -prune
