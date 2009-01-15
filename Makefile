@@ -20,6 +20,7 @@ PY_SOURCE      := $(wildcard src/*.py)
 PY_UNIT_TESTS  := $(wildcard tests/unit/*_test.py)
 FUNC_TEST_SRC  := $(wildcard tests/functional/*.c)
 FUNC_TESTS     := $(shell echo $(FUNC_TEST_SRC) |sed -e 's/\.c//g')
+UMOUNT_CMD     := sudo umount
 
 TEST_DIR       := /tmp/tsumufs-test-dir
 TEST_CACHE_DIR := /tmp/tsumufs-cache-dir
@@ -82,7 +83,7 @@ test-run: test-environment clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 	bash -norc;                 \
 	cd $(OLD_PWD)
 
-	fusermount -u $(TEST_DIR)
+	$(UMOUNT_CMD) $(TEST_DIR)
 
 tail-logs:
 	sudo tail -f /var/log/messages |grep --color "tsumufs($(USER)):"
@@ -120,7 +121,7 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 		cd $(TEST_DIR);                \
 		if ! $$OLDCWD/$$test; then     \
 			cd $$OLDCWD;               \
-			fusermount -u $(TEST_DIR); \
+			$(UMOUNT_CMD) $(TEST_DIR); \
 			sleep 1;                   \
 			echo "!!! $$test Failed."; \
             continue;                  \
@@ -128,7 +129,7 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 		cd $$OLDCWD;                   \
         while ! mount |grep -qe '^tsumufs on'; do \
 			sleep 10;                  \
-			fusermount -u $(TEST_DIR); \
+			$(UMOUNT_CMD) $(TEST_DIR); \
 			sleep 10;                  \
 		done;                          \
 		echo ok;                       \
@@ -136,8 +137,8 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 	done
 
 force-shutdown:
-	-sudo umount $(TEST_NFS_DIR)
-	-fusermount -u $(TEST_DIR)
+	-$(UMOUNT_CMD) $(TEST_NFS_DIR)
+	-$(UMOUNT_CMD) $(TEST_DIR)
 	PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
 	[ "$$PID" != "" ] && sleep 5; \
 	PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
