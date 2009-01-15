@@ -11,7 +11,7 @@ include /usr/share/cdbs/1/class/python-distutils.mk
 
 configure/tsumufs::
 	perl -i -pe "s/^development_mode = True$$/development_mode = False/" src/tsumufs
-	perl -i -pe "s/^libpath = ''$$/libpath = '\/usr\/lib\/tsumufs'/" src/tsumufs
+	perl -i -pe "s/^libpath = ''$$/libpath = '\/usr\/lib'/" src/tsumufs
 
 clean::
 	perl -i -pe 's/^development_mode = False$$/development_mode = True/' src/tsumufs
