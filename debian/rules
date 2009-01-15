@@ -1,6 +1,9 @@
 #!/usr/bin/make -f
 
 DEB_PYTHON_SYSTEM := pysupport
+DEB_INDEP_PACKAGES := tsumufs
+DEB_ALL_PACKAGES := tsumufs
+DEB_ARCH_PACKAGES := 
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
