@@ -4,9 +4,15 @@ DEB_PYTHON_SYSTEM := pysupport
 DEB_INDEP_PACKAGES := tsumufs
 DEB_ALL_PACKAGES := tsumufs
 DEB_ARCH_PACKAGES := 
+DEB_PYTHON_PRIVATE_MODULES_DIRS := /usr/lib/tsumufs
 
 include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
 configure/tsumufs::
-	perl -i -pe 's/development_mode = True$$/development_mode = False/' src/tsumufs
+	perl -i -pe "s/^development_mode = True$$/development_mode = False/" src/tsumufs
+	perl -i -pe "s/^libpath = ''$$/libpath = '\/usr\/lib'/" src/tsumufs
+
+clean::
+	perl -i -pe 's/^development_mode = False$$/development_mode = True/' src/tsumufs
+	perl -i -pe "s/^libpath = .*$$/libpath = ''/" src/tsumufs

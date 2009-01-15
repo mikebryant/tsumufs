@@ -1,3 +1,10 @@
+tsumufs (0.10-1ubuntu5) unstable; urgency=low
+
+  * For the last time. Looks like I fixed it completely. Required a pair
+    of patch patches to the main executable, but it works.
+
+ -- June Tate-Gans <june@theonelab.com>  Thu, 15 Jan 2009 14:44:29 -0800
+
 tsumufs (0.10-1ubuntu4) unstable; urgency=low
 
   * REALLY fixing the oddball packaging bug that stripped the shebang line

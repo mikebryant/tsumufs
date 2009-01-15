@@ -95,13 +95,13 @@ def syslogExceptHook(type, value, tb):
   dumping them to /dev/null after FUSE has forked.
   '''
 
-  syslog.syslog('*** Unhandled exception occurred')
-  syslog.syslog('***     Type: %s' % str(type))
-  syslog.syslog('***    Value: %s' % str(value))
-  syslog.syslog('*** Traceback:')
+  syslog.syslog(syslog.LOG_ERR, '*** Unhandled exception occurred')
+  syslog.syslog(syslog.LOG_ERR, '***     Type: %s' % str(type))
+  syslog.syslog(syslog.LOG_ERR, '***    Value: %s' % str(value))
+  syslog.syslog(syslog.LOG_ERR, '*** Traceback:')
 
   for line in traceback.extract_tb(tb):
-    syslog.syslog('***    %s(%d) in %s: %s'
+    syslog.syslog(syslog.LOG_ERR, '***    %s(%d) in %s: %s'
                   % line)
 
 

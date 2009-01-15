@@ -270,19 +270,20 @@ class NFSMount(tsumufs.Debuggable):
         return False
 
     try:
+      # TODO(ajs): for leopard, cmd = '/sbin/mount -t nfs'
       cmd = '/usr/bin/sudo -u root /bin/mount -t nfs'
       if tsumufs.mountOptions != None:
         cmd += ' -o ' + tsumufs.mountOptions
       cmd += ' ' + tsumufs.mountSource + ' ' + tsumufs.nfsMountPoint
 
       self._debug(cmd)
-      rc = os.system(cmd)
+      rc = os.system(cmd) & 255
     except OSError, e:
       self._debug('Mount of NFS failed: %s.' % os.strerror(e.errno))
       return False
     else:
       if rc != 0:
-        self._debug('Mount of NFS failed -- mount returned nonzero.')
+        self._debug('Mount of NFS failed -- mount returned nonzero: %s' % rc)
         return False
       else:
         self._debug('Mount of NFS succeeded.')

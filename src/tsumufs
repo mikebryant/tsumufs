@@ -33,12 +33,14 @@ import traceback
 import fuse
 
 development_mode = True
+libpath = ''
+
 if development_mode == True:
   libpath = os.path.abspath(sys.argv[0])
   libpath = os.path.dirname(libpath)
   libpath = os.path.join(libpath, '../lib')
 
-  sys.path.append(libpath)
+sys.path.append(libpath)
 
 import tsumufs
 
