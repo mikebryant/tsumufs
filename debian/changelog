@@ -1,3 +1,10 @@
+tsumufs (0.10-1ubuntu2) unstable; urgency=low
+
+  * Adding in the ability for the package to create and remove the default
+	TsumuFS paths of /var/lib/tsumufs and /var/cache/tsumufs.
+
+ -- June Tate-Gans <june@theonelab.com>  Wed, 14 Jan 2009 15:59:11 -0800
+
 tsumufs (0.10-1ubuntu1) unstable; urgency=low
 
   * Brand new version with deadlocks fixed. SUPER OMEGA INITIAL TEST
