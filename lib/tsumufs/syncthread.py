@@ -24,7 +24,6 @@ import threading
 import errno
 import stat
 import traceback
-import Queue
 
 import fuse
 
