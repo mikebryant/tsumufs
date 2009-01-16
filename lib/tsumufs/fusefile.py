@@ -154,8 +154,6 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: write | path: %s | offset: %d | buf: %s'
                 % (self._path, offset, repr(new_data)))
 
-    # TODO: Append a .N to the conflict.
-
     # Three cases here:
     #   - The file didn't exist prior to our write.
     #   - The file existed, but was extended.
