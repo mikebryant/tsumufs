@@ -41,13 +41,13 @@ class CacheManager(tsumufs.Debuggable):
 
   _statTimeout = 60        # The number of seconds we use the cached
                            # copy's stat information for before we
-                           # attempt to update it from the nfs mount. This is
+                           # attempt to update it from the nfs mount.  This is
                            # altered by fuzzing the value plus/minus 10
                            # seconds, to help reduce entire directory stat
                            # timeouts.
 
-  _cachedStats = {}        # A hash of paths to stat entires and last stat
-                           # times. This is used to reduce the number of stats
+  _cachedStats = {}        # A hash of paths to stat entries and last stat
+                           # times.  This is used to reduce the number of stats
                            # called on NFS primarily.
 
   _cachedDirents = {}      # A hash of paths to unix timestamps of
@@ -72,11 +72,10 @@ class CacheManager(tsumufs.Debuggable):
 
         try:
           pathparts = tsumufs.cachePoint.split('/')
-          path = ''
+          path = '/'
 
           for pathpart in pathparts:
             if pathpart == '':
-              path = '/'
               continue
 
             path = os.path.join(path, pathpart)
@@ -1178,6 +1177,22 @@ class CacheManager(tsumufs.Debuggable):
         lock = threading.RLock()
         lock.acquire()
 
+        # The careful reader would observe that it appears there is a small
+        # race condition if a second thread (asking for the same fusepath)
+        # attempted to lookup fileLocks[] before this next statement completed
+        # in the first thread.
+        #
+        # An even more astute reader would note that the syscheckinvervals(bignum)
+        # solves the race condition without having to acquire a second group of
+        # locks.
+        #
+        # TODO(ajs): rewrite block as:
+        # self._lockLock.acquire()
+        # if not self._fileLocks.has_key(path):
+        #   self._fileLocks[path] = Lock()
+        # self._lockLock.release()
+        # self._fileLocks[path].acquire()
+
         self._fileLocks[fusepath] = lock
 
     finally:
@@ -1196,8 +1211,12 @@ class CacheManager(tsumufs.Debuggable):
     Raises:
       None
     '''
-
+  
     # Force the interpreter to do the following atomically
+    #
+    # TODO(ajs): remove as its not really a race condition, nor should we
+    # be monkeying with checkinterval if we want to be portable in the future.
+
     old_interval = sys.getcheckinterval()
     sys.setcheckinterval(1000)
 
