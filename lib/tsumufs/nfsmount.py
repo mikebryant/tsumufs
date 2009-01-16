@@ -277,7 +277,7 @@ class NFSMount(tsumufs.Debuggable):
       cmd += ' ' + tsumufs.mountSource + ' ' + tsumufs.nfsMountPoint
 
       self._debug(cmd)
-      rc = os.system(cmd) & 255
+      rc = os.system(cmd) >> 8
     except OSError, e:
       self._debug('Mount of NFS failed: %s.' % os.strerror(e.errno))
       return False
