@@ -1,5 +1,3 @@
-#!/usr/bin/python2.4
-#
 # Copyright (C) 2008  Google, Inc. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
