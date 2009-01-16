@@ -351,27 +351,31 @@ class SyncLog(tsumufs.Debuggable):
     try:
       self._lock.acquire()
 
-      if self._inodeChanges.has_key(inum):
-        # Don't need to add a syncitem because it's already there.
-        inodechange = self._inodeChanges[inum]
-      else:
-        syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
-        self._syncQueue.append(syncitem)
+      syncitem = self.addMetadataChange(fname, inum)
+      inodechange = tsumufs.InodeChange()
 
-        inodechange = tsumufs.InodeChange()
-
-        # Grab the data length initially so we can manage truncate calls.
-        datalength = tsumufs.cacheManager.statFile(fname).st_size
-        inodechange.setDataLength(datalength)
-
-        self._inodeChanges[inum] = inodechange
+      # Grab the data length initially so we can manage truncate calls.
+      datalength = tsumufs.cacheManager.statFile(fname).st_size
+      inodechange.setDataLength(datalength)
+      self._inodeChanges[inum] = inodechange
 
       inodechange.addDataChange(start, end, data)
     finally:
       self._lock.release()
 
-  def addMetadataChange(self, fname):
-    pass
+  def addMetadataChange(self, fname, inum):
+    try:
+      self._lock.acquire()
+
+      if self._inodeChanges.has_key(inum):
+        syncitem = self._inodeChanges[inum]
+      else:
+        syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
+        self._syncQueue.append(syncitem)
+
+      return syncitem
+    finally:
+      self._lock.release()
 
   def truncateChanges(self, fusepath, size):
     try:
