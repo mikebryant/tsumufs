@@ -8,7 +8,7 @@ Standards-Version: 3.7.2
 Package: tsumufs
 Architecture: all
 Depends: python2.4, python-fuse (>=0.2)
-Description: NFS caching filesystem.
+Description: NFS caching filesystem
  TsumuFS is a FUSE-based filesystem that provides a disconnected caching
  layer on top of NFS.
  .

@@ -1,11 +1,13 @@
 #!/bin/sh
 
+set -e
+
 if [ "$1" = "configure" ]; then
    chmod -R 775 /var/lib/tsumufs
    chmod -R 775 /var/cache/tsumufs
    chmod -R 775 /var/run/tsumufs
 
-   chown -R root.fuse /var/lib/tsumufs
-   chown -R root.fuse /var/cache/tsumufs
-   chown -R root.fuse /var/run/tsumufs
+   chown -R root:fuse /var/lib/tsumufs
+   chown -R root:fuse /var/cache/tsumufs
+   chown -R root:fuse /var/run/tsumufs
 fi
