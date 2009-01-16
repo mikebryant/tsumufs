@@ -681,7 +681,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       tsumufs.cacheManager.chmod(path, mode)
-      tsumufs.syncLog.addMetadataChange(path, mode=mode)
+      tsumufs.syncLog.addMetadataChange(path, file_stat.st_ino)
 
       return 0
     except OSError, e:
