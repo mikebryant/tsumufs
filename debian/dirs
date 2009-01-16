@@ -1,5 +1,5 @@
+sbin
 usr/bin
-usr/sbin
 var/lib/tsumufs
 var/lib/tsumufs/nfs
 var/cache/tsumufs
