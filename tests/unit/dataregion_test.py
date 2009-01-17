@@ -103,6 +103,15 @@ class OverlapCheck(unittest.TestCase):
 
       self.assertEqual(result, r3.getData())
 
+  def testRealCase(self):
+    r1 = dataregion.DataRegion(1, 2, 'l')
+    r2 = dataregion.DataRegion(2, 3, 'a')
+    r3 = r1.mergeWith(r2)
+
+    self.assertEqual(r3.getData(), 'la')
+    self.assertEqual(r3.getStart(), 1)
+    self.assertEqual(r3.getEnd(), 3)
+
   def testNonMergable(self):
     for testcase in self.overlappingRegions:
       r1 = dataregion.DataRegion(2000, 2001, '1')
