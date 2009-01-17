@@ -349,29 +349,39 @@ class SyncLog(tsumufs.Debuggable):
     try:
       self._lock.acquire()
 
-      syncitem = self.addMetadataChange(fname, inum)
-      inodechange = tsumufs.InodeChange()
+      if self._inodeChanges.has_key(inum):
+        inodechange = self._inodeChanges[inum]
+      else:
+        syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
+        self._syncQueue.append(syncitem)
+        inodechange = tsumufs.InodeChange()
 
-      # Grab the data length initially so we can manage truncate calls.
-      datalength = tsumufs.cacheManager.statFile(fname).st_size
-      inodechange.setDataLength(datalength)
-      self._inodeChanges[inum] = inodechange
+        # Grab the data length initially so we can manage truncate calls.
+        datalength = tsumufs.cacheManager.statFile(fname).st_size
+        inodechange.setDataLength(datalength)
+        self._inodeChanges[inum] = inodechange
 
       inodechange.addDataChange(start, end, data)
     finally:
       self._lock.release()
 
   def addMetadataChange(self, fname, inum):
+    '''
+    Metadata changes are synced automatically when there is a SyncItem change
+    for the file. So all we need to do here is represent the metadata changes
+    with a SyncItem and an empty InodeChange.
+    '''
+
     try:
       self._lock.acquire()
 
-      if self._inodeChanges.has_key(inum):
-        syncitem = self._inodeChanges[inum]
-      else:
+      if not self._inodeChanges.has_key(inum):
         syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
         self._syncQueue.append(syncitem)
 
-      return syncitem
+        inodechange = tsumufs.InodeChange()
+        self._inodeChanges[inum] = inodechange
+
     finally:
       self._lock.release()
 
