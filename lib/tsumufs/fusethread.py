@@ -669,16 +669,23 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     context = self.GetContext()
     file_stat = tsumufs.cacheManager.statFile(path)
 
-    if ((file_stat.st_uid != context['uid']) or
+    self._debug('context: %s' % repr(context))
+    self._debug('file: uid=%d, gid=%d, mode=%o' %
+                (file_stat.st_uid, file_stat.st_gid, file_stat.st_mode))
+
+    if ((file_stat.st_uid != context['uid']) and
         (context['uid'] != 0)):
-      raise OSError(errno.EPERM)
+      self._debug('chmod: user not owner, and user not root -- EPERM')
+      return -errno.EPERM
 
     tsumufs.cacheManager.access(context['uid'],
                                 os.path.dirname(path),
                                 os.F_OK)
 
     try:
+      self._debug('chmod: access granted -- chmoding')
       tsumufs.cacheManager.chmod(path, mode)
+      self._debug('chmod: adding metadata change')
       tsumufs.syncLog.addMetadataChange(path, file_stat.st_ino)
 
       return 0
