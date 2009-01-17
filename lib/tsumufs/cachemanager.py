@@ -427,7 +427,6 @@ class CacheManager(tsumufs.Debuggable):
       fp.close()
 
       self._debug('Read %s' % repr(result))
-
       return result
 
     finally:
@@ -556,9 +555,18 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO(jtg): Fix this to use the PermissionsOverlay
+      try:
+        perms = tsumufs.permsOverlay.getPerms(fusepath)
+      except KeyError:
+        statgoo = self.statFile(fusepath)
+        perms = { 'uid': statgoo.st_uid,
+                  'gid': statgoo.st_gid,
+                  'mode': statgoo.st_mode }
 
-      return os.chmod(fusepath, mode)
+      perms.mode = (perms.mode & 070000) | mode
+      tsumufs.permsOverlay.setPerms(fusepath, perms.uid, perms.gid, perms.mode)
+
+      self._invalidateStatCache(tsumufs.nfsPathOf(fusepath))
     finally:
       self.unlockFile(fusepath)
 
