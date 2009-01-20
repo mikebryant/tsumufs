@@ -80,21 +80,17 @@ class InodeChange(tsumufs.Debuggable):
     can.
     '''
 
-    merged = DataRegion(start, end, data)
+    accumulator = DataRegion(start, end, data)
     newlist = []
 
-    if len(self.dataRegions) == 0:
-      self.dataRegions = [ merged ]
-      return
-
     for r in self.dataRegions:
-      if r.canMerge(merged):
-        merged = r.mergeWith(merged)
+      if r.canMerge(accumulator):
+        accumulator = r.mergeWith(accumulator)
       else:
-        newlist.append(r)
+        newlist.append(accumulator)
+        accumulator = r
 
-      newlist.insert(0, merged)
-
+    newlist.append(accumulator)
     self.dataRegions = newlist
 
   def getDataChanges(self):
