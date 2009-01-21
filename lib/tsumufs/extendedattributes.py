@@ -38,31 +38,37 @@ class ExtendedAttributes(tsumufs.Debuggable):
   @classmethod
   def _validateXAttrType(cls, type_):
     if type_ not in cls._attributeCallbacks.keys():
+      if type_ == 'any':
+        return
+
       raise KeyError('Extended attribute type %s is not one of %s' %
                      (type_, cls._attributeCallbacks.keys()))
 
   @classmethod
-  def _validateName(cls, name):
-    if not name.startswith('tsumufs.'):
-      name = 'tsumufs.%s' % name
-
-    return name
-
-  @classmethod
   def setCallbackFor(cls, type_, name, set_callback, get_callback):
     cls._validateXAttrType(type_)
-    name = cls._validateName(name)
 
-    cls._attributeCallbacks[type_][name] = { 'set': set_callback,
-                                             'get': get_callback }
+    if type_ == 'any':
+      types = cls._attributeCallbacks.keys()
+    else:
+      types = [ type_ ]
+
+    for type_ in types:
+      cls._attributeCallbacks[type_][name] = { 'set': set_callback,
+                                               'get': get_callback }
 
   @classmethod
   def clearCallbackFor(cls, type_, name):
     cls._validateXAttrType(type_)
-    name = cls._validateName(name)
 
-    if cls._attributeCallbacks.has_key(type_):
-      del cls._attributeCallbacks[type_][name]
+    if type_ == 'any':
+      type_ = cls._attributeCallbacks.keys()
+    else:
+      type_ = [ type_ ]
+
+    for type_ in cls._attributeCallbacks.keys():
+      if cls._attributeCallbacks.has_key(type_):
+        del cls._attributeCallbacks[type_][name]
 
   @classmethod
   def clearAllCallbacks(cls):
@@ -70,15 +76,26 @@ class ExtendedAttributes(tsumufs.Debuggable):
                             'dir': {},
                             'file': {} }
 
-
   @classmethod
   def getXAttr(cls, type_, path, name):
     cls._validateXAttrType(type_)
-    name = cls._validateName(name)
 
     if cls._attributeCallbacks.has_key(type_):
       callback = cls._attributeCallbacks[type_][name]['get']
-      return callback(type_, path)
+
+      try:
+        return callback.__call__(type_, path)
+      except Exception, e:
+        result  = '*** Unhandled exception occurred\n'
+        result += '***     Type: %s\n' % str(e.__class__)
+        result += '***    Value: %s\n' % str(e)
+        result += '*** Traceback:\n'
+
+        tb = traceback.extract_stack()
+        for line in tb:
+          result += '***    %s(%d) in %s: %s\n' % line
+
+        return result
 
     raise KeyError('No extended attribute set for (%s, %s) pair.' %
                    (type_, name))
@@ -91,18 +108,37 @@ class ExtendedAttributes(tsumufs.Debuggable):
     if cls._attributeCallbacks.has_key(type_):
       for name in cls._attributeCallbacks[type_]:
         callback = cls._attributeCallbacks[type_][name]['get']
-        results[name] = callback(type_, path)
+        results[name] = callback.__call__(type_, path)
+
+    return results
+
+  @classmethod
+  def getAllNames(cls, type_):
+    cls._validateXAttrType(type_)
+    results = []
+
+    if cls._attributeCallbacks.has_key(type_):
+      results = cls._attributeCallbacks[type_].keys()
 
     return results
 
   @classmethod
   def setXAttr(cls, type_, path, name, value):
     cls._validateXAttrType(type_)
-    name = cls._validateName(name)
 
     if cls._attributeCallbacks.has_key(type_):
       callback = cls._attributeCallbacks[type_][name]['set']
-      return callback(type_, path, value)
+      return callback.__call__(type_, path, value)
 
     raise KeyError('No extended attribute set for (%s, %s) pair.' %
                    (type_, name))
+
+
+def extendedattribute(type_, name):
+  def decorator(func):
+    def wrapper(__self, *args, **kwargs):
+      return func(__self, *args, **kwargs)
+
+    ExtendedAttributes.setCallbackFor(type_, name, wrapper, wrapper)
+    return wrapper
+  return decorator
