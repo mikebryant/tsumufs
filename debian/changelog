@@ -1,9 +1,17 @@
+tsumufs (0.11-1ubuntu1) unstable; urgency=low
+
+  * DataRegion fixes, removing python shebhang lines, chmod support,
+    new manpages, and some unix agnosticisms.
+
+ -- Aaron Spangler <ajs@google.com>  Tue, 20 Jan 2009 16:23:00 -0800
+
 tsumufs (0.10-1ubuntu5) unstable; urgency=low
 
   * For the last time. Looks like I fixed it completely. Required a pair
     of patch patches to the main executable, but it works.
 
  -- June Tate-Gans <june@theonelab.com>  Thu, 15 Jan 2009 14:44:29 -0800
+
 
 tsumufs (0.10-1ubuntu4) unstable; urgency=low
 
@@ -13,12 +21,14 @@ tsumufs (0.10-1ubuntu4) unstable; urgency=low
 
  -- June Tate-Gans <june@theonelab.com>  Thu, 15 Jan 2009 13:19:35 -0800
 
+
 tsumufs (0.10-1ubuntu3) unstable; urgency=low
 
   * Fixing an oddball packaging bug that stripped the shebang line from
     the primary tsumufs executable.
 
  -- June Tate-Gans <june@theonelab.com>  Thu, 15 Jan 2009 12:22:01 -0800
+
 
 tsumufs (0.10-1ubuntu2) unstable; urgency=low
 
@@ -27,6 +37,7 @@ tsumufs (0.10-1ubuntu2) unstable; urgency=low
 
  -- June Tate-Gans <june@theonelab.com>  Wed, 14 Jan 2009 15:59:11 -0800
 
+
 tsumufs (0.10-1ubuntu1) unstable; urgency=low
 
   * Brand new version with deadlocks fixed. SUPER OMEGA INITIAL TEST
@@ -34,14 +45,17 @@ tsumufs (0.10-1ubuntu1) unstable; urgency=low
 
  -- June Tate-Gans <june@theonelab.com>  Wed, 14 Jan 2009 15:10:57 -0800
 
+
 tsumufs (0.9-1) unstable; urgency=low
 
   * Fixing things in the build system to use CDBS rather than python-central.
 
  -- June Tate-Gans <june.tate@gmail.com>  Thu, 08 Jan 2009 15:59:52 -0800
 
+
 tsumufs (0.9) unstable; urgency=low
 
   * Initial release.
 
  -- June Tate-Gans <june.tate@gmail.com>  Thu, 08 Jan 2009 13:47:03 -0800
+
