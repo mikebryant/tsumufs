@@ -30,6 +30,7 @@ import fuse
 from fuse import Fuse
 
 import tsumufs
+from extendedattributes import extendedattribute
 
 
 class FuseThread(tsumufs.Triumvirate, Fuse):
@@ -343,38 +344,19 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                  'value: %s | size: %d')
                 % (path, name, value, size))
 
-    # TODO: make this get the real xattrs from the file, and allow for setting
-    # other xattrs that aren't ones we control.
-
-    # TODO: make this actually change the cached state of the file in question.
-
-    if name == 'tsumufs.in-cache':
-      if value == '0':
-        tsumufs.cacheManager.removeCachedFile(path)
-        return
-      elif value == '1':
-        return
+    mode = tsumufs.cacheManager.statFile(path).st_mode
 
     if path == '/':
-      if name == 'tsumufs.force-disconnect':
-        if value == '0':
-          tsumufs.forceDisconnect.clear()
-          return
-        elif value == '1':
-          tsumufs.forceDisconnect.set()
-          tsumufs.nfsMount.unmount()
-          tsumufs.nfsAvailable.clear()
-          return
+      type_ = 'root'
+    elif stat.S_ISDIR(mode):
+      type_ = 'dir'
+    else:
+      type_ = 'file'
 
-      if name == 'tsumufs.pause-sync':
-        if value == '1':
-          tsumufs.syncPause.set()
-          return
-        elif value == '0':
-          tsumufs.syncPause.clear()
-          return
-
-    return -errno.EOPNOTSUPP
+    try:
+      return tsumufs.ExtendedAttributes.setXAttr(type_, path, name, value)
+    except KeyError, e:
+      return -errno.EOPNOTSUPP
 
   def getxattr(self, path, name, size):
     '''
@@ -391,47 +373,33 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: getxattr | path: %s | name: %s | size: %d'
                 % (path, name, size))
 
-    # TODO: make this get the real xattrs from the file, and combine with our
-    # own.
-
-    xattrs = {
-      'tsumufs.in-cache': '0',
-      'tsumufs.dirty': '0',
-      }
-
-    if tsumufs.cacheManager.isCachedToDisk(path):
-      xattrs['tsumufs.in-cache'] = '1'
-
-    if tsumufs.syncLog.isFileDirty(path):
-      xattrs['tsumufs.dirty'] = '1'
+    name = name.lower()
+    mode = tsumufs.cacheManager.statFile(path).st_mode
 
     if path == '/':
-      xattrs['tsumufs.pause-sync'] = '0'
-      xattrs['tsumufs.force-disconnect'] = '0'
-      xattrs['tsumufs.connected'] = '0'
-      xattrs['tsumufs.version'] = '.'.join(map(str, tsumufs.__version__))
-      xattrs['tsumufs.synclog-contents'] = str(tsumufs.syncLog)
-      xattrs['tsumufs.perms-overlay'] = str(tsumufs.permsOverlay)
-
-      if tsumufs.syncPause.isSet():
-        xattrs['tsumufs.pause-sync'] = '1'
-
-      if tsumufs.forceDisconnect.isSet():
-        xattrs['tsumufs.force-disconnect'] = '1'
-
-      if tsumufs.nfsAvailable.isSet():
-        xattrs['tsumufs.connected'] = '1'
-
-    name = name.lower()
+      type_ = 'root'
+    elif stat.S_ISDIR(mode):
+      type_ = 'dir'
+    else:
+      type_ = 'file'
 
     try:
+      xattr = tsumufs.ExtendedAttributes.getXAttr(type_, path, name)
+      self._debug('Got %s from xattr callback.' % str(xattr))
+
       if size == 0:
         # Caller just wants the size of the value.
-        return len(xattrs[name])
+        return len(xattr)
       else:
-        return xattrs[name]
-    except KeyError:
+        return xattr
+    except KeyError, e:
+      self._debug('Request for extended attribute that is not present in the '
+                  'dictionary: <%s, %s, %s>'
+                  % (repr(type_), repr(path), repr(name)))
       return -errno.EOPNOTSUPP
+    except Exception, e:
+      self._debug('*** Exception occurred: %s (%s)' % (str(e), e.__class__))
+      return -errno.EINVAL
 
   def listxattr(self, path, size):
     '''
@@ -446,18 +414,16 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: listxattr | path: %s | size: %d'
                 % (path, size))
 
-    # TODO: make this get the real xattrs from the file, and combine with our
-    # own.
-
-    keys = ['tsumufs.in-cache', 'tsumufs.dirty']
+    mode = tsumufs.cacheManager.statFile(path).st_mode
 
     if path == '/':
-      keys.append('tsumufs.force-disconnect')
-      keys.append('tsumufs.connected')
-      keys.append('tsumufs.version')
-      keys.append('tsumufs.synclog-contents')
-      keys.append('tsumufs.perms-overlay')
-      keys.append('tsumufs.pause-sync')
+      type_ = 'root'
+    elif stat.S_ISDIR(mode):
+      type_ = 'dir'
+    else:
+      type_ = 'file'
+
+    keys = tsumufs.ExtendedAttributes.getAllNames(type_)
 
     if size == 0:
       return len(''.join(keys)) + len(keys)
@@ -894,3 +860,11 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       self._debug('statfs: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
+
+
+@extendedattribute('root', 'tsumufs.version')
+def xattr_version(type_, path, value=None):
+  if not value:
+    return '.'.join(map(str, tsumufs.__version__))
+
+  return -errno.EOPNOTSUPP
