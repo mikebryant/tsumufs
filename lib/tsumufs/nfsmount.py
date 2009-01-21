@@ -42,7 +42,6 @@ class NFSMount(tsumufs.Debuggable):
   '''
 
   _fileLocks = {}
-  _lockLock  = threading.RLock()
 
   def __init__(self):
     pass
@@ -58,23 +57,13 @@ class NFSMount(tsumufs.Debuggable):
       A boolean value.
     '''
 
-    # Force the interpreter to do the following atomically
-    old_interval = sys.getcheckinterval()
-    sys.setcheckinterval(1000)
 
     try:
-#       tb = self._getCaller()
-#       self._debug('Locking file %s (from: %s(%d): in %s <%d>).'
-#                   % (filename, tb[0], tb[1], tb[2], thread.get_ident()))
+      lock = self._fileLocks[fusepath]
+    except KeyError:
+      lock = self._fileLocks.setdefault(fusepath, threading.RLock())
 
-      try:
-        self._fileLocks[filename].acquire()
-      except KeyError:
-        self._fileLocks[filename] = threading.RLock()
-        self._fileLocks[filename].acquire()
-
-    finally:
-      sys.setcheckinterval(old_interval)
+    lock.acquire()
 
   def unlockFile(self, filename):
     '''
@@ -87,19 +76,11 @@ class NFSMount(tsumufs.Debuggable):
       A boolean value.
     '''
 
-    # Force the interpreter to do the following atomically
-    old_interval = sys.getcheckinterval()
-    sys.setcheckinterval(1000)
-
-    try:
 #       tb = self._getCaller()
 #       self._debug('Unlocking file %s (from: %s(%d): in %s <%d>).'
 #                   % (filename, tb[0], tb[1], tb[2], thread.get_ident()))
 
-      self._fileLocks[filename].release()
-
-    finally:
-      sys.setcheckinterval(old_interval)
+    self._fileLocks[filename].release()
 
   def pingServerOK(self):
     '''
