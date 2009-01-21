@@ -29,6 +29,7 @@ import time
 import random
 
 import tsumufs
+from extendedattributes import extendedattribute
 
 
 class CacheManager(tsumufs.Debuggable):
@@ -53,8 +54,6 @@ class CacheManager(tsumufs.Debuggable):
 
   _fileLocks = {}          # A hash of paths to locks to serialize
                            # access to files in the cache.
-
-  _lockLock = threading.RLock()  # Lock to control access to _fileLocks
 
   def __init__(self):
     # Install our custom exception handler so that any exceptions are
@@ -1168,41 +1167,16 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-    # Force the interpreter to do the following atomically
-    old_interval = sys.getcheckinterval()
-    sys.setcheckinterval(1000)
+#     tb = self._getCaller()
+#     self._debug('Locking file %s (from: %s(%d): in %s <%d>).'
+#                 % (fusepath, tb[0], tb[1], tb[2], thread.get_ident()))
 
     try:
-#       tb = self._getCaller()
-#       self._debug('Locking file %s (from: %s(%d): in %s <%d>).'
-#                   % (fusepath, tb[0], tb[1], tb[2], thread.get_ident()))
+      lock = self._fileLocks[fusepath]
+    except KeyError:
+      lock = self._fileLocks.setdefault(fusepath, threading.RLock())
 
-      try:
-        self._fileLocks[fusepath].acquire()
-      except KeyError:
-        lock = threading.RLock()
-        lock.acquire()
-
-        # The careful reader would observe that it appears there is a small
-        # race condition if a second thread (asking for the same fusepath)
-        # attempted to lookup fileLocks[] before this next statement completed
-        # in the first thread.
-        #
-        # An even more astute reader would note that the syscheckinvervals(bignum)
-        # solves the race condition without having to acquire a second group of
-        # locks.
-        #
-        # TODO(ajs): rewrite block as:
-        # self._lockLock.acquire()
-        # if not self._fileLocks.has_key(path):
-        #   self._fileLocks[path] = Lock()
-        # self._lockLock.release()
-        # self._fileLocks[path].acquire()
-
-        self._fileLocks[fusepath] = lock
-
-    finally:
-      sys.setcheckinterval(old_interval)
+    lock.acquire()
 
   def unlockFile(self, fusepath):
     '''
@@ -1218,20 +1192,26 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
-    # Force the interpreter to do the following atomically
-    #
-    # TODO(ajs): remove as its not really a race condition, nor should we
-    # be monkeying with checkinterval if we want to be portable in the future.
+#     tb = self._getCaller()
+#     self._debug('Unlocking file %s (from: %s(%d): in %s <%d>).'
+#                 % (fusepath, tb[0], tb[1], tb[2], thread.get_ident()))
 
-    old_interval = sys.getcheckinterval()
-    sys.setcheckinterval(1000)
+    self._fileLocks[fusepath].release()
 
-    try:
-#       tb = self._getCaller()
-#       self._debug('Unlocking file %s (from: %s(%d): in %s <%d>).'
-#                   % (fusepath, tb[0], tb[1], tb[2], thread.get_ident()))
+@extendedattribute('any', 'tsumufs.in-cache')
+def xattr_inCache(type_, path, value=None):
+  if value:
+    return -errno.EOPNOTSUPP
 
-      self._fileLocks[fusepath].release()
+  if tsumufs.cacheManager.isCachedToDisk(path):
+    return '1'
+  return '0'
 
-    finally:
-      sys.setcheckinterval(old_interval)
+@extendedattribute('any', 'tsumufs.dirty')
+def xattr_isDirty(type_, path, value=None):
+  if value:
+    return -errno.EOPNOTSUPP
+
+  if tsumufs.cacheManager.isCachedToDisk(path):
+    return '1'
+  return '0'
