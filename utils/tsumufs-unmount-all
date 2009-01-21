@@ -1,0 +1,14 @@
+#!/bin/sh
+
+# most of the time this unmounts correctly
+umount -t fuse.tsumufs -a
+
+sleep 2
+pkill -f 'python.* /usr/bin/tsumufs'
+sleep 1
+pkill -9 -f 'python.* /usr/bin/tsumufs'
+sleep 1
+umount -t fuse.tsumufs -a
+
+# finally unmount any nfs backends
+grep /var/lib/tsumufs /proc/mounts | awk '{print $2}' | xargs -l1 umount

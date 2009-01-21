@@ -1,0 +1,13 @@
+service tsumufs-unmount-all
+{
+        id              = tsumufs-unmount-all
+        server          = /usr/bin/tsumufs-unmount-all
+        flags           = REUSE
+        type            = UNLISTED
+        socket_type     = stream        
+        protocol        = tcp
+        wait            = no
+        user            = root
+        disable         = no
+        port            = 10301
+}

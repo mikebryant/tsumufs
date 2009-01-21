@@ -1,0 +1,23 @@
+#!/usr/bin/python
+import os
+import pwd
+import sys
+import syslog
+
+TSUMUFS_PRG = '/usr/bin/tsumufs'
+
+# for debugging
+syslog.openlog(sys.argv[0])
+syslog.syslog(5, repr(sys.argv))
+
+(prg_name, nfs_src, mnt_pt, dash_o, opts) = sys.argv
+user = mnt_pt.split('/')[-1]
+uid = pwd.getpwnam(user).pw_uid
+os.putenv('KRB5CCNAME', 'FILE:/var/run/ccache/krb5cc_%s' % uid)
+os.putenv('USER', user)
+
+os.chmod(mnt_pt, 0777) # workaround so fusermount won't bail
+
+cmd = "start-stop-daemon --start -x %s -c %s -- -d -O %s %s %s" % (TSUMUFS_PRG, user, opts, nfs_src, mnt_pt)
+syslog.syslog(5, cmd)
+os.system(cmd)
