@@ -28,6 +28,7 @@ import traceback
 import fuse
 
 import tsumufs
+from extendedattributes import extendedattribute
 
 
 class SyncThread(tsumufs.Triumvirate, threading.Thread):
@@ -254,3 +255,52 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
     except Exception, e:
       tsumufs.syslogCurrentException()
+
+
+@extendedattribute('root', 'tsumufs.pause-sync')
+def xattr_pauseSync(type_, path, value=None):
+  try:
+    if value != None:
+      if value == '0':
+        tsumufs.syncPause.clear()
+      elif value == '1':
+        tsumufs.syncPause.set()
+      else:
+        return -errno.EOPNOTSUPP
+      return
+
+    if tsumufs.syncPause.isSet():
+      return '1'
+
+    return '0'
+  except:
+    return -errno.EOPNOTSUPP
+
+@extendedattribute('root', 'tsumufs.force-disconnect')
+def xattr_forceDisconnect(type_, path, value=None):
+  try:
+    if value != None:
+      if value == '0':
+        tsumufs.forceDisconnect.clear()
+      elif value == '1':
+        tsumufs.forceDisconnect.set()
+      else:
+        return -errno.EOPNOTSUPP
+      return
+
+    if tsumufs.forceDisconnect.isSet():
+      return '1'
+
+    return '0'
+  except:
+    return -errno.EOPNOTSUPP
+
+@extendedattribute('root', 'tsumufs.connected')
+def xattr_connected(type_, path, value=None):
+  if value != None:
+    return -errno.EOPNOTSUPP
+
+  if tsumufs.nfsAvailable.isSet():
+    return '1'
+
+  return '0'

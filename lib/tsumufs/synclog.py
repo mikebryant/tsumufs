@@ -24,6 +24,7 @@ import cPickle
 import threading
 
 import tsumufs
+from extendedattributes import extendedattribute
 
 
 class SyncConflictError(Exception):
@@ -481,3 +482,10 @@ class SyncLog(tsumufs.Debuggable):
 #                       symlink_dest_path: "..." },
 #     ... }
 
+
+@extendedattribute('root', 'tsumufs.synclog-contents')
+def xattr_synclogContents(type_, path, value=None):
+  if value:
+    return -errno.EOPNOTSUPP
+
+  return str(tsumufs.syncLog)

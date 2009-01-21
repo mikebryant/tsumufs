@@ -22,6 +22,7 @@ import threading
 import cPickle
 
 import tsumufs
+from extendedattributes import extendedattribute
 
 
 class PermissionsOverlay(tsumufs.Debuggable):
@@ -146,3 +147,11 @@ class PermissionsOverlay(tsumufs.Debuggable):
 
     finally:
       self._lock.release()
+
+
+@extendedattribute('root', 'tsumufs.perms-overlay')
+def xattr_permsOverlay(type_, path, value=None):
+  if not value:
+    return repr(PermissionsOverlay.overlay)
+
+  return -errno.EOPNOTSUPP
