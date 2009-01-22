@@ -1,4 +1,6 @@
 #!/usr/bin/python2.4
+# -*- python -*-
+#
 # Copyright (C) 2008  Google, Inc. All Rights Reserved.
 #
 # This program is free software; you can redistribute it and/or modify
@@ -18,6 +20,7 @@
 '''TsumuFS, a NFS-based caching filesystem.'''
 
 import os
+import os.path
 import sys
 import errno
 import stat
@@ -27,41 +30,117 @@ import pygtk
 pygtk.require('2.0')
 
 import gtk
+import gobject
 import egg.trayicon
+import pynotify
+import xattr
+
+
+__version__  = (0, 1)
 
 
 class TsumufsTrayIcon(object):
+  _trayIcon = None
+  _tooltips = None
+  _eventBox = None
+  _displayImage = None
+
+  _mountPointPath = '.'
+
+  _isConnected = False
+  _isConflicted = False
+
+  _iconPathPrefix = '../icons'
+
   def __init__(self):
-    self.trayIcon = egg.trayicon.TrayIcon('TsumuFS')
-    self.tooltips = gtk.Tooltips()
+    pynotify.init('TsumuFS')
 
-    self.eventBox = gtk.EventBox()
-    self.eventBox.set_events(gtk.gdk.BUTTON_PRESS_MASK)
+    self._trayIcon = egg.trayicon.TrayIcon('TsumuFS')
+    self._tooltips = gtk.Tooltips()
+    self._eventBox = gtk.EventBox()
+    self._eventBox.set_events(gtk.gdk.BUTTON_PRESS_MASK)
+    self._displayImage = gtk.Image()
+    self._eventBox.add(self._displayImage)
+    self._eventBox.connect('button_press_event', self._buttonPress)
+    self._trayIcon.connect('delete-event', self._cleanup)
+    self._trayIcon.add(self._eventBox)
+    self._trayIcon.show_all()
 
-    self.displayImage = gtk.Label('TsumuFS')
-    self.eventBox.add(self.displayImage)
+    self._updateIcon()
+    gobject.timeout_add(500, self._timer)
 
-    self.eventBox.connect('button_press_event', self.button_press)
-    self.eventBox.connect('enter_notify_event', self.enter_event)
-    self.eventBox.connect('leave_notify_event', self.leave_event)
-    self.trayIcon.connect('delete-event', self.cleanup)
+  def _updateIcon(self):
+    path = ''
 
-    self.trayIcon.add(self.eventBox)
-    self.trayIcon.show_all()
+    if self._isConnected:
+      path = os.path.join(self._iconPathPrefix, 'connected.png')
+    else:
+      path = os.path.join(self._iconPathPrefix, 'disconnected.png')
 
-  def cleanup(self, event):
+    pixbuf = gtk.gdk.pixbuf_new_from_file(path)
+
+    if self._isConflicted:
+      path = os.path.join(self._iconPathPrefix, 'conflicted.png')
+      pixbuf.blit_from_file(path)
+
+    size = self._trayIcon.get_size()
+    pixbuf.scale_simple(size[0], size[1], gtk.gdk.INTERP_BILINEAR)
+    self._displayImage.set_from_pixbuf(pixbuf)
+
+  def _cleanup(self, event):
     gtk.main_quit()
 
-  def enter_event(self, widget, event):
-    print 'Enter'
+  def _timer(self):
+    old_isConnected = self._isConnected
+    old_isConflicted = self._isConflicted
 
-  def leave_event(self, widget, event):
-    print 'Leave'
+    try:
+      attrs = xattr.xattr(self._mountPointPath)
+    except OSError, e:
+      gtk.main_quit()
 
-  def button_press(self, widget, event):
-    print 'Press'
+    try:
+      if attrs['tsumufs.connected'] == '1':
+        self._isConnected = True
+      else:
+        self._isConnected = False
+    except KeyError, e:
+      gtk.main_quit()
 
+    if ((old_isConnected != self._isConnected) or
+        (old_isConflicted != self._isConflicted)):
+      self._updateIcon()
+
+      if not self._isConnected:
+        self._notifyDisconnected()
+
+    return True
+
+  def _buttonPress(self, widget, event):
+    if event.button == 1:
+      pass
+    elif event.button == 3:
+      pass
+
+  def _notifyDisconnected(self):
+    summary = 'Disconnected from NFS'
+    body = ('TsumuFS has disconnected from NFS and is now working '
+            'completely from the local cache.')
+
+    notification = pynotify.Notification(summary, body)
+    notification.attach_to_widget(self._trayIcon)
+    notification.show()
 
 if __name__ == '__main__':
   icon = TsumufsTrayIcon()
+
+  if len(sys.argv) > 1:
+    icon._mountPointPath = sys.argv[1]
+
+  attrs = xattr.xattr(icon._mountPointPath)
+  if not attrs.has_key('tsumufs.version'):
+    print >>sys.stderr, ('%s is not a TsumuFS mount point, or is not the root '
+                         'of the TsumuFS mount point.' % icon._mountPointPath)
+    sys.exit(1)
+
   gtk.main()
