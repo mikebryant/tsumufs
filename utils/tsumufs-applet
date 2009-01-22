@@ -1,0 +1,67 @@
+#!/usr/bin/python2.4
+# Copyright (C) 2008  Google, Inc. All Rights Reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 2 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License along
+# with this program; if not, write to the Free Software Foundation, Inc.,
+# 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+
+'''TsumuFS, a NFS-based caching filesystem.'''
+
+import os
+import sys
+import errno
+import stat
+import traceback
+
+import pygtk
+pygtk.require('2.0')
+
+import gtk
+import egg.trayicon
+
+
+class TsumufsTrayIcon(object):
+  def __init__(self):
+    self.trayIcon = egg.trayicon.TrayIcon('TsumuFS')
+    self.tooltips = gtk.Tooltips()
+
+    self.eventBox = gtk.EventBox()
+    self.eventBox.set_events(gtk.gdk.BUTTON_PRESS_MASK)
+
+    self.displayImage = gtk.Label('TsumuFS')
+    self.eventBox.add(self.displayImage)
+
+    self.eventBox.connect('button_press_event', self.button_press)
+    self.eventBox.connect('enter_notify_event', self.enter_event)
+    self.eventBox.connect('leave_notify_event', self.leave_event)
+    self.trayIcon.connect('delete-event', self.cleanup)
+
+    self.trayIcon.add(self.eventBox)
+    self.trayIcon.show_all()
+
+  def cleanup(self, event):
+    gtk.main_quit()
+
+  def enter_event(self, widget, event):
+    print 'Enter'
+
+  def leave_event(self, widget, event):
+    print 'Leave'
+
+  def button_press(self, widget, event):
+    print 'Press'
+
+
+if __name__ == '__main__':
+  icon = TsumufsTrayIcon()
+  gtk.main()
