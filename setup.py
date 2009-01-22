@@ -40,15 +40,10 @@ setup(name='TsumuFS',
 
       package_dir={'': 'lib'},
       packages=['tsumufs'],
-      scripts=['src/tsumufs',
-               'utils/is-connected',
-               'utils/gen-bug-report',
-               'utils/in-cache',
-               'utils/is-dirty',
-               'utils/force-reconnect',
-               'utils/force-disconnect',
-               'utils/tsumufs-unmount-all'],
-      data_files=[('/usr/share/man/man1', glob.glob(os.path.join('man', '*')))],
-
-      requires=['fuse', 'xattr']
+      scripts=scripts,
+      data_files=[('/usr/share/man/man1',
+                   glob.glob(os.path.join('man', '*'))),
+                  ('/usr/share/tsumufs/icons',
+                   glob.glob(os.path.join('icons', '*')))],
+      requires=['fuse', 'xattr', 'pygtk', 'gtk']
       )

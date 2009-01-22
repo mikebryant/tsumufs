@@ -1,3 +1,4 @@
 lib/tsumufs/*.py /usr/lib/tsumufs
 contrib/mount.tsumufs /sbin/
 contrib/tsumufs-unmount-all.xinetd /etc/xinetd.d/
+icons/*.png /usr/share/tsumufs/icons/
