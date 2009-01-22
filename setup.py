@@ -47,8 +47,7 @@ setup(name='TsumuFS',
                'utils/is-dirty',
                'utils/force-reconnect',
                'utils/force-disconnect',
-               'utils/tsumufs-unmount-all',
-               'utils/tsumufs-xattr'],
+               'utils/tsumufs-unmount-all']
       data_files=[('/usr/share/man/man1', glob.glob(os.path.join('man', '*')))],
 
       requires=['fuse', 'xattr']
