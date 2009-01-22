@@ -284,6 +284,8 @@ def xattr_forceDisconnect(type_, path, value=None):
         tsumufs.forceDisconnect.clear()
       elif value == '1':
         tsumufs.forceDisconnect.set()
+        tsumufs.nfsMount.unmount()
+        tsumufs.nfsAvailable.clear()
       else:
         return -errno.EOPNOTSUPP
       return
