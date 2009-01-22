@@ -40,6 +40,7 @@ from mutablestat import *
 from filepermission import *
 from permissionsoverlay import *
 from extendedattributes import *
+from metrics import *
 
 
 __version__ = (0, 11)
