@@ -29,6 +29,7 @@ import fuse
 from fuse import Fuse
 
 import tsumufs
+from metrics import benchmark
 
 
 class FuseFile(tsumufs.Debuggable):
@@ -46,6 +47,7 @@ class FuseFile(tsumufs.Debuggable):
   _pid       = None
   _isNewFile = None
 
+  @benchmark
   def __init__(self, path, flags, mode=None, uid=None, gid=None, pid=None):
     self._path  = path
     self._fdFlags = flags
@@ -133,6 +135,7 @@ class FuseFile(tsumufs.Debuggable):
 
     return string[1:]
 
+  @benchmark
   def read(self, length, offset):
     self._debug('opcode: read | path: %s | len: %d | offset: %d'
                 % (self._path, length, offset))
@@ -148,6 +151,7 @@ class FuseFile(tsumufs.Debuggable):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def write(self, new_data, offset):
     self._debug('opcode: write | path: %s | offset: %d | buf: %s'
                 % (self._path, offset, repr(new_data)))
@@ -216,12 +220,14 @@ class FuseFile(tsumufs.Debuggable):
       # raising errno.
       return -e.errno
 
+  @benchmark
   def release(self, flags):
     self._debug('opcode: release | flags: %s' % flags)
 
     # Noop since on NFS close doesn't do much
     return 0
 
+  @benchmark
   def fsync(self, isfsyncfile):
     self._debug('opcode: fsync | path: %s | isfsyncfile: %d'
                 % (self._path, isfsyncfile))
@@ -229,12 +235,14 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('Returning 0')
     return 0
 
+  @benchmark
   def flush(self):
     self._debug('opcode: flush | path: %s' % self._path)
 
     self._debug('Returning 0')
     return 0
 
+  @benchmark
   def fgetattr(self):
     self._debug('opcode: fgetattr')
 
@@ -245,6 +253,7 @@ class FuseFile(tsumufs.Debuggable):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def ftruncate(self, size):
     self._debug('opcode: ftruncate | size: %d' % size)
 
@@ -259,6 +268,7 @@ class FuseFile(tsumufs.Debuggable):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def lock(self, cmd, owner, **kw):
     self._debug('opcode: lock | cmd: %o | owner: %d | kw: %s'
                 % (cmd, owner, str(kw)))

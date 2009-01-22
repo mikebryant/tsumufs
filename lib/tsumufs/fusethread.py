@@ -31,6 +31,7 @@ from fuse import Fuse
 
 import tsumufs
 from extendedattributes import extendedattribute
+from metrics import benchmark
 
 
 class FuseThread(tsumufs.Triumvirate, Fuse):
@@ -40,8 +41,6 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   that this class is not a thread, yet it is considered as one in the
   design docs.
   '''
-
-  syncThread    = None
 
   def __init__(self, *args, **kw):
     '''
@@ -304,6 +303,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
   ######################################################################
   # Filesystem operations and system calls below here
 
+  @benchmark
   def getattr(self, path):
     '''
     Callback which is called into when a stat() is performed on the
@@ -329,6 +329,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       raise
 
+  @benchmark
   def setxattr(self, path, name, value, size):
     '''
     Callback that is called into when a setxattr() call is
@@ -358,6 +359,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     except KeyError, e:
       return -errno.EOPNOTSUPP
 
+  @benchmark
   def getxattr(self, path, name, size):
     '''
     Callback that is called to get a specific extended attribute size
@@ -401,6 +403,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       self._debug('*** Exception occurred: %s (%s)' % (str(e), e.__class__))
       return -errno.EINVAL
 
+  @benchmark
   def listxattr(self, path, size):
     '''
     Callback method to list the names of valid extended attributes in
@@ -430,6 +433,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     return keys
 
+  @benchmark
   def readlink(self, path):
     '''
     Reads the value of a symlink.
@@ -453,6 +457,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def readdir(self, path, offset):
     '''
     Generator callback that returns a fuse.Direntry object every time
@@ -486,6 +491,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (filename, e.errno, e.strerror))
       yield -e.errno
 
+  @benchmark
   def unlink(self, path):
     '''
     Callback to unlink a file on disk.
@@ -510,6 +516,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def rmdir(self, path):
     '''
     Removes a directory from disk.
@@ -533,6 +540,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def symlink(self, src, dest):
     '''
     Creates a symlink pointing to src as a file called dest.
@@ -556,6 +564,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def rename(self, old, new):
     '''
     Renames a file from old to new, possibly changing it's path as
@@ -603,6 +612,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def link(self, src, dest):
     '''
     Links a the dest filename to the inode number of the src
@@ -622,6 +632,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def chmod(self, path, mode):
     '''
     Changes the mode of a file.
@@ -660,6 +671,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def chown(self, path, newuid, newgid):
     '''
     Change the owner and/or group of a file.
@@ -692,6 +704,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def truncate(self, path, size=None):
     '''
     Truncate a file to zero length.
@@ -720,6 +733,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def mknod(self, path, mode, dev):
     '''
     Creates a special device file with the sepcified mode and device
@@ -759,6 +773,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def mkdir(self, path, mode):
     '''
     Creates a new directory with the specified mode.
@@ -783,6 +798,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def utime(self, path, times):
     '''
     Set the times (atime, mtime, and ctime) of a file.
@@ -806,6 +822,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def access(self, path, mode):
     '''
     Test for access to a path.
@@ -831,6 +848,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   % (e.errno, e.strerror))
       return -e.errno
 
+  @benchmark
   def statfs(self):
     '''
     Should return an object with statvfs attributes (f_bsize, f_frsize...).
