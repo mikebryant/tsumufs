@@ -1,4 +1,4 @@
-tsumufs (0.11-1ubuntu2) hardy; urgency=low
+tsumufs (0.12-1ubuntu1) hardy; urgency=low
 
   added various contrib files for automounter and kerb impersonation
   replace old xattr goo with extendedattribute - yay
