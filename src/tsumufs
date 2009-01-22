@@ -40,7 +40,7 @@ if development_mode == True:
   libpath = os.path.dirname(libpath)
   libpath = os.path.join(libpath, '../lib')
 
-sys.path.append(libpath)
+sys.path.insert(0,libpath)
 
 import tsumufs
 
