@@ -45,5 +45,5 @@ setup(name='TsumuFS',
                    glob.glob(os.path.join('man', '*'))),
                   ('/usr/share/tsumufs/icons',
                    glob.glob(os.path.join('icons', '*')))],
-      requires=['fuse', 'xattr', 'pygtk', 'gtk']
+      requires=['fuse', 'xattr', 'pygtk', 'gtk', 'egg']
       )
