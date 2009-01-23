@@ -443,6 +443,7 @@ class SyncLog(tsumufs.Debuggable):
     if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
       tsumufs.cacheManager.lockFile(syncitem.getFilename())
       tsumufs.nfsMount.lockFile(syncitem.getFilename())
+
     elif syncitem.getType() in ('rename'):
       tsumufs.cacheManager.lockFile(syncitem.getNewFilename())
       tsumufs.nfsMount.lockFile(syncitem.getNewFilename())
@@ -451,7 +452,7 @@ class SyncLog(tsumufs.Debuggable):
 
     return (syncitem, change)
 
-  def finishedWithChange(self, syncitem):
+  def finishedWithChange(self, syncitem, remove_item=True):
     try:
       # Ensure the appropriate locks are unlocked
       if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
@@ -464,7 +465,8 @@ class SyncLog(tsumufs.Debuggable):
         tsumufs.nfsMount.unlockFile(syncitem.getOldFilename())
 
       # Remove the item from the worklog.
-      self._syncQueue.remove(syncitem)
+      if remove_item:
+        self._syncQueue.remove(syncitem)
 
     finally:
       self._lock.release()
