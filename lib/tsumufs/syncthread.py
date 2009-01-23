@@ -90,6 +90,110 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
       tsumufs.nfsAvailable.clear()
       return False
 
+  def _propogateNew(self, item, change):
+    # TODO(conflicts): Conflict if the file already exists.
+    fusepath = item.getFilename()
+    shutil.copy(tsumufs.cachePathOf(fusepath),
+                tsumufs.nfsPathOf(fusepath))
+
+  def _propogateLink(self, item, change):
+    # TODO(jtg): Add in hardlink support
+    pass
+
+  def _propogateUnlink(self, item, change):
+    # TODO(conflicts): Conflict if the file type or inode have changed
+    fusepath = item.getFilename()
+    os.unlink(tsumufs.nfsPathOf(fusepath))
+
+  def _propogateChange(self, item, change):
+    # Rules:
+    # 1. On conflict NFS always wins.
+    # 2. Loser data always appended as a list of changes in
+    #    ${mount}/._${file}.changes
+    # 3. We're no better than NFS
+
+    # Steps:
+    # 1. Stat both files, and verify the file type is identical.
+    # 2. Read in the regions from NFS.
+    # 3. Compare the regions between the changes and NFS.
+    # 4. If any changes differ, the entire set is conflicted.
+    #    4a. Create a conflict change file and write out the changes
+    #        that differ.
+    #    4b. Create a 'new' change in the synclog for the conflict
+    #        change file.
+    #    4c. Erase the cached file on disk.
+    #    4d. Invalidate dirent cache for the file's containing dir.
+    #    4e. Invalidate the stat cache fo that file.
+    # 5. Otherwise:
+    #    4a. Iterate over each change and write it out to NFS.
+
+    is_conflicted = False
+    fusepath   = item.getFilename()
+    nfs_stat   = os.lstat(tsumufs.nfsPathOf(fusepath))
+    cache_stat = os.lstat(tsumufs.cachePathOf(fusepath))
+
+    if stat.ISFMT(nfs_stat.st_mode) != stat.ISFMT(cache_stat.st_mode):
+      is_conflicted = True
+    elif nfs_stat.st_size != item.dataLength:
+      is_conflicted = True
+    else:
+      # Iterate over each region, and verify the changes
+      for region in change.getDataChanges():
+        data = tsumufs.nfsMount.readFile(fusepath,
+                                         region.getStart(),
+                                         region.getEnd()-region.getStart(),
+                                         os.O_RDONLY)
+        if region.getData() != data:
+          is_conflicted = True
+          break
+
+    if is_conflicted:
+      return True
+
+    # Propogate truncations
+    if (change.dataLength < nfs_stat.st_size):
+      tsumufs.nfsMount.truncateFile(fusepath, change.dataLength)
+
+    # Propogate changes
+    for region in change.getDataChanges():
+      data = tsumufs.cacheManager.readFile(fusepath,
+                                           region.getStart(),
+                                           region.getEnd()-region.getStart(),
+                                           os.O_RDONLY)
+
+      self._debug('Writing to %s at [%d-%d] %s'
+                  % (fusepath, region.getStart(),
+                     region.getEnd(), repr(data)))
+
+      tsumufs.nfsMount.writeFileRegion(fusepath,
+                                       region.getStart(),
+                                       region.getEnd(),
+                                       data)
+
+    # TODO(writeback): Add in metadata syncing here.
+
+    return False
+
+  def _propogateRename(self, item, change):
+    # TODO(conflicts): Verify inode numbers here
+    oldfusepath = item.getOldFilename()
+    newfusepath = item.getNewFilename()
+    os.rename(tsumufs.nfsPathOf(item.getOldFilename()),
+              tsumufs.nfsPathOf(item.getNewFilename()))
+
+  def _handleChange(self, item, change):
+    type_ = item.getType()
+    change_types = { 'new': self._propogateNew,
+                     'link': self._propogateLink,
+                     'unlink': self._propogateUnlink,
+                     'change': self._propogateChange,
+                     'rename': self._propogateRename }
+
+    found_conflicts = change_types[type_].__call__(self, item, change)
+
+    if found_conflicts:
+      self._handleConflicts(item, change)
+
   def run(self):
     try:
       while not tsumufs.unmounted.isSet():
@@ -115,120 +219,34 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
                and not tsumufs.unmounted.isSet()
                and not tsumufs.syncPause.isSet()):
           try:
-            # excludes conflicted changes
             self._debug('Checking for items to sync.')
-
             (item, change) = tsumufs.syncLog.popChange()
 
           except IndexError:
             self._debug('Nothing to sync. Sleeping.')
             time.sleep(5)
             continue
-          else:
-            self._debug('Got one: %s' % repr(item))
+
+          self._debug('Got one: %s' % repr(item))
 
           try:
-            # Verify that what the synclog contains is actually what is on
-            # the file server.
-
-            if item.getType() == 'change':
-              for region in change.getDataChanges():
-                olddata = region.getData()
-                nfsdata = tsumufs.nfsMount.readFileRegion(item.getFilename(),
-                                                          region.getStart(),
-                                                          region.getEnd())
-
-                if nfsdata != olddata:
-                  raise tsumufs.SyncConflictError(item)
-
-          except IOError, e:
-            # IO errors indicate something is wrong with the backend NFS
-            # mount. Unset the connected event to trigger a remount if
-            # possible.
-
-            self._debug('Caught an IOError: %s' % str(e))
-            self._debug('Disconnecting from NFS.')
-
-            tsumufs.nfsAvailable.clear()
-            tsumufs.nfsMount.unmount()
-            continue
-
-          except tsumufs.SyncConflictError, e:
-            # Do something here to attempt to merge data anyway for text
-            # files, if possible. Failing that, mark the item as a
-            # conflict in the synclog, and notify the user.
-
-            # TODO(jtg): Handle conflicts!
-            pass
-
-          try:
-            # If we don't have any conflicts, we can proceed here -- the
-            # original hasn't changed since we synced it to the cache
-            # last.
-
-            # TODO(locks): Maybe make the popItem() call lock the paths
-            # first, and then call out to a secondary finishedWithItem() method
-            # on the SyncLog? This would alleviate race conditions with the
-            # below code.
-
-            if item.getType() == 'new':
-              fusepath = item.getFilename()
-
-              shutil.copy(tsumufs.cachePathOf(fusepath),
-                          tsumufs.nfsPathOf(fusepath))
-
-            elif item.getType() == 'link':
-              # TODO(jtg): Add in hardlink support
-              pass
-
-            elif item.getType() == 'unlink':
-              fusepath = item.getFilename()
-
-              os.unlink(tsumufs.nfsPathOf(fusepath))
-
-            elif item.getType() == 'change':
-              fusepath = item.getFilename()
-
-              statgoo  = tsumufs.cacheManager.statFile(fusepath)
-
-              # Propogate truncations
-              if (change.dataLength < statgoo.st_size):
-                tsumufs.nfsMount.truncateFile(fusepath, change.dataLength)
-
-              for region in change.getDataChanges():
-                data = tsumufs.cacheManager.readFile(fusepath,
-                                                     region.getStart(),
-                                                     region.getEnd()-region.getStart(),
-                                                     os.O_RDONLY)
-
-                self._debug('Writing to %s at [%d-%d] %s'
-                            % (fusepath, region.getStart(),
-                               region.getEnd(), repr(data)))
-
-                tsumufs.nfsMount.writeFileRegion(fusepath,
-                                                 region.getStart(),
-                                                 region.getEnd(),
-                                                 data)
-
-             # TODO(jtg): Add in metadata syncing here.
-
-            elif item.getType() == "rename":
-              oldfusepath = item.getOldFilename()
-              newfusepath = item.getNewFilename()
-
-              os.rename(tsumufs.nfsPathOf(item.getOldFilename()),
-                        tsumufs.nfsPathOf(item.getNewFilename()))
+            # Handle the change
+            self._handleChange(item, change)
 
             # Mark the change as complete.
             self._debug('Marking change %s as complete.' % repr(item))
             tsumufs.syncLog.finishedWithChange(item)
 
           except IOError, e:
-            self._debug('Caught an IOError: %s' % str(e))
-            self._debug('Disconnecting from NFS.')
+            self._debug('Caught an IOError in the middle of handling a change: '
+                        '%s' % str(e))
 
+            self._debug('Disconnecting from NFS.')
             tsumufs.nfsAvailable.clear()
             tsumufs.nfsMount.unmount()
+
+            self._debug('Not removing change from the synclog, but finishing.')
+            tsumufs.syncLog.finishedWithChange(item, remove_item=False)
 
       self._debug('Shutdown requested.')
       self._debug('Unmounting NFS.')
