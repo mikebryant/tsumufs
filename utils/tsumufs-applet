@@ -131,16 +131,30 @@ class TsumufsTrayIcon(object):
     notification.attach_to_widget(self._trayIcon)
     notification.show()
 
-if __name__ == '__main__':
-  icon = TsumufsTrayIcon()
 
-  if len(sys.argv) > 1:
-    icon._mountPointPath = sys.argv[1]
-
+def validateMountPoint():
   attrs = xattr.xattr(icon._mountPointPath)
   if not attrs.has_key('tsumufs.version'):
     print >>sys.stderr, ('%s is not a TsumuFS mount point, or is not the root '
                          'of the TsumuFS mount point.' % icon._mountPointPath)
     sys.exit(1)
 
+
+def daemonize():
+  if os.fork() > 0:
+    sys.exit(0)
+
+  sys.stderr.close()
+  sys.stdout.close()
+  sys.stdin.close()
+
+
+if __name__ == '__main__':
+  icon = TsumufsTrayIcon()
+
+  if len(sys.argv) > 1:
+    icon._mountPointPath = sys.argv[1]
+
+  validateMountPoint()
+  daemonize()
   gtk.main()
