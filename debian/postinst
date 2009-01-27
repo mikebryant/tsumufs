@@ -4,10 +4,12 @@ set -e
 
 if [ "$1" = "configure" ]; then
    chmod 775 /var/lib/tsumufs
+   chmod 775 /var/lib/tsumufs/nfs
    chmod 775 /var/cache/tsumufs
    chmod 775 /var/run/tsumufs
 
    chown root:fuse /var/lib/tsumufs
+   chown root:fuse /var/lib/tsumufs/nfs
    chown root:fuse /var/cache/tsumufs
    chown root:fuse /var/run/tsumufs
 fi
