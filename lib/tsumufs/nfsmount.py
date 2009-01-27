@@ -59,9 +59,9 @@ class NFSMount(tsumufs.Debuggable):
 
 
     try:
-      lock = self._fileLocks[fusepath]
+      lock = self._fileLocks[filename]
     except KeyError:
-      lock = self._fileLocks.setdefault(fusepath, threading.RLock())
+      lock = self._fileLocks.setdefault(filename, threading.RLock())
 
     lock.acquire()
 
