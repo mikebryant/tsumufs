@@ -85,7 +85,7 @@ class InodeChange(tsumufs.Debuggable):
 
     for r in self.dataRegions:
       if r.canMerge(accumulator):
-        accumulator = r.mergeWith(accumulator)
+        accumulator = accumulator.mergeWith(r)
       else:
         newlist.append(accumulator)
         accumulator = r
@@ -107,7 +107,6 @@ class InodeChange(tsumufs.Debuggable):
     '''
 
     self._debug('Truncating to %d' % newlength)
-    self.dataLength = newlength
 
     for index in range(len(self.dataRegions)-1, -1, -1):
       region = self.dataRegions[index]
