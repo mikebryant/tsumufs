@@ -63,6 +63,8 @@ cacheSpecDir = '/var/lib/tsumufs/cachespec'
 cachePoint   = None
 cacheManager = None
 
+conflictDir  = '/.tsumufs-conflicts'
+
 syncLog = None
 synclogPath = None
 
