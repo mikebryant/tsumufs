@@ -78,7 +78,7 @@ class OverlapCheck(unittest.TestCase):
   def testMergeTypes(self):
     for i in range(0, len(self.overlappingRegions)):
       testcase = self.overlappingRegions[i]
-      result   = self.regionResults[i]
+      #result   = self.regionResults[i]
 
       r1 = dataregion.DataRegion(self.r1Start, self.r1End,
                                  '1' * (self.r1End - self.r1Start))

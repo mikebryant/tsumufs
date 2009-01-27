@@ -34,7 +34,7 @@ class InstanceCheck(unittest.TestCase):
     pass
 
   def testInstanciation(self):
-    ic = inodechange.InodeChange()
+    inodechange.InodeChange()
 
 
 class DataChangeCheck(unittest.TestCase):
