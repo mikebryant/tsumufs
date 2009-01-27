@@ -72,9 +72,9 @@ class ExtendedAttributes(tsumufs.Debuggable):
 
   @classmethod
   def clearAllCallbacks(cls):
-    _attributeCallbacks = { 'root': {},
-                            'dir': {},
-                            'file': {} }
+    cls._attributeCallbacks = { 'root': {},
+                                'dir': {},
+                                'file': {} }
 
   @classmethod
   def getXAttr(cls, type_, path, name):
