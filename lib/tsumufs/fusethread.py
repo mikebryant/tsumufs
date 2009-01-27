@@ -232,12 +232,12 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     self.parser.add_option('-f',
                            action='callback',
-                           callback=lambda: self.fuse_args.setmod('foreground'),
+                           callback=lambda *args: self.fuse_args.setmod('foreground'),
                            help=('Prevents TsumuFS from forking into '
                                  'the background.'))
     self.parser.add_option('-D', '--fuse-debug',
                            action='callback',
-                           callback=lambda: self.fuse_args.add('debug'),
+                           callback=lambda *args: self.fuse_args.add('debug'),
                            help=('Turns on fuse-python debugging. '
                                  'Only useful if you also specify '
                                  '-f. Typically only useful to '
