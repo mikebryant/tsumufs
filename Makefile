@@ -46,6 +46,14 @@ VERSION := $(shell cat lib/tsumufs/__init__.py \
 				|sed -e 's/.*= (//' -e 's/)//' -e 's/, /./g')
 endif
 
+ifdef TEST_ONLY
+FUNC_TESTS := $(TEST_ONLY)
+endif
+
+ifndef CHK_SOURCES
+CHK_SOURCES := $(wildcard tests/functional/*.[ch])
+endif
+
 DIST_FILENAME := tsumufs-$(VERSION).tar.gz
 
 all: targets
@@ -110,13 +118,8 @@ $(TEST_NFS_DIR):
 	mkdir -p $(TEST_NFS_DIR)
 	chown $(USER):$(shell id -g) $(TEST_CACHE_DIR)
 
-# TODO: Make these exist and idempotent.
 functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
-	FUNC_TESTS=$(FUNC_TESTS);          \
-	if [ ! -z "$(TEST_ONLY)" ]; then   \
-		FUNC_TESTS=$(TEST_ONLY);       \
-	fi;                                \
-	for test in $$FUNC_TESTS; do       \
+	for test in $(FUNC_TESTS); do      \
 		rm -rf tests/filesystem;       \
 		tar xf tests/filesystem.tar -C tests/; \
 		echo;                          \
@@ -132,7 +135,7 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 		if ! $$OLDCWD/$$test; then     \
 			cd $$OLDCWD;               \
 			$(UMOUNT_CMD) $(TEST_DIR); \
-			sleep 1;                   \
+			$(UMOUNT_CMD) $(TEST_NFS_DIR); \
 			echo "!!! $$test Failed."; \
             continue;                  \
 		fi;                            \
@@ -153,10 +156,7 @@ force-shutdown:
 		[ "$$PID" != "" ] && kill -KILL $$PID
 
 check-syntax:
-	if [ -z ${CHK_SOURCES} ]; then \
-		CHK_SOURCES=tests/functional/*.[ch]; \
-	fi; \
-	gcc -o /dev/null -S ${CHK_SOURCES}
+	gcc -o /dev/null -S $(CHK_SOURCES)
 
 check: check-syntax
 	-cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
