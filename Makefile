@@ -21,6 +21,7 @@ PY_UNIT_TESTS  := $(wildcard tests/unit/*_test.py)
 FUNC_TEST_SRC  := $(wildcard tests/functional/*.c)
 FUNC_TESTS     := $(shell echo $(FUNC_TEST_SRC) |sed -e 's/\.c//g')
 UMOUNT_CMD     := sudo umount
+FUMOUNT_CMD    := fusermount -u
 
 TEST_DIR       := /tmp/tsumufs-test-dir
 TEST_CACHE_DIR := /tmp/tsumufs-cache-dir
@@ -111,7 +112,11 @@ $(TEST_NFS_DIR):
 
 # TODO: Make these exist and idempotent.
 functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
-	for test in $(FUNC_TESTS); do      \
+	FUNC_TESTS=$(FUNC_TESTS);          \
+	if [ ! -z "$(TEST_ONLY)" ]; then   \
+		FUNC_TESTS=$(TEST_ONLY);       \
+	fi;                                \
+	for test in $$FUNC_TESTS; do       \
 		rm -rf tests/filesystem;       \
 		tar xf tests/filesystem.tar -C tests/; \
 		echo;                          \
@@ -120,6 +125,9 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 			-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
 			$(NFSHOME) $(TEST_DIR);    \
 		OLDCWD=$$(pwd);                \
+		CACHE_DIR=$(TEST_CACHE_DIR)    \
+		NFS_DIR=$(TEST_NFS_DIR)        \
+		TEST_DIR=$(TEST_DIR)           \
 		cd $(TEST_DIR);                \
 		if ! $$OLDCWD/$$test; then     \
 			cd $$OLDCWD;               \
@@ -129,11 +137,9 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
             continue;                  \
 		fi;                            \
 		cd $$OLDCWD;                   \
-        while ! mount |grep -qe '^tsumufs on'; do \
-			sleep 10;                  \
-			$(UMOUNT_CMD) $(TEST_DIR); \
-			sleep 10;                  \
-		done;                          \
+		$(UMOUNT_CMD) $(TEST_DIR);     \
+		sleep 1;                       \
+		$(UMOUNT_CMD) $(TEST_DIR);     \
 		echo ok;                       \
 		rm -rf $(TEST_CACHE_DIR)/*;    \
 	done
@@ -141,10 +147,10 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 force-shutdown:
 	-$(UMOUNT_CMD) $(TEST_NFS_DIR)
 	-$(UMOUNT_CMD) $(TEST_DIR)
-	PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
-	[ "$$PID" != "" ] && sleep 5; \
-	PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
-	[ "$$PID" != "" ] && kill -KILL $$PID
+	-PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); 	\
+		[ "$$PID" != "" ] && sleep 5; 									\
+		PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
+		[ "$$PID" != "" ] && kill -KILL $$PID
 
 check:
 	-cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
