@@ -192,7 +192,7 @@ int test_create_already_exists()
     TEST_START();
 
     if (fd < 0) {
-        TEST_COMPLETE_FAIL("Unable to open testme.txt for writing.\n"
+        TEST_COMPLETE_FAIL("Unable to open testme.txt in %s for writing.\n"
                            "Errno %d: %s\n",
                            __func__, errno, strerror(errno));
     }
@@ -200,7 +200,7 @@ int test_create_already_exists()
 
     if (fd2 > 0) {
         TEST_FAIL();
-        TEST_COMPLETE_FAIL("Unable to open testme.txt for writing.\n"
+        TEST_COMPLETE_FAIL("Unable to open testme.txt for writing in %s.\n"
                            "Second open did not return an error"
                            "Errno %d: %s\n",
                            __func__, errno, strerror(errno));
@@ -209,7 +209,7 @@ int test_create_already_exists()
 
     if (errno != EEXIST) {
         TEST_FAIL();
-        TEST_COMPLETE_FAIL("Second open did not return EEXIST"
+        TEST_COMPLETE_FAIL("Second open did not return EEXIST in %s."
                            "Errno %d: %s\n",
                            __func__, errno, strerror(errno));
     }
@@ -217,7 +217,7 @@ int test_create_already_exists()
 
     if (close(fd) < 0) {
         TEST_FAIL();
-        TEST_COMPLETE_FAIL("Unable to close fd"
+        TEST_COMPLETE_FAIL("Unable to close fd in %s."
                            "Errno %d: %s\n",
                            __func__, errno, strerror(errno));
     }
