@@ -421,6 +421,7 @@ class CacheManager(tsumufs.Debuggable):
         fd = os.open(realpath, flags)
 
       fp = os.fdopen(fd, self._flagsToStdioMode(flags))
+      fp.seek(0)
       fp.seek(offset)
       result = fp.read(length)
       fp.close()
@@ -587,7 +588,7 @@ class CacheManager(tsumufs.Debuggable):
       self._validateCache(fusepath, opcodes)
       realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO(jtg): Fix this to use the PermissionsOverlay
+      # TODO(permissions): Fix this to use the PermissionsOverlay
 
       return os.chown(fusepath, uid, gid)
     finally:
