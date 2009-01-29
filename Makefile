@@ -125,9 +125,9 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 			-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
 			$(NFSHOME) $(TEST_DIR);    \
 		OLDCWD=$$(pwd);                \
-		CACHE_DIR=$(TEST_CACHE_DIR)    \
-		NFS_DIR=$(TEST_NFS_DIR)        \
-		TEST_DIR=$(TEST_DIR)           \
+		export CACHE_DIR=$(TEST_CACHE_DIR); \
+		export NFS_DIR=$(TEST_NFS_DIR); \
+		export TEST_DIR=$(TEST_DIR);   \
 		cd $(TEST_DIR);                \
 		if ! $$OLDCWD/$$test; then     \
 			cd $$OLDCWD;               \
@@ -152,7 +152,13 @@ force-shutdown:
 		PID=$$(ps ax |grep tsumufs |grep -v grep |awk '{ print $$1 }'); \
 		[ "$$PID" != "" ] && kill -KILL $$PID
 
-check:
+check-syntax:
+	if [ -z ${CHK_SOURCES} ]; then \
+		CHK_SOURCES=tests/functional/*.[ch]; \
+	fi; \
+	gcc -o /dev/null -S ${CHK_SOURCES}
+
+check: check-syntax
 	-cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
 	-$(PYCHECKER) -F pycheckerrc $(PY_OS_MOCKS)
 	-$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
