@@ -220,6 +220,7 @@ class CacheManager(tsumufs.Debuggable):
 
           perms = tsumufs.permsOverlay.getPerms(fusepath)
           perms = perms.overlayStatFromFile(realpath)
+          self._debug('Returning %s as perms.' % repr(perms))
 
           return perms
 
@@ -472,7 +473,12 @@ class CacheManager(tsumufs.Debuggable):
         fd = os.open(realpath, flags)
 
       fp = os.fdopen(fd, self._flagsToStdioMode(flags))
-      fp.seek(offset)
+
+      if offset >= 0:
+        fp.seek(offset)
+      else:
+        fp.seek(0, 2)
+
       bytes_written = fp.write(buf)
       fp.close()
 
@@ -516,24 +522,56 @@ class CacheManager(tsumufs.Debuggable):
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
-      self._validateCache(fusepath, opcodes)
-      realpath = self._generatePath(fusepath, opcodes)
 
+      # Skip enoents -- we're creating a file.
+      try:
+        self._validateCache(fusepath, opcodes)
+      except (IOError, OSError), e:
+        if e.errno != errno.ENOENT:
+          raise
+
+      realpath = self._generatePath(fusepath, opcodes)
+      dirname = os.path.dirname(fusepath)
+      basename = os.path.basename(fusepath)
+
+      if 'use-cache' in opcodes:
+        if self._cachedDirents.has_key(dirname):
+          self._cachedDirents[dirname].append(basename)
+
+      self._invalidateStatCache(realpath)
+
+      # TODO(permissions): make this use the permissions overlay
       return os.symlink(realpath, target)
 
     finally:
       self.unlockFile(fusepath)
 
-  def makeDir(self, uid, fusepath, mode):
+  def makeDir(self, fusepath):
     self.lockFile(fusepath)
 
     try:
       opcodes = self._genCacheOpcodes(fusepath)
-      self._validateCache(fusepath, opcodes)
-      realpath = self._generatePath(fusepath, opcodes)
 
-      # TODO: make this use the permissions overlay
-      return os.mkdir(realpath, mode)
+      # Skip enoents -- we're creating a dir.
+      try:
+        self._validateCache(fusepath, opcodes)
+      except (IOError, OSError), e:
+        if e.errno != errno.ENOENT:
+          raise
+
+      realpath = self._generatePath(fusepath, opcodes)
+      dirname  = os.path.dirname(fusepath)
+      basename = os.path.basename(fusepath)
+
+      if 'use-cache' in opcodes:
+        if self._cachedDirents.has_key(dirname):
+          self._cachedDirents[dirname].append(basename)
+
+      self._cachedDirents[fusepath] = ['.', '..']
+      self._invalidateStatCache(realpath)
+
+      return os.mkdir(realpath, 0755)
+
     finally:
       self.unlockFile(fusepath)
 
