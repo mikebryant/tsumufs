@@ -98,9 +98,8 @@ class FuseFile(tsumufs.Debuggable):
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode,
                                   self._uid, self._gid)
 
-    # Make sure we truncate any changes associated with this file as well.
     if self._fdFlags & os.O_TRUNC:
-      tsumufs.syncLog.truncateChanges(self._path, 0)
+      self.ftruncate(0)
 
     # If we were a new file, create a new change in the synclog for the new file
     # entry.
@@ -179,6 +178,7 @@ class FuseFile(tsumufs.Debuggable):
                                                offset,
                                                len(new_data),
                                                os.O_RDONLY)
+      self._debug('From cacheManager.readFile got %s' % repr(old_data))
 
       # Pad missing chunks on the old_data stream with NULLs, as NFS
       # would. Unfortunately during resyncing, we'll have to consider regions
@@ -258,15 +258,62 @@ class FuseFile(tsumufs.Debuggable):
     self._debug('opcode: ftruncate | size: %d' % size)
 
     try:
-      tsumufs.cacheManager.truncateFile(self._path, size)
+      statgoo = tsumufs.cacheManager.statFile(self._path)
 
-      # Truncate any changes to match
-      tsumufs.syncLog.truncateChanges(self._path, size)
+      # Get inode number
+      try:
+        inum = tsumufs.NameToInodeMap.nameToInode(tsumufs.nfsPathOf(self._path))
+      except KeyError, e:
+        try:
+          inum = statgoo.st_ino
+        except (IOError, OSError), e:
+          inum = -1
+
+      except Exception, e:
+        exc_info = sys.exc_info()
+
+        self._debug('*** Unhandled exception occurred')
+        self._debug('***     Type: %s' % str(exc_info[0]))
+        self._debug('***    Value: %s' % str(exc_info[1]))
+        self._debug('*** Traceback:')
+
+        for line in traceback.extract_tb(exc_info[2]):
+          self._debug('***    %s(%d) in %s: %s' % line)
+
+      # Add the truncated data to the synclog if this is an old file...
+      if not tsumufs.syncLog.isNewFile(self._path):
+        if size < statgoo.st_size:
+          data = tsumufs.cacheManager.readFile(self._path, size,
+                                               (statgoo.st_size - size),
+                                               os.O_RDONLY)
+          tsumufs.syncLog.addChange(self._path, inum, size, statgoo.st_size, data)
+        elif size > statgoo.st_size:
+          tsumufs.syncLog.addChange(self._path, inum, statgoo.st_size, size,
+                                    '\x00' * (size - statgoo.st_size))
+        else:
+          return 0
+
+      # ...and truncate the file
+      tsumufs.cacheManager.truncateFile(self._path, size)
+      return 0
 
     except OSError, e:
-      self._debug('Caught OSError: errno %d: %s'
+      self._debug('truncate: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
+
+    except Exception, e:
+      exc_info = sys.exc_info()
+
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
+
+    return 0
 
   @benchmark
   def lock(self, cmd, owner, **kw):

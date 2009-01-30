@@ -35,7 +35,6 @@ class InodeChange(tsumufs.Debuggable):
   uid         = None
   gid         = None
   symlinkPath = None
-  dataLength  = None
 
   def __repr__(self):
     '''
@@ -57,8 +56,6 @@ class InodeChange(tsumufs.Debuggable):
       rep += ' gid: %d' % self.gid
     if self.symlinkPath:
       rep += ' symlinkPath: %s' % self.symlinkPath
-    if self.dataLength:
-      rep += ' dataLength: %d' % self.dataLength
 
     rep += '>'
 
@@ -100,36 +97,3 @@ class InodeChange(tsumufs.Debuggable):
     '''
 
     return self.dataRegions
-
-  def truncateLength(self, newlength):
-    '''
-    Truncate any DataRegions and set our new dataLength.
-    '''
-
-    self._debug('Truncating to %d' % newlength)
-
-    for index in range(len(self.dataRegions)-1, -1, -1):
-      region = self.dataRegions[index]
-
-      if region.getStart() >= newlength:
-        self._debug('Removing %s -- start >= newlength' % region)
-        del self.dataRegions[index]
-
-      elif region.getEnd() > newlength:
-        # Recreate the dataregion with the new data reduced in size to match the
-        # new length
-        self._debug('Truncating %s -- end >= newlength' % region)
-        removal_length = region.getEnd() - newlength
-        newregion = DataRegion(region.getStart(),
-                               newlength,
-                               region.getData()[0:-removal_length])
-        self._debug('Truncated region is %s' % newregion)
-        self.dataRegions[index] = newregion
-
-  def setDataLength(self, newlength):
-    '''
-    Set the new data length.
-    '''
-
-
-    self.dataLength = newlength

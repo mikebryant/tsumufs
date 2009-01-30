@@ -277,7 +277,7 @@ class SyncLog(tsumufs.Debuggable):
     finally:
       self._lock.release()
 
-  def addUnlink(self, filename):
+  def addUnlink(self, filename, type_):
     '''
     Add a change to unlink a file. Additionally removes all previous changes in
     the queue for that filename.
@@ -340,7 +340,7 @@ class SyncLog(tsumufs.Debuggable):
       # Now add an additional syncitem to the queue to represent the unlink if
       # it wasn't a file that was created on the cache by the user.
       if not is_new_file:
-        syncitem = tsumufs.SyncItem('unlink', filename=filename)
+        syncitem = tsumufs.SyncItem('unlink', file_type=type_, filename=filename)
         self._syncQueue.append(syncitem)
 
     finally:
@@ -357,9 +357,6 @@ class SyncLog(tsumufs.Debuggable):
         self._syncQueue.append(syncitem)
         inodechange = tsumufs.InodeChange()
 
-        # Grab the data length initially so we can manage truncate calls.
-        datalength = tsumufs.cacheManager.statFile(fname).st_size
-        inodechange.setDataLength(datalength)
         self._inodeChanges[inum] = inodechange
 
       inodechange.addDataChange(start, end, data)

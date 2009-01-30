@@ -324,10 +324,22 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                   (result.st_uid, result.st_gid, result.st_mode))
 
       return result
+
     except OSError, e:
       self._debug('getattr: Caught OSError: %d: %s'
                   % (e.errno, e.strerror))
       raise
+
+    except Exception, e:
+      exc_info = sys.exc_info()
+
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
 
   @benchmark
   def setxattr(self, path, name, value, size):
@@ -508,7 +520,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                                   os.W_OK)
 
       tsumufs.cacheManager.removeCachedFile(path)
-      tsumufs.syncLog.addUnlink(path)
+      tsumufs.syncLog.addUnlink(path, 'file')
 
       return 0
     except OSError, e:
@@ -532,9 +544,9 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       tsumufs.cacheManager.access(context['uid'], path, os.W_OK)
 
       tsumufs.cacheManager.removeCachedFile(path)
-      tsumufs.syncLog.addUnlink(path)
+      tsumufs.syncLog.addUnlink(path, 'dir')
 
-      return True
+      return 0
     except OSError, e:
       self._debug('rmdir: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
@@ -646,6 +658,14 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     context = self.GetContext()
     file_stat = tsumufs.cacheManager.statFile(path)
 
+    try:
+      inode = tsumufs.NameToInodeMap.nameToInode(nfspath)
+    except KeyError, e:
+      try:
+        inode = file_stat.st_ino
+      except (IOError, OSError), e:
+        inode = -1
+
     self._debug('context: %s' % repr(context))
     self._debug('file: uid=%d, gid=%d, mode=%o' %
                 (file_stat.st_uid, file_stat.st_gid, file_stat.st_mode))
@@ -663,7 +683,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       self._debug('chmod: access granted -- chmoding')
       tsumufs.cacheManager.chmod(path, mode)
       self._debug('chmod: adding metadata change')
-      tsumufs.syncLog.addMetadataChange(path, file_stat.st_ino)
+      tsumufs.syncLog.addMetadataChange(path, inode)
 
       return 0
     except OSError, e:
@@ -696,7 +716,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
 
     try:
       tsumufs.cacheManager.chown(path, newuid, newgid)
-      tsumufs.syncLog.addMetadataChange(path, uid=newuid, gid=newgid)
+      tsumufs.syncLog.addMetadataChange(path, file_stat.st_ino)
 
       return 0
     except OSError, e:
@@ -705,7 +725,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       return -e.errno
 
   @benchmark
-  def truncate(self, path, size=None):
+  def truncate(self, path, size=0):
     '''
     Truncate a file to zero length.
 
@@ -717,21 +737,24 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self._debug('opcode: truncate | path: %s | size: %d' %
                (path, size))
 
-    context = self.GetContext()
-    tsumufs.cacheManager.access(context['uid'], path, os.W_OK)
-
     try:
-      # Truncate the file...
-      tsumufs.cacheManager.truncateFile(path, size)
+      fh = self.file_class(path, os.O_WRONLY)
+      fh.ftruncate(size)
+      fh.release(os.O_WRONLY)
+      del fh
 
-      # ...and truncate the changes to match.
-      tsumufs.syncLog.truncateChanges(path, size)
+    except Exception, e:
+      exc_info = sys.exc_info()
 
-      return 0
-    except OSError, e:
-      self._debug('truncate: Caught OSError: errno %d: %s'
-                  % (e.errno, e.strerror))
-      return -e.errno
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
+
+    return 0
 
   @benchmark
   def mknod(self, path, mode, dev):
@@ -779,20 +802,39 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     Creates a new directory with the specified mode.
 
     Returns:
-      True on successful creation, othwerise an errno code is
-      returned.
+      0 on successful creation, othewrise a negative errno code is returned.
     '''
 
     self._debug('opcode: mkdir | path: %s | mode: %o' % (path, mode))
 
     context = self.GetContext()
-    tsumufs.cacheManager.access(context['uid'], os.path.dirname(path), os.W_OK|os.X_OK)
+    tsumufs.cacheManager.access(context['uid'], os.path.dirname(path),
+                                os.W_OK|os.X_OK)
 
     try:
-      tsumufs.cacheManager.makeDir(path, mode)
-      tsumufs.syncLog.addNew('dir', filename=path)
+      try:
+        tsumufs.cacheManager.makeDir(path)
+        tsumufs.permsOverlay.setPerms(path,
+                                      context['uid'],
+                                      context['gid'],
+                                      mode | stat.S_IFDIR)
+        tsumufs.syncLog.addNew('dir', filename=path)
 
-      return 0
+        return 0
+
+      except Exception, e:
+        exc_info = sys.exc_info()
+
+        self._debug('*** Unhandled exception occurred')
+        self._debug('***     Type: %s' % str(exc_info[0]))
+        self._debug('***    Value: %s' % str(exc_info[1]))
+        self._debug('*** Traceback:')
+
+        for line in traceback.extract_tb(exc_info[2]):
+          self._debug('***    %s(%d) in %s: %s' % line)
+
+        raise
+
     except OSError, e:
       self._debug('mkdir: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
