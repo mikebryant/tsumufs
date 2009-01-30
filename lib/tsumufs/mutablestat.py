@@ -64,4 +64,4 @@ class MutableStat(object):
     return tuple(result)
 
   def __repr__(self):
-    return self[0:len(self._keys)]
+    return repr(self[0:len(self._keys)])
