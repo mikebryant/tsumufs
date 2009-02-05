@@ -231,7 +231,7 @@ class CacheManager(tsumufs.Debuggable):
     finally:
       self.unlockFile(fusepath)
 
-  def fakeOpen(self, fusepath, flags, uid, gid, mode=None):
+  def fakeOpen(self, fusepath, flags, uid=None, gid=None, mode=None):
     '''
     Attempt to open a file on the local disk.
 
@@ -1254,3 +1254,17 @@ def xattr_isDirty(type_, path, value=None):
   if tsumufs.cacheManager.isCachedToDisk(path):
     return '1'
   return '0'
+
+@extendedattribute('root', 'tsumufs.cached-dirents')
+def xattr_cachedDirents(type_, path, value=None):
+  if value:
+    return -errno.EOPNOTSUPP
+
+  return repr(tsumufs.cacheManager._cachedDirents)
+
+@extendedattribute('root', 'tsumufs.cached-stats')
+def xattr_cachedStats(type_, path, value=None):
+  if value:
+    return -errno.EOPNOTSUPP
+
+  return repr(tsumufs.cacheManager._cachedStats)
