@@ -43,7 +43,7 @@ from extendedattributes import *
 from metrics import *
 
 
-__version__ = (0, 12)
+__version__ = (0, 13)
 
 debugMode = False
 

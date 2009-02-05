@@ -1,3 +1,15 @@
+tsumufs (0.13-1ubuntu2) hardy; urgency=low
+
+  * New Applet - YAY
+  * corrected pathing order in src/tsumufs
+  * fixed build dependancies
+  * postinst perm fixes
+  * packager is a bit more automated
+  * make file fixes
+
+ -- Aaron Spangler <ajs@google.com>  Thu,  5 Feb 2009 11:41:05 -0800
+
+
 tsumufs (0.12-1ubuntu1) hardy; urgency=low
 
   added various contrib files for automounter and kerb impersonation
