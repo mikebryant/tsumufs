@@ -249,7 +249,6 @@ class NFSMount(tsumufs.Debuggable):
         return False
 
     try:
-      # TODO(ajs): for leopard, cmd = '/sbin/mount -t nfs'
       cmd = tsumufs.nfsMountCmd
       if tsumufs.mountOptions != None:
         cmd += ' -o ' + tsumufs.mountOptions
@@ -276,7 +275,7 @@ class NFSMount(tsumufs.Debuggable):
 
     self._debug('Unmounting NFS mount from %s' %
                tsumufs.nfsMountPoint)
-    rc = os.system('/usr/bin/sudo /bin/umount %s' % tsumufs.nfsMountPoint)
+    rc = os.system('%s %s' % (tsumufs.nfsUnmountCmd, tsumufs.nfsMountPoint))
 
     if rc != 0:
       self._debug('Unmount of NFS failed.')

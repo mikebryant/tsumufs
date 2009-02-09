@@ -211,6 +211,11 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                            default='/usr/bin/sudo -u root /bin/mount -t nfs',
                            help=('Set the NFS mount command '
                                  '[default: %default]'))
+    self.parser.add_option(mountopt='nfsunmountcmd',
+                           dest='nfsUnmountCmd',
+                           default='/usr/bin/sudo -u root /bin/umount %s',
+                           help=('Set the NFS unmount command '
+                                 '[default: %default]'))
     self.parser.add_option(mountopt='cachebasedir',
                            dest='cacheBaseDir',
                            default='/var/cache/tsumufs',
