@@ -250,7 +250,7 @@ class NFSMount(tsumufs.Debuggable):
 
     try:
       # TODO(ajs): for leopard, cmd = '/sbin/mount -t nfs'
-      cmd = '/usr/bin/sudo -u root /bin/mount -t nfs'
+      cmd = tsumufs.nfsMountCmd
       if tsumufs.mountOptions != None:
         cmd += ' -o ' + tsumufs.mountOptions
       cmd += ' ' + tsumufs.mountSource + ' ' + tsumufs.nfsMountPoint

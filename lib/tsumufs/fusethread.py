@@ -206,6 +206,11 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                            help=('Set the directory name of the nfs mount '
                                  'point [default: calculated based upon the '
                                  'source]'))
+    self.parser.add_option(mountopt='nfsmountcmd',
+                           dest='nfsMountCmd',
+                           default='/usr/bin/sudo -u root /bin/mount -t nfs',
+                           help=('Set the NFS mount command '
+                                 '[default: %default]'))
     self.parser.add_option(mountopt='cachebasedir',
                            dest='cacheBaseDir',
                            default='/var/cache/tsumufs',

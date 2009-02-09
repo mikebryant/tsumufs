@@ -56,8 +56,8 @@ mountOptions = None
 
 nfsBaseDir    = '/var/lib/tsumufs/nfs'
 nfsMountPoint = None
+nfsMountCmd   = '/usr/bin/sudo -u root /bin/mount -t nfs'
 nfsMount      = None
-
 cacheBaseDir = '/var/cache/tsumufs'
 cacheSpecDir = '/var/lib/tsumufs/cachespec'
 cachePoint   = None
