@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <dirent.h>
 #include <errno.h>
 #include <string.h>
 
@@ -32,6 +33,9 @@
 
 const char *g_existing_dir = "dir";
 const char *g_missing_dir = "this.file.shouldnt.exist";
+const char *g_new_file = "this.file.shouldnt.exist/new.empty.file";
+const char *g_new_file_basename = "new.empty.file";
+const char *g_data = "foo bar baz\n";
 
 
 int connected(void)
@@ -154,6 +158,177 @@ int test_dir_nonexist(void)
     TEST_COMPLETE_OK();
 }
 
+int test_mkdir_with_new_file(void)
+{
+    int result = 0;
+    int old_errno = 0;
+    FILE *fp = NULL;
+    DIR *dp = NULL;
+    struct dirent *dir = NULL;
+
+    TEST_START();
+
+    result = mkdir(g_missing_dir, 0755);
+    if (result < 0) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("mkdir of %s failed in %s\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    fp = fopen(g_new_file, "w+");
+    if (!fp) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("fopen(%s, 'w+') failed in %s\n"
+                           "Errno %d: %s\n",
+                           g_new_file, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    result = fwrite(g_data, 1, strlen(g_data), fp);
+    if (result != strlen(g_data)) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("fwrite to %s failed in %s\n"
+                           "Errno %d: %s\n",
+                           g_new_file, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    fclose(fp);
+
+    dp = opendir(g_missing_dir);
+    if (!dp) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("opendir of %s failed in %s\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    /* TODO(functionals): Make this not depend on dir ordering! */
+
+    /* Read . */
+    dir = readdir(dp);
+    if (!dir) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: premature EOD\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    if (strcmp(dir->d_name, ".") != 0) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: %s is not .\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__, dir->d_name,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    if (dir->d_type != DT_DIR) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: %s is not a directory\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__, dir->d_name,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    /* Read .. */
+    dir = readdir(dp);
+    if (!dir) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: premature EOD\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    if (strcmp(dir->d_name, "..") != 0) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: %s is not ..\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__, dir->d_name,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    if (dir->d_type != DT_DIR) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: %s is not a directory\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__, dir->d_name,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    /* Read g_new_file */
+    dir = readdir(dp);
+    if (!dir) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: premature EOD\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    if (strcmp(dir->d_name, g_new_file_basename) != 0) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: %s is not %s\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__, dir->d_name,
+                           g_new_file_basename, old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    if (dir->d_type != DT_REG) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s failed in %s: %s is not a regular file\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__, dir->d_name,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    /* Read EOD */
+    dir = readdir(dp);
+    if (dir) {
+        old_errno = errno;
+        TEST_FAIL();
+        TEST_COMPLETE_FAIL("readdir of %s succeeded in %s: expected EOD\n"
+                           "Errno %d: %s\n",
+                           g_missing_dir, __func__,
+                           old_errno, strerror(old_errno));
+    }
+    TEST_OK();
+
+    closedir(dp);
+
+    TEST_COMPLETE_OK();
+}
+
 int main(void)
 {
     int result = 0;
@@ -170,6 +345,7 @@ int main(void)
 
     if (!test_dir_eexist()) result = 1;
     if (!test_dir_nonexist()) result = 1;
+    if (!test_mkdir_with_new_file()) result = 1;
 
     return result;
 }
