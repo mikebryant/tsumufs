@@ -133,11 +133,19 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 		export TEST_DIR=$(TEST_DIR);   \
 		cd $(TEST_DIR);                \
 		if ! $$OLDCWD/$$test; then     \
+			echo "!!! $$test Failed."; \
+			if [ ! -z "$(TEST_ONLY)" ]; then \
+				echo "Starting emergency holographic shell to examine the rubble."; \
+				CACHE_DIR=$(TEST_CACHE_DIR) \
+				NFS_DIR=$(TEST_NFS_DIR)     \
+				TEST_DIR=$(TEST_DIR)        \
+				PS1='\[\e[m\e[1;31m\][TSUMUFS]\[\e[0m\] \h:\w\$$ ' \
+				bash -norc;                 \
+			fi;                        \
 			cd $$OLDCWD;               \
 			$(UMOUNT_CMD) $(TEST_DIR); \
 			$(UMOUNT_CMD) $(TEST_NFS_DIR); \
-			echo "!!! $$test Failed."; \
-            continue;                  \
+			continue;                  \
 		fi;                            \
 		cd $$OLDCWD;                   \
 		$(UMOUNT_CMD) $(TEST_DIR);     \
