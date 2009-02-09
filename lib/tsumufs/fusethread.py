@@ -496,16 +496,18 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       context = self.GetContext()
       tsumufs.cacheManager.access(context['uid'], path, os.R_OK)
 
-      dirents = [ '.', '..' ]
-      dirents.extend(tsumufs.cacheManager.getDirents(path))
+      for filename in tsumufs.cacheManager.getDirents(path):
+        if filename in [ '.', '..' ]:
+          dirent = fuse.Direntry(filename)
+          dirent.type = stat.S_IFDIR
+          dirent.offset = offset
+        else:
+          pathname = os.path.join(path, filename)
+          stat_result = tsumufs.cacheManager.statFile(pathname)
 
-      for filename in dirents:
-        pathname = os.path.join(path, filename)
-        stat_result = tsumufs.cacheManager.statFile(pathname)
-
-        dirent        = fuse.Direntry(filename)
-        dirent.type   = stat.S_IFMT(stat_result.st_mode)
-        dirent.offset = offset
+          dirent        = fuse.Direntry(filename)
+          dirent.type   = stat.S_IFMT(stat_result.st_mode)
+          dirent.offset = offset
 
         yield dirent
     except OSError, e:

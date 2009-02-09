@@ -341,13 +341,14 @@ class CacheManager(tsumufs.Debuggable):
 
         nfs_dirents = set(self._cachedDirents[fusepath])
         cached_dirents = set(os.listdir(tsumufs.cachePathOf(fusepath)))
-        final_dirents_list = []
+        final_dirents_list = [ '.', '..' ]
 
         for dirent in nfs_dirents.union(cached_dirents):
           final_dirents_list.append(dirent)
 
         self._debug('nfs_dirents = %s' % nfs_dirents);
         self._debug('cached_dirents = %s' % cached_dirents);
+        self._debug('final_dirents_list = %s' % final_dirents_list);
 
         return final_dirents_list
 
@@ -567,7 +568,7 @@ class CacheManager(tsumufs.Debuggable):
         if self._cachedDirents.has_key(dirname):
           self._cachedDirents[dirname].append(basename)
 
-      self._cachedDirents[fusepath] = ['.', '..']
+      self._cachedDirents[fusepath] = []
       self._invalidateStatCache(realpath)
 
       return os.mkdir(realpath, 0755)
