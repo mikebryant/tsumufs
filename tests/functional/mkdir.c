@@ -69,6 +69,17 @@ void pause_sync(void)
     }
 }
 
+void set_disconnect(void)
+{
+    int result;
+
+    result = setxattr(".", "tsumufs.force-disconnect", "1", strlen("1"), XATTR_REPLACE);
+    if (result < 0) {
+        perror("Unable to set force-disconnect.");
+        exit(1);
+    }
+}
+
 int test_dir_eexist(void)
 {
     int result = 0;
@@ -325,6 +336,8 @@ int test_mkdir_with_new_file(void)
     TEST_OK();
 
     closedir(dp);
+    unlink(g_new_file);
+    rmdir(g_missing_dir);
 
     TEST_COMPLETE_OK();
 }
@@ -342,6 +355,17 @@ int main(void)
 
     pause_sync();
     sleep(1);
+
+    if (!test_dir_eexist()) result = 1;
+    if (!test_dir_nonexist()) result = 1;
+    if (!test_mkdir_with_new_file()) result = 1;
+
+    printf("Disconnecting.\n");
+    set_disconnect();
+    while (connected()) {
+        printf("Waiting for tsumufs to disconnect.\n");
+        sleep(1);
+    }
 
     if (!test_dir_eexist()) result = 1;
     if (!test_dir_nonexist()) result = 1;
