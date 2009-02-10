@@ -265,11 +265,22 @@ class CacheManager(tsumufs.Debuggable):
     try:
       opcodes = self._genCacheOpcodes(fusepath)
 
+      if flags & os.O_CREAT:
+        if 'enoent' in opcodes:
+          self._debug('O_CREAT and enoent in opcodes. Mogrifying.')
+          opcodes.remove('enoent')
+          if 'use-nfs' in opcodes:
+            opcodes.remove('use-nfs')
+          opcodes.append('use-cache')
+          self._debug('Opcodes are now %s' % opcodes)
+
       try:
         self._validateCache(fusepath, opcodes)
       except OSError, e:
-        if ((e.errno == errno.ENOENT)
-            and (flags & os.O_CREAT)):
+        if e.errno != errno.ENOENT:
+          raise
+
+        if flags & os.O_CREAT:
           self._debug('Skipping over ENOENT since we want O_CREAT')
           pass
         else:
@@ -354,7 +365,11 @@ class CacheManager(tsumufs.Debuggable):
 
       else:
         self._debug('NFS is unavailable -- returning cached disk dir stuff.')
-        return os.listdir(tsumufs.cachePathOf(fusepath))
+
+        dirents = [ '.', '..' ]
+        dirents.extend(os.listdir(tsumufs.cachePathOf(fusepath)))
+
+        return dirents
 
     finally:
       self.unlockFile(fusepath)
@@ -560,7 +575,7 @@ class CacheManager(tsumufs.Debuggable):
         if e.errno != errno.ENOENT:
           raise
 
-      realpath = self._generatePath(fusepath, opcodes)
+      realpath = tsumufs.cachePathOf(fusepath)
       dirname  = os.path.dirname(fusepath)
       basename = os.path.basename(fusepath)
 
@@ -571,6 +586,7 @@ class CacheManager(tsumufs.Debuggable):
       self._cachedDirents[fusepath] = []
       self._invalidateStatCache(realpath)
 
+      self._debug("Making directory %s" % realpath)
       return os.mkdir(realpath, 0755)
 
     finally:
