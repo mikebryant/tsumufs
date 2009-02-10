@@ -824,33 +824,32 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
                                 os.W_OK|os.X_OK)
 
     try:
-      try:
-        tsumufs.cacheManager.makeDir(path)
-        tsumufs.permsOverlay.setPerms(path,
-                                      context['uid'],
-                                      context['gid'],
-                                      mode | stat.S_IFDIR)
-        tsumufs.syncLog.addNew('dir', filename=path)
+      tsumufs.cacheManager.makeDir(path)
+      tsumufs.permsOverlay.setPerms(path,
+                                    context['uid'],
+                                    context['gid'],
+                                    mode | stat.S_IFDIR)
+      tsumufs.syncLog.addNew('dir', filename=path)
 
-        return 0
-
-      except Exception, e:
-        exc_info = sys.exc_info()
-
-        self._debug('*** Unhandled exception occurred')
-        self._debug('***     Type: %s' % str(exc_info[0]))
-        self._debug('***    Value: %s' % str(exc_info[1]))
-        self._debug('*** Traceback:')
-
-        for line in traceback.extract_tb(exc_info[2]):
-          self._debug('***    %s(%d) in %s: %s' % line)
-
-        raise
+      return 0
 
     except OSError, e:
       self._debug('mkdir: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
+
+    except Exception, e:
+      exc_info = sys.exc_info()
+
+      self._debug('*** Unhandled exception occurred')
+      self._debug('***     Type: %s' % str(exc_info[0]))
+      self._debug('***    Value: %s' % str(exc_info[1]))
+      self._debug('*** Traceback:')
+
+      for line in traceback.extract_tb(exc_info[2]):
+        self._debug('***    %s(%d) in %s: %s' % line)
+
+      raise
 
   @benchmark
   def utime(self, path, times):
