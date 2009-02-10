@@ -57,7 +57,7 @@ mountOptions = None
 nfsBaseDir    = '/var/lib/tsumufs/nfs'
 nfsMountPoint = None
 nfsMountCmd   = '/usr/bin/sudo -u root /bin/mount -t nfs'
-nfsUmountCmd  = '/usr/bin/sudo -u root /bin/umount'
+nfsUnmountCmd = '/usr/bin/sudo -u root /bin/umount'
 nfsMount      = None
 
 cacheBaseDir = '/var/cache/tsumufs'
