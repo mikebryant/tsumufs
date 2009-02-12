@@ -183,7 +183,7 @@ class NFSMount(tsumufs.Debuggable):
           self._debug('Triggering a disconnect.')
 
           tsumufs.nfsAvailable.clear()
-          tsumufs.nfsAvailable.notifyAll()
+          tsumufs.nfsAvailable.notifyAll() # TODO: AttributeError
 
           raise tsumufs.NFSMountError()
         else:
