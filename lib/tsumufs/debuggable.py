@@ -66,6 +66,16 @@ class Debuggable(object):
         print() takes.
     '''
 
+    levels = {
+      'CacheManager(_genCacheOpcodes)': 9,
+      'CacheManager(_validateCache)':   9,
+      'CacheManager(_generatePath)':    9,
+      'CacheManager(_cacheStat)':       9,
+      'CacheManager(_cacheFile)':       9,
+      'CacheManager(_cacheDir)':        9,
+      'CacheManager(statFile)':         9,
+      }
+
     self._validateName()
 
     if tsumufs.debugMode:
@@ -74,11 +84,18 @@ class Debuggable(object):
         tsumufs.syslogOpen = True
         self._debug('Opened syslog.')
 
-      s = '%s(%s): %s' % (self._getName(), self._getCaller()[2], args)
+      name = '%s(%s)' % (self._getName(), self._getCaller()[2])
+      s = '%s: %s' % (name, args)
       if len(s) > 252:
         s = s[:252] + '...'
 
-      syslog.syslog(syslog.LOG_WARNING, s)
+      try:
+        level = levels[name]
+      except KeyError:
+        level = 0
+
+      if tsumufs.debugLevel >= level:
+        syslog.syslog(syslog.LOG_WARNING, s)
 
   def _getCaller(self, backsteps=1):
     '''

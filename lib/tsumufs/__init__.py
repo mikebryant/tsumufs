@@ -46,6 +46,7 @@ from metrics import *
 __version__ = (0, 13)
 
 debugMode = False
+debugLevel = 0
 
 progName   = None
 syslogOpen = False

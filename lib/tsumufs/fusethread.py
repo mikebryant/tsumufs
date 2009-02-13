@@ -255,8 +255,13 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
     self.parser.add_option('-d', '--debug',
                            dest='debugMode',
                            action='store_true',
-                           default=False,
                            help='Enable debug messages. [default: %default]')
+    self.parser.add_option('-l', '--debug-level',
+                           dest='debugLevel',
+                           type='int',
+                           action='store',
+                           help=('The debug level at which to output'
+                                 'data. [default: 0]'))
 
     # GO!
     self.parse(values=tsumufs, errex=1)

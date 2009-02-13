@@ -32,6 +32,8 @@ DESTDIR  := /
 BUILDDIR := $(CURDIR)/debian/tsumufs
 PROJECT  := tsumufs
 
+DEBUG_LEVEL := 0
+
 ifndef PYCHECKER
 PYCHECKER := /usr/bin/pychecker
 endif
@@ -80,7 +82,7 @@ test-run: test-environment clean $(TEST_DIR) $(TEST_CACHE_DIR) $(TEST_NFS_DIR)
 	rm -rf tests/filesystem
 	tar xf tests/filesystem.tar -C tests/
 
-	src/tsumufs -d -O $(NFSOPTS) \
+	src/tsumufs -d -l $(DEBUG_LEVEL) -O $(NFSOPTS) \
 		-o nfsmountpoint=$(TEST_NFS_DIR),cachebasedir=$(TEST_CACHE_DIR) \
 		$(NFSHOME) $(TEST_DIR)
 
@@ -124,8 +126,8 @@ functional-tests: test-environment clean $(FUNC_TESTS) $(TEST_DIR) $(TEST_CACHE_
 		tar xf tests/filesystem.tar -C tests/; \
 		echo;                          \
 		echo --- $$test;               \
-		src/tsumufs -d -O $(NFSOPTS)   \
-			-o nfsmountpoint=$(TEST_NFS_DIR),cachepoint=$(TEST_CACHE_DIR) \
+		src/tsumufs -d -l $(DEBUG_LEVEL) -O $(NFSOPTS)   \
+			-o nfsmountpoint=$(TEST_NFS_DIR),cachebasedir=$(TEST_CACHE_DIR) \
 			$(NFSHOME) $(TEST_DIR);    \
 		OLDCWD=$$(pwd);                \
 		export CACHE_DIR=$(TEST_CACHE_DIR); \
