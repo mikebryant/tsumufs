@@ -326,7 +326,7 @@ class FuseThread(tsumufs.Triumvirate, Fuse):
       None
     '''
 
-    self._debug('opcode: getattr | self: %s | path: %s' % (repr(self), path))
+    self._debug('opcode: getattr (%d) | self: %s | path: %s' % (self.GetContext()['pid'], repr(self), path))
 
     try:
       result = tsumufs.cacheManager.statFile(path)
