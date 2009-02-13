@@ -33,7 +33,8 @@ from extendedattributes import extendedattribute
 
 CONFLICT_PREAMBLE = '''
 # New changeset at %(timestamp)d
-set = ChangeSet(%(timestamp)d)'''
+set = ChangeSet(%(timestamp)d)
+'''
 
 CONFLICT_POSTAMBLE = '''
 try:
@@ -110,7 +111,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
     # Horrible hack, but it works to test for the existance of a file.
     try:
       tsumufs.nfsMount.readFileRegion(fusepath, 0, 0)
-    except IOError, e:
+    except (OSError, IOError), e:
       if e.errno != errno.ENOENT:
         return True
 
@@ -236,32 +237,49 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
     else:
       fusepath = item.getOldFilename()
 
-    conflictpath = fusepath.replace('/', '-')
-    conflictpath = os.path.join(tsumufs.conflictDir, fusepath)
+    if fusepath[0] == '/':
+      conflictpath = fusepath[1:]
+    else:
+      conflictpath = fusepath
+
+    conflictpath = conflictpath.replace('/', '-')
+    conflictpath = os.path.join(tsumufs.conflictDir, conflictpath)
+    self._debug('Using %s as the conflictpath.' % conflictpath)
 
     try:
       tsumufs.cacheManager.lockFile(fusepath)
       isNewFile = True
+      fd = None
 
       try:
+        self._debug('Attempting open of %s' % conflictpath)
+        tsumufs.cacheManager.fakeOpen(conflictpath,
+                                      os.O_CREAT|os.O_APPEND|os.O_RDWR,
+                                      0700 | stat.S_IFREG);
         fd = os.open(tsumufs.cachePathOf(conflictpath),
-                     os.O_CREAT|os.O_APPEND|os.O_RDWR|os.O_EXCL,
-                     0700)
+                     os.O_CREAT|os.O_APPEND|os.O_RDWR,
+                     0700 | stat.S_IFREG)
         isNewFile = True
       except OSError, e:
         if e.errno != errno.EEXIST:
           raise
 
         isNewFile = False
+
+        self._debug('File existed -- reopening as O_APPEND' % conflictpath)
+        tsumufs.cacheManager.fakeOpen(conflictpath,
+                                      os.O_APPEND|os.O_RDWR|os.O_EXCL,
+                                      0700 | stat.S_IFREG);
         fd = os.open(tsumufs.cachePathOf(conflictpath),
                      os.O_APPEND|os.O_RDWR|os.O_EXCL,
-                     0700)
+                     0700 | stat.S_IFREG)
 
       fp = os.fdopen(fd, 'r+')
       startPos = fp.tell()
       fp.close()
 
       # Write the changeset preamble
+      self._debug('Writing preamble.')
       tsumufs.cacheManager.writeFile(conflictpath, -1,
                                      CONFLICT_PREAMBLE %
                                      { 'timestamp': time.time() },
@@ -270,6 +288,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
       if item.getType() == 'new':
         # TODO(conflicts): Write the entire file to the changeset as one large
         # patch.
+        self._debug('New file -- don\'t know what to do -- skipping.')
         pass
 
       if item.getType() == 'change':
@@ -277,6 +296,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
         # TODO(conflicts): Propogate truncates!
 
         # Write changes to file
+        self._debug('Writing changes to conflict file.')
         for region in change.getDataChanges():
           data = tsumufs.cacheManager.readFile(fusepath,
                                                region.getStart(),
@@ -289,6 +309,7 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
       if item.getType() == 'link':
         # TODO(conflicts): Implement links.
+        self._debug('Link file -- don\'t know what to do -- skipping.')
         pass
 
       if item.getType() == 'unlink':
@@ -296,37 +317,44 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
       if item.getType() == 'symlink':
         # TODO(conflicts): Implement symlinks.
+        self._debug('Symlink file -- don\'t know what to do -- skipping.')
         pass
 
       if item.getType() == 'rename':
+        self._debug('Rename file -- don\'t know what to do -- skipping.')
         pass
 
+      self._debug('Writing postamble.')
       tsumufs.cacheManager.writeFile(conflictpath, -1, CONFLICT_POSTAMBLE,
                                      os.O_APPEND|os.O_RDWR)
 
+      self._debug('Getting file size.')
       fp = open(tsumufs.cachePathOf(conflictpath), 'r+')
       fp.seek(0, 2)
       endPos = fp.tell()
       fp.close()
 
       if isNewFile:
-        tsumufs.syncLog.addNew('file', filename=fusepath)
+        self._debug('Conflictfile was new -- adding to synclog.')
+        tsumufs.syncLog.addNew('file', filename=conflictpath)
+
+        perms = tsumufs.cacheManager.statFile(fusepath)
+        tsumufs.permsOverlay.setPerms(conflictpath, perms.st_uid, perms.st_gid,
+                                      0700 | stat.S_IFREG)
+        self._debug('Setting permissions to (%d, %d, %o)' % (perms.st_uid,
+                                                             perms.st_gid,
+                                                             0700 | stat.S_IFREG))
       else:
+        self._debug('Conflictfile was preexisting -- adding change.')
         tsumufs.syncLog.addChange(conflictpath, -1,
                                   startPos, endPos,
                                   '\x00' * (endPos - startPos))
     finally:
       tsumufs.cacheManager.unlockFile(fusepath)
 
-  def _validateConflictDir(self, item, change):
-    if item.getType() != 'rename':
-      fusepath = item.getFilename()
-    else:
-      fusepath = item.getOldFilename()
-
+  def _validateConflictDir(self, conflicted_path):
     try:
       try:
-        tsumufs.cacheManager.lockFile(fusepath)
         tsumufs.cacheManager.lockFile(tsumufs.conflictDir)
 
         try:
@@ -336,14 +364,18 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
           if e.errno != errno.ENOENT:
             raise
 
-          perms = tsumufs.cacheManager.statFile(fusepath)
+          perms = tsumufs.cacheManager.statFile(conflicted_path)
 
           self._debug('Conflict dir missing -- creating.')
           tsumufs.cacheManager.makeDir(tsumufs.conflictDir)
+
+          self._debug('Setting permissions.')
           tsumufs.permsOverlay.setPerms(tsumufs.conflictDir,
                                         perms.st_uid,
                                         perms.st_gid,
                                         0700 | stat.S_IFDIR)
+
+          self._debug('Adding to synclog.')
           tsumufs.syncLog.addNew('dir', filename=tsumufs.conflictDir)
 
         else:
@@ -362,7 +394,6 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
     finally:
       tsumufs.cacheManager.unlockFile(tsumufs.conflictDir)
-      tsumufs.cacheManager.unlockFile(fusepath)
 
   def _handleConflicts(self, item, change):
     if item.getType() != 'rename':
@@ -371,12 +402,12 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
       fusepath = item.getOldFilename()
 
     self._debug('Validating %s exists.' % tsumufs.conflictDir)
-    self._validateConflictDir(item, change)
+    self._validateConflictDir(fusepath)
 
     self._debug('Writing changeset to conflict file.')
     self._writeChangeSet(item, change)
 
-    self._debug('De-caching file %s.')
+    self._debug('De-caching file %s.' % fusepath)
     tsumufs.cacheManager.removeCachedFile(fusepath)
 
   def _handleChange(self, item, change):

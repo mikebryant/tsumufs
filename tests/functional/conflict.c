@@ -58,11 +58,15 @@ void pause_sync(void)
 {
     int result;
 
+    printf("Setting pause-sync...");
+    fflush(stdout);
     result = setxattr(".", "tsumufs.pause-sync", "1", strlen("1"), XATTR_REPLACE);
     if (result < 0) {
         perror("Unable to set pause-sync.");
         exit(1);
     }
+    sleep(5);
+    printf("Done.\n");
 }
 
 void unpause_sync(void)
@@ -81,7 +85,7 @@ int test_regular_file_conflict(void)
     struct stat buf;
     char *fusestr = "foo";
     char *nfsstr  = "xxx";
-    char *conflictpath = "./.tsumufs-conflicts/-regular.file";
+    char *conflictpath = "./.tsumufs-conflicts/regular.file";
     char fusepath[MAXLEN];
     char nfspath[MAXLEN];
     int bytes_written = 0;
