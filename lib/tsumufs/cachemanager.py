@@ -55,6 +55,9 @@ class CacheManager(tsumufs.Debuggable):
   _fileLocks = {}          # A hash of paths to locks to serialize
                            # access to files in the cache.
 
+  _cacheSpec = {}          # A hash of paths to bools to remember the policy of
+                           # whether files or parent directories (recursively)
+
   def __init__(self):
     # Install our custom exception handler so that any exceptions are
     # output to the syslog rather than to /dev/null.
@@ -975,10 +978,10 @@ class CacheManager(tsumufs.Debuggable):
   def _shouldCacheFile(self, fusepath):
     '''
     Method to determine if a file referenced by fusepath should be
-    cached, as aoccording to the cachespec file.
+    cached, as aoccording to the cachespec.
 
-    Note: Currently this method only returns True, and none of the
-    cachespec information is actually processed or used.
+    Note: If a file is not explicitly listed, but any parent directory
+    above the file is, the policy is inherited.
 
     Returns:
       Boolean. True if the file should be cached.
@@ -987,6 +990,21 @@ class CacheManager(tsumufs.Debuggable):
       None
     '''
 
+    # special case
+    if fusepath == "/":
+      return True
+
+    path = fusepath
+    while path != "/":
+      if self._cacheSpec.has_key(path):
+        self._debug('caching of %s is %s because of policy on %s' % (
+                    fusepath, self._cacheSpec[path], path))
+        return self._cacheSpec[path]
+      # not found explicity, so inherit policy from parent dir
+      (path, base) = os.path.split(path)
+
+    # return default policy
+    self._debug('default caching policy on %s' % fusepath)
     if tsumufs.syncLog.isUnlinkedFile(fusepath):
       return False
     else:
@@ -1291,3 +1309,31 @@ def xattr_cachedStats(type_, path, value=None):
     return -errno.EOPNOTSUPP
 
   return repr(tsumufs.cacheManager._cachedStats)
+
+@extendedattribute('any', 'tsumufs.should-cache')
+def xattr_cachedStats(type_, path, value=None):
+
+  if value:
+    # set the value
+    if value == '-':
+      tsumufs.cacheManager._cacheSpec[path] = False
+    elif value == '+':
+      tsumufs.cacheManager._cacheSpec[path] = True
+    elif value == '=':
+      if tsumufs.cacheManager._cacheSpec.has_key(path):
+        del tsumufs.cacheManager._cacheSpec[path]
+    else:
+      return -errno.EOPNOTSUPP
+    return 0 # set is successfull 
+
+  if tsumufs.cacheManager._cacheSpec.has_key(path):
+    if tsumufs.cacheManager._cacheSpec[path]:
+      return '+'
+    else:
+      return '-'
+
+  # not explicity named, so use our lookup code
+  if tsumufs.cacheManager._shouldCacheFile(path):
+    return '= (+)'
+  return '= (-)'
+
