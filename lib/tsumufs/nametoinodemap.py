@@ -28,6 +28,8 @@ class NameToInodeMap(tsumufs.Debuggable):
   Class to help map pathnames to inode numbers and vise-versa.
   '''
 
+  # TODO(ajs): This whole thing breaks when linkcount > 1
+
   _namei = {}  # A hash of pathname -> inode number
   _iname = {}  # A hash of inode numbers -> a list of pathnames
 
