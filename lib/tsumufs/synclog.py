@@ -450,6 +450,8 @@ class SyncLog(tsumufs.Debuggable):
     return (syncitem, change)
 
   def finishedWithChange(self, syncitem, remove_item=True):
+    self._lock.acquire()
+
     try:
       # Ensure the appropriate locks are unlocked
       if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
