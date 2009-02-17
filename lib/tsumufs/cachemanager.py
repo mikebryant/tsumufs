@@ -1278,6 +1278,15 @@ class CacheManager(tsumufs.Debuggable):
 
     self._fileLocks[fusepath].release()
 
+  def saveCachePolicy(self, filename):
+    pass
+
+  def loadCachePolicy(self, filename):
+    f = open(filename, 'r')
+    for line in f.readlines()
+      print line
+    f.close()
+
 @extendedattribute('any', 'tsumufs.in-cache')
 def xattr_inCache(type_, path, value=None):
   if value:
