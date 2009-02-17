@@ -482,7 +482,19 @@ class SyncThread(tsumufs.Triumvirate, threading.Thread):
 
             # Mark the change as complete.
             self._debug('Marking change %s as complete.' % repr(item))
-            tsumufs.syncLog.finishedWithChange(item)
+
+            try:
+              tsumufs.syncLog.finishedWithChange(item)
+            except Exception, e:
+              exc_info = sys.exc_info()
+
+              self._debug('*** Unhandled exception occurred')
+              self._debug('***     Type: %s' % str(exc_info[0]))
+              self._debug('***    Value: %s' % str(exc_info[1]))
+              self._debug('*** Traceback:')
+
+              for line in traceback.extract_tb(exc_info[2]):
+                self._debug('***    %s(%d) in %s: %s' % line)
 
           except IOError, e:
             self._debug('Caught an IOError in the middle of handling a change: '
