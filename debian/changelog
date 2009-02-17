@@ -1,3 +1,24 @@
+tsumufs (0.14-1ubuntu1) hardy; urgency=low
+
+  * first whack at caching policies
+  * clean up state machine a bit
+  * Completing the initial collision avoidance and resolution system.
+  * Adding debug squelch levels.
+  * add pid debugginging on stats
+  * update todo
+  * Add todo
+  * Making mkdir(2)'s exception handling a bit more intuitive and correct.
+  * Making mkdir and fakeOpen handle ENOENT properly in disconnected mode.
+  * Adding disconnected tests.
+  * Fixing a spellin error that caused unmounts to fail.
+  * Making getDirents actually return the fake . and .. entries, and having readdir() fake the results.
+  * Adding in an additional test case.
+  * Adding the emergency holographic shell when a specific functional test is run.
+  * Adding in support for changing the umount command as well.
+  * Adding in the support for changing the NFS mount command.
+  * Adding in some additional xattrs, and additionally making the uid/gid parts of the fakeOpen call optional.
+
+ -- Aaron Spangler <ajs@google.com>  Tue, 17 Feb 2009 13:15:45 -0800
 tsumufs (0.13-1ubuntu2) hardy; urgency=low
 
   * New Applet - YAY
