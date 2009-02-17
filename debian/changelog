@@ -1,3 +1,10 @@
+tsumufs (0.14-1ubuntu2) hardy; urgency=low
+
+  * log sync thread erros
+  * make sync log locks not die on release
+
+ -- Aaron Spangler <ajs@google.com>  Tue, 17 Feb 2009 13:28:02 -0800
+
 tsumufs (0.14-1ubuntu1) hardy; urgency=low
 
   * first whack at caching policies
