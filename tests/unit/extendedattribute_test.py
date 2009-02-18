@@ -65,10 +65,10 @@ class GetAllTest(unittest.TestCase):
 
   def testGetAll(self):
     result = ExtendedAttributes.getAllXAttrs('root', '/')
-    self.assertEquals({ 'tsumufs.test': ('root', '/') }, result)
+    self.assertEquals({ 'test': ('root', '/') }, result)
 
     result = ExtendedAttributes.getAllXAttrs('dir', '/')
-    self.assertEquals({ 'tsumufs.test2': ('dir', '/') }, result)
+    self.assertEquals({ 'test2': ('dir', '/') }, result)
 
 
 class InvalidGetTest(unittest.TestCase):
