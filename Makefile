@@ -168,7 +168,7 @@ force-shutdown:
 check-syntax:
 	gcc -o /dev/null -S $(CHK_SOURCES)
 
-check: check-syntax
+check:
 	-cd lib; $(PYCHECKER) -F ../pycheckerrc tsumufs/__init__.py; cd ..
 	-$(PYCHECKER) -F pycheckerrc $(PY_OS_MOCKS)
 	-$(PYCHECKER) -F pycheckerrc $(PY_SOURCE)
