@@ -1280,7 +1280,7 @@ class CacheManager(tsumufs.Debuggable):
 
   def saveCachePolicy(self, filename):
     f = open(filename, 'w')
-    for k,v in self.cacheSpec.iteritems():
+    for k,v in self._cacheSpec.iteritems():
       f.write("%s:%s\n" % (k,v))
     f.close()
 
@@ -1288,7 +1288,7 @@ class CacheManager(tsumufs.Debuggable):
     f = open(filename, 'r')
     for line in f.readlines():
       k,v = line.strip().split(':')
-      self.cacheSpec[k] = v
+      self._cacheSpec[k] = v
     f.close()
 
 @extendedattribute('any', 'tsumufs.in-cache')
