@@ -34,7 +34,7 @@ from extendedattributes import extendedattribute
 from metrics import benchmark
 
 
-class FuseThread(tsumufs.Triumvirate, Fuse):
+class FuseThread(tsumufs.Debuggable, Fuse):
   '''
   Class that implements the prototype design of the TsumuFS
   filesystem. This class provides the main interface to Fuse. Note

@@ -45,7 +45,7 @@ changesets
 
 '''
 
-class SyncThread(tsumufs.Triumvirate, threading.Thread):
+class SyncThread(tsumufs.Debuggable, threading.Thread):
   '''
   Thread to handle cache and NFS mount management.
   '''
