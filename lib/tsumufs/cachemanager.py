@@ -1096,16 +1096,16 @@ class CacheManager(tsumufs.Debuggable):
     # a few minor race conditions and to improve readability
     isCached = self.isCachedToDisk(fusepath)
     shouldCache = self._shouldCacheFile(fusepath)
-    nfsAvailable = tsumufs.nfsAvailable.isSet()
+    nfsAvail = tsumufs.nfsAvailable.isSet()
 
     # if not cachedFile and not nfsAvailable raise -ENOENT
-    if not isCached and not nfsAvailable:
+    if not isCached and not nfsAvail:
       self._debug('File not cached, no nfs -- enoent')
       return ['enoent']
 
     # if not cachedFile and not shouldCache
     if not isCached and not shouldCache:
-      if nfsAvailable: 
+      if nfsAvail:
         if tsumufs.syncLog.isUnlinkedFile(fusepath):
           self._debug('File previously unlinked -- returning use cache.')
           return ['use-cache']
@@ -1115,7 +1115,7 @@ class CacheManager(tsumufs.Debuggable):
 
     # if not cachedFile and     shouldCache
     if not isCached and shouldCache:
-      if nfsAvailable: 
+      if nfsAvail:
         if for_stat:
           self._debug('Returning use-nfs, as this is for stat.')
           return ['use-nfs']
@@ -1129,7 +1129,7 @@ class CacheManager(tsumufs.Debuggable):
 
     # if     cachedFile and not shouldCache
     if isCached and not shouldCache:
-      if nfsAvailable: 
+      if nfsAvail:
         self._debug(('File cached, should not cache, nfs avail '
                      '-- remove cache, use nfs'))
         return ['remove-cache', 'use-nfs']
@@ -1140,7 +1140,7 @@ class CacheManager(tsumufs.Debuggable):
 
     # if     cachedFile and     shouldCache
     if isCached and shouldCache:
-      if nfsAvailable: 
+      if nfsAvail:
         if self._nfsDataChanged(fusepath):
           if tsumufs.syncLog.isFileDirty(fusepath):
             self._debug('Merge conflict detected.')
@@ -1337,7 +1337,7 @@ def xattr_cachedStats(type_, path, value=None):
         del tsumufs.cacheManager._cacheSpec[path]
     else:
       return -errno.EOPNOTSUPP
-    return 0 # set is successfull 
+    return 0 # set is successfull
 
   if tsumufs.cacheManager._cacheSpec.has_key(path):
     if tsumufs.cacheManager._cacheSpec[path]:

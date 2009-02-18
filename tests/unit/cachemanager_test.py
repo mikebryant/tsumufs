@@ -32,7 +32,7 @@ import os_mock as os
 class InstanceCheck(unittest.TestCase):
   def testInstanciation(self):
     tsumufs.cachePoint = '/'
-    cm = tsumufs.CacheManager()
+    tsumufs.CacheManager()
 
 
 class CacheOpcodeCheck(unittest.TestCase):
