@@ -182,6 +182,10 @@ class SyncThread(tsumufs.Debuggable, threading.Thread):
         data = tsumufs.nfsMount.readFileRegion(fusepath,
                                                region.getStart(),
                                                region.getEnd()-region.getStart())
+
+        if len(data) < region.getEnd() - region.getStart():
+          data += '\x00' * ((region.getEnd() - region.getStart()) - len(data))
+
         if region.getData() != data:
           self._debug('Region has changed -- entire changeset conflicted.')
           self._debug('Data read was %s' % repr(data))
