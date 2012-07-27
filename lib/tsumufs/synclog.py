@@ -118,7 +118,7 @@ class SyncLog(object):
         if e.errno != errno.ENOENT:
           raise
         else:
-          logging.debug(('Unable to load synclog from disk -- %s does not '
+          logger.debug(('Unable to load synclog from disk -- %s does not '
                        'exist.') % (tsumufs.synclogPath))
       except OSError, e:
         raise
@@ -261,14 +261,14 @@ class SyncLog(object):
       self._lock.release()
 
   def checkpoint(self):
-    logging.debug('Checkpointing synclog...')
+    logger.debug('Checkpointing synclog...')
 
     self.flushToDisk()
     self._checkpointer = threading.Timer(tsumufs.checkpointTimeout,
                                          self.checkpoint)
     self._checkpointer.start()
 
-    logging.debug('...complete. Next checkpoint in %d seconds.'
+    logger.debug('...complete. Next checkpoint in %d seconds.'
                 % tsumufs.checkpointTimeout)
 
   def addLink(self, inum, filename):
@@ -394,7 +394,7 @@ class SyncLog(object):
         if ((change.getFilename() == fusepath) and
             (change.getType() == 'change')):
           if self._inodeChanges.has_key(change.getInum()):
-            logging.debug('Truncating data in %s' % repr(change))
+            logger.debug('Truncating data in %s' % repr(change))
             datachange = self._inodeChanges[change.getInum()]
             datachange.truncateLength(size)
 

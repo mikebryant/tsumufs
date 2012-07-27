@@ -63,71 +63,71 @@ class FuseThread(Fuse):
     and the startup of threads.
     '''
 
-    logging.debug('Initializing cachemanager object.')
+    logger.debug('Initializing cachemanager object.')
     try:
       tsumufs.cacheManager = tsumufs.CacheManager()
     except:
-      logging.debug('Exception: %s' % traceback.format_exc())
+      logger.debug('Exception: %s' % traceback.format_exc())
       return False
 
-    logging.debug('Initializing permissions overlay object.')
+    logger.debug('Initializing permissions overlay object.')
     try:
       tsumufs.permsOverlay = tsumufs.PermissionsOverlay()
     except:
       exc_info = sys.exc_info()
 
-      logging.debug('*** Unhandled exception occurred')
-      logging.debug('***     Type: %s' % str(exc_info[0]))
-      logging.debug('***    Value: %s' % str(exc_info[1]))
-      logging.debug('*** Traceback:')
+      logger.debug('*** Unhandled exception occurred')
+      logger.debug('***     Type: %s' % str(exc_info[0]))
+      logger.debug('***    Value: %s' % str(exc_info[1]))
+      logger.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        logging.debug('***    %s(%d) in %s: %s' % line)
+        logger.debug('***    %s(%d) in %s: %s' % line)
 
       return False
 
     # Setup the NFSMount object for both sync and mount threads to
     # access raw NFS with.
-    logging.debug('Initializing nfsMount proxy.')
+    logger.debug('Initializing nfsMount proxy.')
     try:
       tsumufs.nfsMount = tsumufs.NFSMount()
     except:
       # TODO(jtg): Erm... WHY can't we call tsumufs.syslogExceptHook here? O.o
       exc_info = sys.exc_info()
 
-      logging.debug('*** Unhandled exception occurred')
-      logging.debug('***     Type: %s' % str(exc_info[0]))
-      logging.debug('***    Value: %s' % str(exc_info[1]))
-      logging.debug('*** Traceback:')
+      logger.debug('*** Unhandled exception occurred')
+      logger.debug('***     Type: %s' % str(exc_info[0]))
+      logger.debug('***    Value: %s' % str(exc_info[1]))
+      logger.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        logging.debug('***    %s(%d) in %s: %s' % line)
+        logger.debug('***    %s(%d) in %s: %s' % line)
 
       return False
 
     # Initialize our threads
-    logging.debug('Initializing sync thread.')
+    logger.debug('Initializing sync thread.')
     try:
       self._syncThread = tsumufs.SyncThread()
     except:
       # TODO(jtg): Same as above... We should really fix this.
       exc_info = sys.exc_info()
 
-      logging.debug('*** Unhandled exception occurred')
-      logging.debug('***     Type: %s' % str(exc_info[0]))
-      logging.debug('***    Value: %s' % str(exc_info[1]))
-      logging.debug('*** Traceback:')
+      logger.debug('*** Unhandled exception occurred')
+      logger.debug('***     Type: %s' % str(exc_info[0]))
+      logger.debug('***    Value: %s' % str(exc_info[1]))
+      logger.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        logging.debug('***    %s(%d) in %s: %s' % line)
+        logger.debug('***    %s(%d) in %s: %s' % line)
 
       return False
 
     # Start the threads
-    logging.debug('Starting sync thread.')
+    logger.debug('Starting sync thread.')
     self._syncThread.start()
 
-    logging.debug('fsinit complete.')
+    logger.debug('fsinit complete.')
 
   def main(self, args=None):
     '''
@@ -154,17 +154,17 @@ class FuseThread(Fuse):
     self.file_class = FuseFileWrapper
 
     result = Fuse.main(self, args)
-    logging.debug('Fuse main event loop exited.')
+    logger.debug('Fuse main event loop exited.')
 
-    logging.debug('Setting event and condition states.')
+    logger.debug('Setting event and condition states.')
     tsumufs.unmounted.set()
     tsumufs.nfsAvailable.clear()
     tsumufs.syncPause.clear()
 
-    logging.debug('Waiting for the sync thread to finish.')
+    logger.debug('Waiting for the sync thread to finish.')
     self._syncThread.join()
 
-    logging.debug('Shutdown complete.')
+    logger.debug('Shutdown complete.')
 
     return result
 
@@ -309,13 +309,13 @@ class FuseThread(Fuse):
     tsumufs.permsPath = os.path.abspath(os.path.join(tsumufs.cachePoint,
                                                      '../permissions.ovr'))
 
-    logging.debug('mountPoint is %s' % tsumufs.mountPoint)
-    logging.debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
-    logging.debug('cacheBaseDir is %s' % tsumufs.cacheBaseDir)
-    logging.debug('cachePoint is %s' % tsumufs.cachePoint)
-    logging.debug('synclogPath is %s' % tsumufs.synclogPath)
-    logging.debug('permsPath is %s' % tsumufs.permsPath)
-    logging.debug('mountOptions is %s' % tsumufs.mountOptions)
+    logger.debug('mountPoint is %s' % tsumufs.mountPoint)
+    logger.debug('nfsMountPoint is %s' % tsumufs.nfsMountPoint)
+    logger.debug('cacheBaseDir is %s' % tsumufs.cacheBaseDir)
+    logger.debug('cachePoint is %s' % tsumufs.cachePoint)
+    logger.debug('synclogPath is %s' % tsumufs.synclogPath)
+    logger.debug('permsPath is %s' % tsumufs.permsPath)
+    logger.debug('mountOptions is %s' % tsumufs.mountOptions)
 
 
   ######################################################################
@@ -334,30 +334,30 @@ class FuseThread(Fuse):
       None
     '''
 
-    logging.debug('opcode: getattr (%d) | self: %s | path: %s' % (self.GetContext()['pid'], repr(self), path))
+    logger.debug('opcode: getattr (%d) | self: %s | path: %s' % (self.GetContext()['pid'], repr(self), path))
 
     try:
       result = tsumufs.cacheManager.statFile(path)
-      logging.debug('Returning (%d, %d, %o)' %
+      logger.debug('Returning (%d, %d, %o)' %
                   (result.st_uid, result.st_gid, result.st_mode))
 
       return result
 
     except OSError, e:
-      logging.debug('getattr: Caught OSError: %d: %s'
+      logger.debug('getattr: Caught OSError: %d: %s'
                   % (e.errno, e.strerror))
       raise
 
     except Exception, e:
       exc_info = sys.exc_info()
 
-      logging.debug('*** Unhandled exception occurred')
-      logging.debug('***     Type: %s' % str(exc_info[0]))
-      logging.debug('***    Value: %s' % str(exc_info[1]))
-      logging.debug('*** Traceback:')
+      logger.debug('*** Unhandled exception occurred')
+      logger.debug('***     Type: %s' % str(exc_info[0]))
+      logger.debug('***    Value: %s' % str(exc_info[1]))
+      logger.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        logging.debug('***    %s(%d) in %s: %s' % line)
+        logger.debug('***    %s(%d) in %s: %s' % line)
 
   @benchmark
   def setxattr(self, path, name, value, size):
@@ -371,7 +371,7 @@ class FuseThread(Fuse):
       None, or -EOPNOTSUPP on error.
     '''
 
-    logging.debug(('opcode: setxattr | path: %s | name: %s | '
+    logger.debug(('opcode: setxattr | path: %s | name: %s | '
                  'value: %s | size: %d')
                 % (path, name, value, size))
 
@@ -402,7 +402,7 @@ class FuseThread(Fuse):
       -EOPNOTSUPP if the name is invalid.
     '''
 
-    logging.debug('opcode: getxattr | path: %s | name: %s | size: %d'
+    logger.debug('opcode: getxattr | path: %s | name: %s | size: %d'
                 % (path, name, size))
 
     name = name.lower()
@@ -417,7 +417,7 @@ class FuseThread(Fuse):
 
     try:
       xattr = tsumufs.ExtendedAttributes.getXAttr(type_, path, name)
-      logging.debug('Got %s from xattr callback.' % str(xattr))
+      logger.debug('Got %s from xattr callback.' % str(xattr))
 
       if size == 0:
         # Caller just wants the size of the value.
@@ -425,12 +425,12 @@ class FuseThread(Fuse):
       else:
         return xattr
     except KeyError, e:
-      logging.debug('Request for extended attribute that is not present in the '
+      logger.debug('Request for extended attribute that is not present in the '
                   'dictionary: <%s, %s, %s>'
                   % (repr(type_), repr(path), repr(name)))
       return -errno.EOPNOTSUPP
     except Exception, e:
-      logging.debug('*** Exception occurred: %s (%s)' % (str(e), e.__class__))
+      logger.debug('*** Exception occurred: %s (%s)' % (str(e), e.__class__))
       return -errno.EINVAL
 
   @benchmark
@@ -444,7 +444,7 @@ class FuseThread(Fuse):
       A list of key names if size > 0.
     '''
 
-    logging.debug('opcode: listxattr | path: %s | size: %d'
+    logger.debug('opcode: listxattr | path: %s | size: %d'
                 % (path, size))
 
     mode = tsumufs.cacheManager.statFile(path).st_mode
@@ -473,17 +473,17 @@ class FuseThread(Fuse):
       a negative errno code on error.
     '''
 
-    logging.debug('opcode: readlink | path: %s' % path)
+    logger.debug('opcode: readlink | path: %s' % path)
 
     try:
       context = self.GetContext()
       tsumufs.cacheManager.access(context['uid'], path, os.R_OK)
 
       retval = tsumufs.cacheManager.readLink(path)
-      logging.debug('Returning: %s' % retval)
+      logger.debug('Returning: %s' % retval)
       return retval
     except OSError, e:
-      logging.debug('readlink: Caught OSError: errno %d: %s'
+      logger.debug('readlink: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -498,7 +498,7 @@ class FuseThread(Fuse):
       code on error.
     '''
 
-    logging.debug('opcode: readdir | path: %s | offset: %d' % (path, offset))
+    logger.debug('opcode: readdir | path: %s | offset: %d' % (path, offset))
 
     try:
       context = self.GetContext()
@@ -519,7 +519,7 @@ class FuseThread(Fuse):
 
         yield dirent
     except OSError, e:
-      logging.debug('readdir: Caught OSError on %s: errno %d: %s'
+      logger.debug('readdir: Caught OSError on %s: errno %d: %s'
                   % (filename, e.errno, e.strerror))
       yield -e.errno
 
@@ -532,7 +532,7 @@ class FuseThread(Fuse):
       True on successful unlink, or an errno code on error.
     '''
 
-    logging.debug('opcode: unlink | path: %s' % path)
+    logger.debug('opcode: unlink | path: %s' % path)
 
     try:
       context = self.GetContext()
@@ -544,7 +544,7 @@ class FuseThread(Fuse):
 
       return 0
     except OSError, e:
-      logging.debug('unlink: Caught OSError: errno %d: %s'
+      logger.debug('unlink: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -557,7 +557,7 @@ class FuseThread(Fuse):
       True on successful unlink, or errno code on error.
     '''
 
-    logging.debug('opcode: rmdir | path: %s' % path)
+    logger.debug('opcode: rmdir | path: %s' % path)
 
     try:
       context = self.GetContext()
@@ -568,7 +568,7 @@ class FuseThread(Fuse):
 
       return 0
     except OSError, e:
-      logging.debug('rmdir: Caught OSError: errno %d: %s'
+      logger.debug('rmdir: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -581,7 +581,7 @@ class FuseThread(Fuse):
       True on successful link creation, or errno code on error.
     '''
 
-    logging.debug('opcode: symlink | src: %s | dest:: %s' % (src, dest))
+    logger.debug('opcode: symlink | src: %s | dest:: %s' % (src, dest))
 
     try:
       context = self.GetContext()
@@ -592,7 +592,7 @@ class FuseThread(Fuse):
 
       return True
     except OSError, e:
-      logging.debug('symlink: Caught OSError: errno %d: %s'
+      logger.debug('symlink: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -606,7 +606,7 @@ class FuseThread(Fuse):
       True on successful rename, or errno code on error.
     '''
 
-    logging.debug('opcode: rename | old: %s | new: %s' % (old, new))
+    logger.debug('opcode: rename | old: %s | new: %s' % (old, new))
 
     try:
       context = self.GetContext()
@@ -640,7 +640,7 @@ class FuseThread(Fuse):
 
       return 0
     except OSError, e:
-      logging.debug('rename: Caught OSError: errno %d: %s'
+      logger.debug('rename: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -654,13 +654,13 @@ class FuseThread(Fuse):
       True on successful linking, or errno code on error.
     '''
 
-    logging.debug('opcode: link | src: %s | dest: %s' % (src, dest))
+    logger.debug('opcode: link | src: %s | dest: %s' % (src, dest))
 
     try:
       # TODO(jtg): Implement this!
       return -errno.EOPNOTSUPP
     except OSError, e:
-      logging.debug('link: Caught OSError: errno %d: %s'
+      logger.debug('link: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -673,7 +673,7 @@ class FuseThread(Fuse):
       True on successful mode change, or errno code on error.
     '''
 
-    logging.debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
+    logger.debug('opcode: chmod | path: %s | mode: %o' % (path, mode))
 
     context = self.GetContext()
     file_stat = tsumufs.cacheManager.statFile(path)
@@ -686,13 +686,13 @@ class FuseThread(Fuse):
       except (IOError, OSError), e:
         inode = -1
 
-    logging.debug('context: %s' % repr(context))
-    logging.debug('file: uid=%d, gid=%d, mode=%o' %
+    logger.debug('context: %s' % repr(context))
+    logger.debug('file: uid=%d, gid=%d, mode=%o' %
                 (file_stat.st_uid, file_stat.st_gid, file_stat.st_mode))
 
     if ((file_stat.st_uid != context['uid']) and
         (context['uid'] != 0)):
-      logging.debug('chmod: user not owner, and user not root -- EPERM')
+      logger.debug('chmod: user not owner, and user not root -- EPERM')
       return -errno.EPERM
 
     tsumufs.cacheManager.access(context['uid'],
@@ -700,14 +700,14 @@ class FuseThread(Fuse):
                                 os.F_OK)
 
     try:
-      logging.debug('chmod: access granted -- chmoding')
+      logger.debug('chmod: access granted -- chmoding')
       tsumufs.cacheManager.chmod(path, mode)
-      logging.debug('chmod: adding metadata change')
+      logger.debug('chmod: adding metadata change')
       tsumufs.syncLog.addMetadataChange(path, inode)
 
       return 0
     except OSError, e:
-      logging.debug('chmod: Caught OSError: errno %d: %s'
+      logger.debug('chmod: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -720,7 +720,7 @@ class FuseThread(Fuse):
       True on successful change, otherwise errno code is returned.
     '''
 
-    logging.debug('opcode: chown | path: %s | uid: %d | gid: %d' %
+    logger.debug('opcode: chown | path: %s | uid: %d | gid: %d' %
                (path, newuid, newgid))
 
     context = self.GetContext()
@@ -740,7 +740,7 @@ class FuseThread(Fuse):
 
       return 0
     except OSError, e:
-      logging.debug('chown: Caught OSError: errno %d: %s'
+      logger.debug('chown: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -754,7 +754,7 @@ class FuseThread(Fuse):
       returned.
     '''
 
-    logging.debug('opcode: truncate | path: %s | size: %d' %
+    logger.debug('opcode: truncate | path: %s | size: %d' %
                (path, size))
 
     try:
@@ -766,13 +766,13 @@ class FuseThread(Fuse):
     except Exception, e:
       exc_info = sys.exc_info()
 
-      logging.debug('*** Unhandled exception occurred')
-      logging.debug('***     Type: %s' % str(exc_info[0]))
-      logging.debug('***    Value: %s' % str(exc_info[1]))
-      logging.debug('*** Traceback:')
+      logger.debug('*** Unhandled exception occurred')
+      logger.debug('***     Type: %s' % str(exc_info[0]))
+      logger.debug('***    Value: %s' % str(exc_info[1]))
+      logger.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        logging.debug('***    %s(%d) in %s: %s' % line)
+        logger.debug('***    %s(%d) in %s: %s' % line)
 
     return 0
 
@@ -787,7 +787,7 @@ class FuseThread(Fuse):
       returned.
     '''
 
-    logging.debug('opcode: mknod | path: %s | mode: %d | dev: %s' %
+    logger.debug('opcode: mknod | path: %s | mode: %d | dev: %s' %
                (path, mode, dev))
 
     context = self.GetContext()
@@ -812,7 +812,7 @@ class FuseThread(Fuse):
 
       return 0
     except OSError, e:
-      logging.debug('mknod: Caught OSError: errno %d: %s'
+      logger.debug('mknod: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -825,7 +825,7 @@ class FuseThread(Fuse):
       0 on successful creation, othewrise a negative errno code is returned.
     '''
 
-    logging.debug('opcode: mkdir | path: %s | mode: %o' % (path, mode))
+    logger.debug('opcode: mkdir | path: %s | mode: %o' % (path, mode))
 
     context = self.GetContext()
     tsumufs.cacheManager.access(context['uid'], os.path.dirname(path),
@@ -842,20 +842,20 @@ class FuseThread(Fuse):
       return 0
 
     except OSError, e:
-      logging.debug('mkdir: Caught OSError: errno %d: %s'
+      logger.debug('mkdir: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
     except Exception, e:
       exc_info = sys.exc_info()
 
-      logging.debug('*** Unhandled exception occurred')
-      logging.debug('***     Type: %s' % str(exc_info[0]))
-      logging.debug('***    Value: %s' % str(exc_info[1]))
-      logging.debug('*** Traceback:')
+      logger.debug('*** Unhandled exception occurred')
+      logger.debug('***     Type: %s' % str(exc_info[0]))
+      logger.debug('***    Value: %s' % str(exc_info[1]))
+      logger.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        logging.debug('***    %s(%d) in %s: %s' % line)
+        logger.debug('***    %s(%d) in %s: %s' % line)
 
       raise
 
@@ -869,7 +869,7 @@ class FuseThread(Fuse):
       returned.
     '''
 
-    logging.debug('opcode: utime | path: %s' % path)
+    logger.debug('opcode: utime | path: %s' % path)
 
     try:
       result = tsumufs.cacheManager.stat(path, True)
@@ -879,7 +879,7 @@ class FuseThread(Fuse):
 
       return True
     except OSError, e:
-      logging.debug('utime: Caught OSError: errno %d: %s'
+      logger.debug('utime: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -893,10 +893,10 @@ class FuseThread(Fuse):
       returned.
     '''
 
-    logging.debug('opcode: access | path: %s | mode: %o' % (path, mode))
+    logger.debug('opcode: access | path: %s | mode: %o' % (path, mode))
 
     context = self.GetContext()
-    logging.debug('uid: %s, gid: %s, pid: %s' %
+    logger.debug('uid: %s, gid: %s, pid: %s' %
                 (repr(context['uid']),
                  repr(context['gid']),
                  repr(context['pid'])))
@@ -905,7 +905,7 @@ class FuseThread(Fuse):
       tsumufs.cacheManager.access(context['uid'], path, mode)
       return 0
     except OSError, e:
-      logging.debug('access: Caught OSError: errno %d: %s'
+      logger.debug('access: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
@@ -928,7 +928,7 @@ class FuseThread(Fuse):
     - f_files - total number of file inodes
     - f_ffree - nunber of free file inodes
     '''
-    logging.debug('opcode: statfs')
+    logger.debug('opcode: statfs')
 
     try:
       if tsumufs.nfsAvailable.isSet():
@@ -936,7 +936,7 @@ class FuseThread(Fuse):
       else:
         return os.statvfs(tsumufs.cacheBaseDir)
     except OSError, e:
-      logging.debug('statfs: Caught OSError: errno %d: %s'
+      logger.debug('statfs: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
