@@ -21,10 +21,13 @@ import cPickle
 from inodechange import *
 from dataregion import *
 
+import logging
+logger = logging.getLogger(__name__)
+
 import tsumufs
 
 
-class SyncItem(tsumufs.Debuggable):
+class SyncItem(object):
   '''
   Class that encapsulates a change to the filesystem in the SyncLog. Note that
   this does /not/ include DataRegions -- specifically that should be in a

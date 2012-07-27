@@ -17,7 +17,8 @@
 '''TsumuFS, a NFS-based caching filesystem.'''
 
 import traceback
-import syslog
+import logging
+logger = logging.getLogger(__name__)
 
 import fuse
 from fuse import Fuse
@@ -25,7 +26,7 @@ from fuse import Fuse
 import tsumufs
 
 
-class ExtendedAttributes(tsumufs.Debuggable):
+class ExtendedAttributes(object):
   '''
   This class represents the ability to store TsumuFS specific extended attribute
   data for various file types and paths.

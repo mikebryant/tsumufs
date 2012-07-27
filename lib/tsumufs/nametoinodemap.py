@@ -20,10 +20,13 @@ import os
 import os.path
 import sys
 
+import logging
+logger = logging.getLogger(__name__)
+
 import tsumufs
 
 
-class NameToInodeMap(tsumufs.Debuggable):
+class NameToInodeMap(object):
   '''
   Class to help map pathnames to inode numbers and vise-versa.
   '''

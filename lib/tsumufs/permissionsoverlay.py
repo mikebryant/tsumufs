@@ -21,11 +21,14 @@ import errno
 import threading
 import cPickle
 
+import logging
+logger = logging.getLogger(__name__)
+
 import tsumufs
 from extendedattributes import extendedattribute
 
 
-class PermissionsOverlay(tsumufs.Debuggable):
+class PermissionsOverlay(object):
   '''
   Class that provides management for permissions of files in the cache.
   '''

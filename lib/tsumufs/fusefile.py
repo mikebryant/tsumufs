@@ -23,7 +23,8 @@ import stat
 import statvfs
 import time
 import traceback
-import syslog
+import logging
+logger = logging.getLogger(__name__)
 
 import fuse
 from fuse import Fuse
@@ -32,7 +33,7 @@ import tsumufs
 from metrics import benchmark
 
 
-class FuseFile(tsumufs.Debuggable):
+class FuseFile(object):
   '''
   This class represents a file handle for FUSE. With it, we can
   implement stateful file handle management. It also helps to reduce
@@ -66,12 +67,12 @@ class FuseFile(tsumufs.Debuggable):
     sys.excepthook = tsumufs.syslogExceptHook
 
     if mode == None:
-      self._debug(('opcode: open | flags: %s | mode: %o | '
+      logging.debug(('opcode: open | flags: %s | mode: %o | '
                    'uid: %d | gid: %d | pid: %d')
                   % (self._flagsToString(), mode or 0,
                      self._uid, self._gid, self._pid))
     else:
-      self._debug(('opcode: creat | flags: %s | mode: %o | '
+      logging.debug(('opcode: creat | flags: %s | mode: %o | '
                    'uid: %d | gid: %d | pid: %d')
                   % (self._flagsToString(), mode or 0,
                      self._uid, self._gid, self._pid))
@@ -85,16 +86,16 @@ class FuseFile(tsumufs.Debuggable):
       access_mode |= os.R_OK
 
     # Verify access to the directory
-    self._debug('Verifying access to directory %s' % os.path.dirname(path))
+    logging.debug('Verifying access to directory %s' % os.path.dirname(path))
     tsumufs.cacheManager.access(self._uid,
                                 os.path.dirname(path),
                                 access_mode | os.X_OK)
 
     if not self._fdFlags & os.O_CREAT:
-      self._debug('Checking access on file since we didn\'t create it.')
+      logging.debug('Checking access on file since we didn\'t create it.')
       tsumufs.cacheManager.access(self._uid, path, access_mode)
 
-    self._debug('Calling fakeopen')
+    logging.debug('Calling fakeopen')
     tsumufs.cacheManager.fakeOpen(path, self._fdFlags, self._fdMode,
                                   self._uid, self._gid)
 
@@ -104,11 +105,11 @@ class FuseFile(tsumufs.Debuggable):
     # If we were a new file, create a new change in the synclog for the new file
     # entry.
     if self._fdFlags & os.O_CREAT:
-      self._debug('Adding permissions to the PermissionsOverlay.')
+      logging.debug('Adding permissions to the PermissionsOverlay.')
       tsumufs.permsOverlay.setPerms(self._path, self._uid, self._gid,
                                     self._fdMode)
 
-      self._debug('Adding a new change to the log as user wanted O_CREAT')
+      logging.debug('Adding a new change to the log as user wanted O_CREAT')
       tsumufs.syncLog.addNew('file', filename=self._path)
 
       self._isNewFile = True
@@ -136,23 +137,23 @@ class FuseFile(tsumufs.Debuggable):
 
   @benchmark
   def read(self, length, offset):
-    self._debug('opcode: read | path: %s | len: %d | offset: %d'
+    logging.debug('opcode: read | path: %s | len: %d | offset: %d'
                 % (self._path, length, offset))
 
     try:
       retval = tsumufs.cacheManager.readFile(self._path, offset, length,
                                              self._fdFlags, self._fdMode)
-      self._debug('Returning %s' % repr(retval))
+      logging.debug('Returning %s' % repr(retval))
 
       return retval
     except OSError, e:
-      self._debug('OSError caught: errno %d: %s'
+      logging.debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
   @benchmark
   def write(self, new_data, offset):
-    self._debug('opcode: write | path: %s | offset: %d | buf: %s'
+    logging.debug('opcode: write | path: %s | offset: %d | buf: %s'
                 % (self._path, offset, repr(new_data)))
 
     # Three cases here:
@@ -172,13 +173,13 @@ class FuseFile(tsumufs.Debuggable):
         inode = -1
 
     if not tsumufs.syncLog.isNewFile(self._path):
-      self._debug('Reading offset %d, length %d from %s.'
+      logging.debug('Reading offset %d, length %d from %s.'
                   % (offset, len(new_data), self._path))
       old_data = tsumufs.cacheManager.readFile(self._path,
                                                offset,
                                                len(new_data),
                                                os.O_RDONLY)
-      self._debug('From cacheManager.readFile got %s' % repr(old_data))
+      logging.debug('From cacheManager.readFile got %s' % repr(old_data))
 
       # Pad missing chunks on the old_data stream with NULLs, as NFS
       # would. Unfortunately during resyncing, we'll have to consider regions
@@ -186,12 +187,12 @@ class FuseFile(tsumufs.Debuggable):
       # regions cleanly without rehacking the model.
 
       if len(old_data) < len(new_data):
-        self._debug(('New data is past end of file by %d bytes. '
+        logging.debug(('New data is past end of file by %d bytes. '
                      'Padding with nulls.')
                     % (len(new_data) - len(old_data)))
         old_data += '\x00' * (len(new_data) - len(old_data))
 
-      self._debug('Adding change to synclog [ %s | %d | %d | %d | %s ]'
+      logging.debug('Adding change to synclog [ %s | %d | %d | %d | %s ]'
                   % (self._path, inode, offset, offset+len(new_data),
                      repr(old_data)))
 
@@ -201,20 +202,20 @@ class FuseFile(tsumufs.Debuggable):
                                 offset+len(new_data),
                                 old_data)
     else:
-      self._debug('We\'re a new file -- not adding a change record to log.')
+      logging.debug('We\'re a new file -- not adding a change record to log.')
 
     try:
       tsumufs.cacheManager.writeFile(self._path, offset, new_data,
                                      self._fdFlags, self._fdMode)
-      self._debug('Wrote %d bytes to cache.' % len(new_data))
+      logging.debug('Wrote %d bytes to cache.' % len(new_data))
 
       return len(new_data)
     except OSError, e:
-      self._debug('OSError caught: errno %d: %s'
+      logging.debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
     except IOError, e:
-      self._debug('IOError caught: %s' % str(e))
+      logging.debug('IOError caught: %s' % str(e))
 
       # TODO(jtg): Make this stop the NFS Mount condition on error, rather than
       # raising errno.
@@ -222,40 +223,40 @@ class FuseFile(tsumufs.Debuggable):
 
   @benchmark
   def release(self, flags):
-    self._debug('opcode: release | flags: %s' % flags)
+    logging.debug('opcode: release | flags: %s' % flags)
 
     # Noop since on NFS close doesn't do much
     return 0
 
   @benchmark
   def fsync(self, isfsyncfile):
-    self._debug('opcode: fsync | path: %s | isfsyncfile: %d'
+    logging.debug('opcode: fsync | path: %s | isfsyncfile: %d'
                 % (self._path, isfsyncfile))
 
-    self._debug('Returning 0')
+    logging.debug('Returning 0')
     return 0
 
   @benchmark
   def flush(self):
-    self._debug('opcode: flush | path: %s' % self._path)
+    logging.debug('opcode: flush | path: %s' % self._path)
 
-    self._debug('Returning 0')
+    logging.debug('Returning 0')
     return 0
 
   @benchmark
   def fgetattr(self):
-    self._debug('opcode: fgetattr')
+    logging.debug('opcode: fgetattr')
 
     try:
       return tsumufs.cacheManager.statFile(self._path)
     except OSError, e:
-      self._debug('OSError caught: errno %d: %s'
+      logging.debug('OSError caught: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
   @benchmark
   def ftruncate(self, size):
-    self._debug('opcode: ftruncate | size: %d' % size)
+    logging.debug('opcode: ftruncate | size: %d' % size)
 
     try:
       statgoo = tsumufs.cacheManager.statFile(self._path)
@@ -272,13 +273,13 @@ class FuseFile(tsumufs.Debuggable):
       except Exception, e:
         exc_info = sys.exc_info()
 
-        self._debug('*** Unhandled exception occurred')
-        self._debug('***     Type: %s' % str(exc_info[0]))
-        self._debug('***    Value: %s' % str(exc_info[1]))
-        self._debug('*** Traceback:')
+        logging.debug('*** Unhandled exception occurred')
+        logging.debug('***     Type: %s' % str(exc_info[0]))
+        logging.debug('***    Value: %s' % str(exc_info[1]))
+        logging.debug('*** Traceback:')
 
         for line in traceback.extract_tb(exc_info[2]):
-          self._debug('***    %s(%d) in %s: %s' % line)
+          logging.debug('***    %s(%d) in %s: %s' % line)
 
       # Add the truncated data to the synclog if this is an old file...
       if not tsumufs.syncLog.isNewFile(self._path):
@@ -298,28 +299,28 @@ class FuseFile(tsumufs.Debuggable):
       return 0
 
     except OSError, e:
-      self._debug('truncate: Caught OSError: errno %d: %s'
+      logging.debug('truncate: Caught OSError: errno %d: %s'
                   % (e.errno, e.strerror))
       return -e.errno
 
     except Exception, e:
       exc_info = sys.exc_info()
 
-      self._debug('*** Unhandled exception occurred')
-      self._debug('***     Type: %s' % str(exc_info[0]))
-      self._debug('***    Value: %s' % str(exc_info[1]))
-      self._debug('*** Traceback:')
+      logging.debug('*** Unhandled exception occurred')
+      logging.debug('***     Type: %s' % str(exc_info[0]))
+      logging.debug('***    Value: %s' % str(exc_info[1]))
+      logging.debug('*** Traceback:')
 
       for line in traceback.extract_tb(exc_info[2]):
-        self._debug('***    %s(%d) in %s: %s' % line)
+        logging.debug('***    %s(%d) in %s: %s' % line)
 
     return 0
 
   @benchmark
   def lock(self, cmd, owner, **kw):
-    self._debug('opcode: lock | cmd: %o | owner: %d | kw: %s'
+    logging.debug('opcode: lock | cmd: %o | owner: %d | kw: %s'
                 % (cmd, owner, str(kw)))
 
     # TODO(jtg): Implement this.
-    self._debug('Returning -ENOSYS')
+    logging.debug('Returning -ENOSYS')
     return -errno.ENOSYS

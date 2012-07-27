@@ -23,6 +23,9 @@ import errno
 import cPickle
 import threading
 
+import logging
+logger = logging.getLogger(__name__)
+
 import tsumufs
 from extendedattributes import extendedattribute
 
@@ -60,7 +63,7 @@ class QueueValidationError(Exception):
 #    ... )
 
 
-class SyncLog(tsumufs.Debuggable):
+class SyncLog(object):
   '''
   Class that implements a queue for storing synclog entries in. Used
   primarily by the SyncThread class.
@@ -115,7 +118,7 @@ class SyncLog(tsumufs.Debuggable):
         if e.errno != errno.ENOENT:
           raise
         else:
-          self._debug(('Unable to load synclog from disk -- %s does not '
+          logging.debug(('Unable to load synclog from disk -- %s does not '
                        'exist.') % (tsumufs.synclogPath))
       except OSError, e:
         raise
@@ -258,14 +261,14 @@ class SyncLog(tsumufs.Debuggable):
       self._lock.release()
 
   def checkpoint(self):
-    self._debug('Checkpointing synclog...')
+    logging.debug('Checkpointing synclog...')
 
     self.flushToDisk()
     self._checkpointer = threading.Timer(tsumufs.checkpointTimeout,
                                          self.checkpoint)
     self._checkpointer.start()
 
-    self._debug('...complete. Next checkpoint in %d seconds.'
+    logging.debug('...complete. Next checkpoint in %d seconds.'
                 % tsumufs.checkpointTimeout)
 
   def addLink(self, inum, filename):
@@ -391,7 +394,7 @@ class SyncLog(tsumufs.Debuggable):
         if ((change.getFilename() == fusepath) and
             (change.getType() == 'change')):
           if self._inodeChanges.has_key(change.getInum()):
-            self._debug('Truncating data in %s' % repr(change))
+            logging.debug('Truncating data in %s' % repr(change))
             inodechange = self._inodeChanges[change.getInum()]
             inodechange.truncateLength(size)
 

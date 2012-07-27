@@ -20,10 +20,12 @@ import os
 import errno
 import sys
 import stat
-import syslog
 import thread
 import threading
 import dataregion
+
+import logging
+logger = logging.getLogger(__name__)
 
 import tsumufs
 
@@ -32,7 +34,7 @@ class NFSMountError(Exception):
   pass
 
 
-class NFSMount(tsumufs.Debuggable):
+class NFSMount(object):
   '''
   Represents the NFS mount iself.
 
@@ -77,7 +79,7 @@ class NFSMount(tsumufs.Debuggable):
     '''
 
 #       tb = self._getCaller()
-#       self._debug('Unlocking file %s (from: %s(%d): in %s <%d>).'
+#       logging.debug('Unlocking file %s (from: %s(%d): in %s <%d>).'
 #                   % (filename, tb[0], tb[1], tb[2], thread.get_ident()))
 
     self._fileLocks[filename].release()
@@ -130,9 +132,9 @@ class NFSMount(tsumufs.Debuggable):
 
       except OSError, e:
         if e.errno in (errno.EIO, errno.ESTALE):
-          self._debug('Got %s while reading a region from %s.' %
+          logging.debug('Got %s while reading a region from %s.' %
                       (str(e), filename))
-          self._debug('Triggering a disconnect.')
+          logging.debug('Triggering a disconnect.')
 
           tsumufs.nfsAvailable.clear()
           tsumufs.nfsAvailable.notifyAll()
@@ -178,9 +180,9 @@ class NFSMount(tsumufs.Debuggable):
 
       except OSError, e:
         if e.errno in (errno.EIO, errno.ESTALE):
-          self._debug('Got %s while writing a region to %s.' %
+          logging.debug('Got %s while writing a region to %s.' %
                       (str(e), filename))
-          self._debug('Triggering a disconnect.')
+          logging.debug('Triggering a disconnect.')
 
           tsumufs.nfsAvailable.clear()
           tsumufs.nfsAvailable.notifyAll() # TODO: AttributeError
@@ -209,9 +211,9 @@ class NFSMount(tsumufs.Debuggable):
 
       except OSError, e:
         if e.errno in (errno.EIO, errno.ESTALE):
-          self._debug('Got %s while writing a region to %s.' %
+          logging.debug('Got %s while writing a region to %s.' %
                       (str(e), nfspath))
-          self._debug('Triggering a disconnect.')
+          logging.debug('Triggering a disconnect.')
 
           tsumufs.nfsAvailable.clear()
           tsumufs.nfsAvailable.notifyAll()
@@ -234,16 +236,16 @@ class NFSMount(tsumufs.Debuggable):
       os.stat(tsumufs.nfsMountPoint)
     except OSError, e:
       if e.errno == errno.ENOENT:
-        self._debug('Mount point %s was not found -- creating'
+        logging.debug('Mount point %s was not found -- creating'
                    % tsumufs.nfsMountPoint)
         try:
           os.mkdir(tsumufs.nfsMountPoint)
         except OSError, e:
-          self._debug('Unable to create mount point: %s'
+          logging.debug('Unable to create mount point: %s'
                      % os.strerror(e.errno))
           return False
       elif e.errno == errno.EACCES:
-        self._debug('Mount point %s unavailable: %s'
+        logging.debug('Mount point %s unavailable: %s'
                    % (tsumufs.nfsMountPoint,
                       os.strerror(e.errno)))
         return False
@@ -254,17 +256,17 @@ class NFSMount(tsumufs.Debuggable):
         cmd += ' -o ' + tsumufs.mountOptions
       cmd += ' ' + tsumufs.mountSource + ' ' + tsumufs.nfsMountPoint
 
-      self._debug(cmd)
+      logging.debug(cmd)
       rc = os.system(cmd) >> 8
     except OSError, e:
-      self._debug('Mount of NFS failed: %s.' % os.strerror(e.errno))
+      logging.debug('Mount of NFS failed: %s.' % os.strerror(e.errno))
       return False
     else:
       if rc != 0:
-        self._debug('Mount of NFS failed -- mount returned nonzero: %s' % rc)
+        logging.debug('Mount of NFS failed -- mount returned nonzero: %s' % rc)
         return False
       else:
-        self._debug('Mount of NFS succeeded.')
+        logging.debug('Mount of NFS succeeded.')
         return True
 
   def unmount(self):
@@ -273,16 +275,16 @@ class NFSMount(tsumufs.Debuggable):
     somewhere else on the filesystem.
     '''
 
-    self._debug('Unmounting NFS mount from %s' %
+    logging.debug('Unmounting NFS mount from %s' %
                tsumufs.nfsMountPoint)
     rc = os.system('%s %s' % (tsumufs.nfsUnmountCmd, tsumufs.nfsMountPoint))
 
     if rc != 0:
-      self._debug('Unmount of NFS failed.')
+      logging.debug('Unmount of NFS failed.')
       return False
     else:
-      self._debug('Unmount of NFS succeeded.')
+      logging.debug('Unmount of NFS succeeded.')
       return True
 
-    self._debug('Invalidating name to inode map')
+    logging.debug('Invalidating name to inode map')
     tsumufs.NameToInodeMap.invalidate()

@@ -19,10 +19,13 @@
 import os
 import posix
 
+import logging
+logger = logging.getLogger(__name__)
+
 import tsumufs
 
 
-class FilePermission(tsumufs.Debuggable):
+class FilePermission(object):
   '''
   Class that mimics the file permissions of a file in the cache.
 

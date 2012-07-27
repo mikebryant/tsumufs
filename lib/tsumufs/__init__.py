@@ -25,7 +25,6 @@ import grp
 # directly would be impractical. In general, we follow the "one class one file"
 # rule.
 
-from debuggable import *
 from cachemanager import *
 from nfsmount import *
 from synclog import *

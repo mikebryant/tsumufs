@@ -18,11 +18,14 @@
 
 import sys
 
+import logging
+logger = logging.getLogger(__name__)
+
 import tsumufs
 from dataregion import *
 
 
-class InodeChange(tsumufs.Debuggable):
+class InodeChange(object):
   '''
   Class that represents any change to an inode and the data that it
   points to.
