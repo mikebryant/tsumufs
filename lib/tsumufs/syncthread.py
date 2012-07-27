@@ -237,7 +237,7 @@ class SyncThread(threading.Thread):
     return False
 
   def _writeChangeSet(self, item, change):
-    # TODO(refactor): Make SyncItem generate the patch set string instead.
+    # TODO(refactor): Make FileChange generate the patch set string instead.
 
     if item.getType() != 'rename':
       fusepath = item.getFilename()

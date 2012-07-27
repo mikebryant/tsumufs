@@ -25,7 +25,7 @@ import tsumufs
 from dataregion import *
 
 
-class InodeChange(object):
+class DataChange(object):
   '''
   Class that represents any change to an inode and the data that it
   points to.
@@ -45,7 +45,7 @@ class InodeChange(object):
     object.
     '''
 
-    rep = '<InodeChange %s' % repr(self.dataRegions)
+    rep = '<DataChange %s' % repr(self.dataRegions)
 
     if self.ctime:
       rep += ' ctime: %d' % self.ctime
@@ -68,7 +68,7 @@ class InodeChange(object):
     return repr(self)
 
   def __init__(self):
-    self._setName('InodeChange')
+    self._setName('DataChange')
     sys.excepthook = tsumufs.syslogExceptHook
 
   def addDataChange(self, start, end, data):

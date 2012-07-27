@@ -32,9 +32,9 @@ from synclog import *
 from fusefile import *
 from fusethread import *
 from syncthread import *
-from inodechange import *
+from datachange import *
 from nametoinodemap import *
-from syncitem import *
+from filechange import *
 from mutablestat import *
 from filepermission import *
 from permissionsoverlay import *

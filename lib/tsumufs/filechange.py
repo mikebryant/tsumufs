@@ -18,7 +18,7 @@
 
 import cPickle
 
-from inodechange import *
+from datachange import *
 from dataregion import *
 
 import logging
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 import tsumufs
 
 
-class SyncItem(object):
+class FileChange(object):
   '''
   Class that encapsulates a change to the filesystem in the SyncLog. Note that
   this does /not/ include DataRegions -- specifically that should be in a
@@ -76,7 +76,7 @@ class SyncItem(object):
       self.__dict__['_' + key] = hargs[key]
 
   def __str__(self):
-    return (('<SyncItem:'
+    return (('<FileChange:'
              ' type: %s'
              ' filename: %s'
              ' inum: %s>')

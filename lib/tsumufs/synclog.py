@@ -44,7 +44,7 @@ class QueueValidationError(Exception):
   pass
 
 # syncqueue:
-#  ( #<SyncItem{ type: 'new,
+#  ( #<FileChange{ type: 'new,
 #      ftype: 'file|'dir|'socket|'fifo|'dev,
 #      dtype: 'char|'block,
 #      major: uint32,
@@ -80,13 +80,13 @@ class SyncLog(object):
     self._checkpointer.start()
 
   def __str__(self):
-    inodechange_str = repr(self._inodeChanges)
+    datachange_str = repr(self._inodeChanges)
     syncqueue_str   = repr(self._syncQueue)
 
     string = (('<SyncLog \n'
               '    _inodeChanges: %s\n'
               '    _syncQueue: %s\n'
-              '>') % (inodechange_str,
+              '>') % (datachange_str,
                       syncqueue_str))
 
     return string
@@ -135,8 +135,8 @@ class SyncLog(object):
 
     Queue files are stored on disk in the following python format:
 
-    { inodeChanges: { <inum>: <InodeChange1>, ... ],
-      syncQueue:   [ <tsumufs.SyncItem1>, <tsumufs.SyncItem2>, ... ] }
+    { inodeChanges: { <inum>: <DataChange1>, ... ],
+      syncQueue:   [ <tsumufs.FileChange1>, <tsumufs.SyncItem2>, ... ] }
 
     Raises:
       IOError: An error relating to the attempt to write to a pickle
@@ -254,9 +254,9 @@ class SyncLog(object):
       self._lock.acquire()
 
       params['file_type'] = type_
-      syncitem = tsumufs.SyncItem('new', **params)
+      filechange = tsumufs.FileChange('new', **params)
 
-      self._syncQueue.append(syncitem)
+      self._syncQueue.append(filechange)
     finally:
       self._lock.release()
 
@@ -275,8 +275,8 @@ class SyncLog(object):
     try:
       self._lock.acquire()
 
-      syncitem = tsumufs.SyncItem('link', inum=inum, filename=filename)
-      self._syncQueue.append(syncitem)
+      filechange = tsumufs.FileChange('link', inum=inum, filename=filename)
+      self._syncQueue.append(filechange)
     finally:
       self._lock.release()
 
@@ -340,11 +340,11 @@ class SyncLog(object):
               # renames with a single unlink of the original filename and
               # achieve the same result.
 
-      # Now add an additional syncitem to the queue to represent the unlink if
+      # Now add an additional filechange to the queue to represent the unlink if
       # it wasn't a file that was created on the cache by the user.
       if not is_new_file:
-        syncitem = tsumufs.SyncItem('unlink', file_type=type_, filename=filename)
-        self._syncQueue.append(syncitem)
+        filechange = tsumufs.FileChange('unlink', file_type=type_, filename=filename)
+        self._syncQueue.append(filechange)
 
     finally:
       self._lock.release()
@@ -354,34 +354,34 @@ class SyncLog(object):
       self._lock.acquire()
 
       if self._inodeChanges.has_key(inum):
-        inodechange = self._inodeChanges[inum]
+        datachange = self._inodeChanges[inum]
       else:
-        syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
-        self._syncQueue.append(syncitem)
-        inodechange = tsumufs.InodeChange()
+        filechange = tsumufs.FileChange('change', filename=fname, inum=inum)
+        self._syncQueue.append(filechange)
+        datachange = tsumufs.DataChange()
 
-        self._inodeChanges[inum] = inodechange
+        self._inodeChanges[inum] = datachange
 
-      inodechange.addDataChange(start, end, data)
+      datachange.addDataChange(start, end, data)
     finally:
       self._lock.release()
 
   def addMetadataChange(self, fname, inum):
     '''
-    Metadata changes are synced automatically when there is a SyncItem change
+    Metadata changes are synced automatically when there is a FileChange change
     for the file. So all we need to do here is represent the metadata changes
-    with a SyncItem and an empty InodeChange.
+    with a FileChange and an empty DataChange.
     '''
 
     try:
       self._lock.acquire()
 
       if not self._inodeChanges.has_key(inum):
-        syncitem = tsumufs.SyncItem('change', filename=fname, inum=inum)
-        self._syncQueue.append(syncitem)
+        filechange = tsumufs.FileChange('change', filename=fname, inum=inum)
+        self._syncQueue.append(filechange)
 
-        inodechange = tsumufs.InodeChange()
-        self._inodeChanges[inum] = inodechange
+        datachange = tsumufs.DataChange()
+        self._inodeChanges[inum] = datachange
 
     finally:
       self._lock.release()
@@ -395,8 +395,8 @@ class SyncLog(object):
             (change.getType() == 'change')):
           if self._inodeChanges.has_key(change.getInum()):
             logging.debug('Truncating data in %s' % repr(change))
-            inodechange = self._inodeChanges[change.getInum()]
-            inodechange.truncateLength(size)
+            datachange = self._inodeChanges[change.getInum()]
+            datachange.truncateLength(size)
 
     finally:
       self._lock.release()
@@ -413,9 +413,9 @@ class SyncLog(object):
               change._filename = new
               break
       else:
-        syncitem = tsumufs.SyncItem('rename', inum=inum,
+        filechange = tsumufs.FileChange('rename', inum=inum,
                                     old_fname=old, new_fname=new)
-        self._syncQueue.append(syncitem)
+        self._syncQueue.append(filechange)
 
     finally:
       self._lock.release()
@@ -425,7 +425,7 @@ class SyncLog(object):
 
     try:
       try:
-        syncitem = self._syncQueue[0]
+        filechange = self._syncQueue[0]
       except KeyError, e:
         raise
     finally:
@@ -434,41 +434,41 @@ class SyncLog(object):
     change = None
 
     # Grab the associated inode changes if there are any.
-    if syncitem.getType() == 'change':
-      if self._inodeChanges.has_key(syncitem.getInum()):
-        change = self._inodeChanges[syncitem.getInum()]
-        del self._inodeChanges[syncitem.getInum()]
+    if filechange.getType() == 'change':
+      if self._inodeChanges.has_key(filechange.getInum()):
+        change = self._inodeChanges[filechange.getInum()]
+        del self._inodeChanges[filechange.getInum()]
 
     # Ensure the appropriate locks are locked
-    if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
-      tsumufs.cacheManager.lockFile(syncitem.getFilename())
-      tsumufs.nfsMount.lockFile(syncitem.getFilename())
+    if filechange.getType() in ('new', 'link', 'unlink', 'change'):
+      tsumufs.cacheManager.lockFile(filechange.getFilename())
+      tsumufs.nfsMount.lockFile(filechange.getFilename())
 
-    elif syncitem.getType() in ('rename'):
-      tsumufs.cacheManager.lockFile(syncitem.getNewFilename())
-      tsumufs.nfsMount.lockFile(syncitem.getNewFilename())
-      tsumufs.cacheManager.lockFile(syncitem.getOldFilename())
-      tsumufs.nfsMount.lockFile(syncitem.getOldFilename())
+    elif filechange.getType() in ('rename'):
+      tsumufs.cacheManager.lockFile(filechange.getNewFilename())
+      tsumufs.nfsMount.lockFile(filechange.getNewFilename())
+      tsumufs.cacheManager.lockFile(filechange.getOldFilename())
+      tsumufs.nfsMount.lockFile(filechange.getOldFilename())
 
-    return (syncitem, change)
+    return (filechange, change)
 
-  def finishedWithChange(self, syncitem, remove_item=True):
+  def finishedWithChange(self, filechange, remove_item=True):
     self._lock.acquire()
 
     try:
       # Ensure the appropriate locks are unlocked
-      if syncitem.getType() in ('new', 'link', 'unlink', 'change'):
-        tsumufs.cacheManager.unlockFile(syncitem.getFilename())
-        tsumufs.nfsMount.unlockFile(syncitem.getFilename())
-      elif syncitem.getType() in ('rename'):
-        tsumufs.cacheManager.unlockFile(syncitem.getNewFilename())
-        tsumufs.nfsMount.unlockFile(syncitem.getNewFilename())
-        tsumufs.cacheManager.unlockFile(syncitem.getOldFilename())
-        tsumufs.nfsMount.unlockFile(syncitem.getOldFilename())
+      if filechange.getType() in ('new', 'link', 'unlink', 'change'):
+        tsumufs.cacheManager.unlockFile(filechange.getFilename())
+        tsumufs.nfsMount.unlockFile(filechange.getFilename())
+      elif filechange.getType() in ('rename'):
+        tsumufs.cacheManager.unlockFile(filechange.getNewFilename())
+        tsumufs.nfsMount.unlockFile(filechange.getNewFilename())
+        tsumufs.cacheManager.unlockFile(filechange.getOldFilename())
+        tsumufs.nfsMount.unlockFile(filechange.getOldFilename())
 
       # Remove the item from the worklog.
       if remove_item:
-        self._syncQueue.remove(syncitem)
+        self._syncQueue.remove(filechange)
 
     finally:
       self._lock.release()
