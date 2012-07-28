@@ -10,11 +10,7 @@ include /usr/share/cdbs/1/rules/debhelper.mk
 include /usr/share/cdbs/1/class/python-distutils.mk
 
 configure/tsumufs::
-	perl -i -pe "s/^development_mode = True$$/development_mode = False/" src/tsumufs
-	perl -i -pe "s/^libpath = ''$$/libpath = '\/usr\/lib'/" src/tsumufs
 	perl -i -pe "s|\.\./icons|/usr/share/tsumufs/icons|" utils/tsumufs-applet
 
 clean::
-	perl -i -pe 's/^development_mode = False$$/development_mode = True/' src/tsumufs
-	perl -i -pe "s/^libpath = .*$$/libpath = ''/" src/tsumufs
 	perl -i -pe "s|/usr/share/tsumufs/icons|\.\./icons|" utils/tsumufs-applet

@@ -18,66 +18,39 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 '''
-TsumuFS, a NFS-based caching filesystem.
+TsumuFS, an overlay caching filesystem.
 
-This file contains the startup code that launches into the FuseThread
-class. See that module for more details.
+This file contains the startup code that launches the fuse filesystem via
+the TsumuFS Operations subclass.
 '''
 
-import os
-import os.path
-import sys
-import syslog
-import traceback
-
 import fuse
-
-development_mode = True
-libpath = ''
-
-if development_mode == True:
-  libpath = os.path.abspath(sys.argv[0])
-  libpath = os.path.dirname(libpath)
-  libpath = os.path.join(libpath, '../lib')
-
-sys.path.insert(0,libpath)
-
 import tsumufs
+import argparse
+import os
 
+parser = argparse.ArgumentParser()
+parser.add_argument('basedir')
+parser.add_argument('mountpoint')
+parser.add_argument('--cachedir', default=None)
+parser.add_argument('--specfile', default=os.path.expanduser('~/.tsumufsrc'))
+parser.add_argument('-f', '--foreground', default=False)
+parser.add_argument('-d', '--debug', default=False)
+parser.add_argument('-s', '--nothreads', default=False)
 
 def main():
-  # Grab the name of this program from the zeroth argument and make
-  # sure it's just the last part of the name if there's a path.
-  tsumufs.progName = sys.argv[0].split('/')[-1]
-
-  # Add in the calling users' username via the USER environment
-  # variable if it's set.
-  if os.environ.has_key('USER'):
-    tsumufs.progName += '(' + os.environ['USER'] + ')'
-
-  # Verify that we're using a fuse-python version new enough to know
-  # about __version__. Bail if otherwise.
-  if not hasattr(fuse, '__version__'):
-    raise RuntimeError, ('Your fuse-python version is too old. Please '
-                         'upgrade to v0.2 at the minimum.')
-
-  # Assert we have initialization and stateful file support in fuse
-  # itself.
-  fuse.feature_assert('stateful_files', 'has_init')
-
-  # Force the API to use the current version.
-  fuse.fuse_python_api = fuse.FUSE_PYTHON_API_VERSION
-
-  # Setup our first thread, and parse our command line options.
-  server = tsumufs.FuseThread()
-  server.parseCommandLine()
-
-  # Install our custom exception handler so that any exceptions are
-  # output to the syslog rather than to /dev/null.
-  sys.excepthook = tsumufs.syslogExceptHook
-
-  # Go!
-  server.main()
+    args = parser.parse_args()
+    args.mountpoint = args.mountpoint.rstrip('/')
+    args.basedir = args.basedir.rstrip('/')
+    if not args.cachedir:
+        args.cachedir = '/var/cache/tsumufs/%s-%s' % (args.basedir.replace('/', '-'), args.mountpoint.replace('/', '-')
+    fusefs = fuse.FUSE(
+        tsumufs.TsumuFS(basedir=args.basedir, cachedir=args.cachedir, specfile=args.specfile),
+        args.mountpoint,
+        foreground = args.foreground,
+        debug = args.debug,
+        nothreads = args.nothreads,
+    )
 
 if __name__ == '__main__':
-  main()
+    main()
